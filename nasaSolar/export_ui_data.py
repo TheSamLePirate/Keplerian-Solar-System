@@ -126,9 +126,13 @@ VISUAL_DATA = {
     "saturn": {
         "name": "Saturn",
         "type": "planet",
-        "color": "#FFEAA7",
-        "atmosphereColor": "#F4D03F",
+        "color": "#EAD6B8",
+        "atmosphereColor": "#D4C2AD",
         "radius": 9.45,
+        "textureUrl": "/textures/saturn_daymap.jpg",
+        "ringMapUrl": "/textures/saturn_ring.png",
+        "ringInnerRadius": 1.2,
+        "ringOuterRadius": 2.3,
         "description": "Adorned with a dazzling, complex system of icy rings.",
         "rotationPeriod": 10.66,
         "axialTilt": 26.73
@@ -399,9 +403,14 @@ def generate_ts_object(data, elements, moons_content=None):
     if "specularMapUrl" in data:
         s += f'{indent}specularMapUrl: "{data["specularMapUrl"]}",\n'
     s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
+    s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
     s += f'{indent}axialTilt: {data["axialTilt"]},\n'
     if "rotationOffset" in data:
         s += f'{indent}rotationOffset: {data["rotationOffset"]},\n'
+    if "ringMapUrl" in data:
+        s += f'{indent}ringMapUrl: "{data["ringMapUrl"]}",\n'
+        s += f'{indent}ringInnerRadius: {data["ringInnerRadius"]},\n'
+        s += f'{indent}ringOuterRadius: {data["ringOuterRadius"]},\n'
     s += f'{indent}description: "{data["description"]}",\n'
     s += f'{indent}period: {elements["period"]:.4f},\n'
     s += f'{indent}elements: {{\n'

@@ -9,7 +9,7 @@ export interface OrbitalElements {
   meanLongitude: number; // L (degrees) at epoch J2000
 }
 
-export type BodyType = 'star' | 'planet' | 'moon' | 'dwarf';
+export type BodyType = 'star' | 'planet' | 'moon' | 'dwarf' | 'satellite';
 
 export interface PlanetData {
   id: string;
@@ -20,6 +20,9 @@ export interface PlanetData {
   textureUrl?: string;
   normalMapUrl?: string;
   specularMapUrl?: string;
+  ringMapUrl?: string;
+  ringInnerRadius?: number; // Relative to planet radius (e.g. 1.1)
+  ringOuterRadius?: number; // Relative to planet radius (e.g. 2.0)
   description: string;
   elements: OrbitalElements;
   period: number; // Orbital period in Earth years

@@ -289,7 +289,7 @@ const Planet: React.FC<PlanetProps> = ({
 
 
     // Texture Loading
-    const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null }>({ map: null, normal: null, specular: null });
+    const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null, ring: THREE.Texture | null }>({ map: null, normal: null, specular: null, ring: null });
 
     React.useEffect(() => {
         if (data.textureUrl) {
@@ -311,7 +311,14 @@ const Planet: React.FC<PlanetProps> = ({
                 setTextures(prev => ({ ...prev, specular: tex }));
             });
         }
-    }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl]);
+        if (data.ringMapUrl) {
+            const loader = new THREE.TextureLoader();
+            loader.load(data.ringMapUrl, (tex) => {
+                tex.colorSpace = THREE.SRGBColorSpace;
+                setTextures(prev => ({ ...prev, ring: tex }));
+            });
+        }
+    }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl, data.ringMapUrl]);
 
     useFrame((state) => {
         if (groupRef.current) {
@@ -431,6 +438,40 @@ const Planet: React.FC<PlanetProps> = ({
                                 map={undefined}
                                 normalMap={undefined}
                             />
+                        )}
+
+                        {/* Ring System */}
+                        {loadedTextures.ring && data.ringInnerRadius && data.ringOuterRadius && (
+                            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow castShadow>
+                                <ringGeometry
+                                    args={[size * data.ringInnerRadius, size * data.ringOuterRadius, 64]}
+                                    onUpdate={(geom) => {
+                                        // Fix UVs for radial texture strip (1D radial gradient)
+                                        // Map Radius (inner->outer) to U (0->1)
+                                        const pos = geom.attributes.position;
+                                        const uv = geom.attributes.uv;
+                                        const v3 = new THREE.Vector3();
+                                        const inner = size * (data.ringInnerRadius || 1.2);
+                                        const outer = size * (data.ringOuterRadius || 2.5);
+
+                                        for (let i = 0; i < pos.count; i++) {
+                                            v3.fromBufferAttribute(pos, i);
+                                            const len = v3.length();
+                                            const u = (len - inner) / (outer - inner);
+                                            // V is irrelevant for 1D strip, mostly
+                                            uv.setXY(i, u, 0.5);
+                                        }
+                                        uv.needsUpdate = true;
+                                    }}
+                                />
+                                <meshStandardMaterial
+                                    map={loadedTextures.ring}
+                                    side={THREE.DoubleSide}
+                                    transparent
+                                    color={0xffffff} // Ensure no tinting
+                                    opacity={1.0}
+                                />
+                            </mesh>
                         )}
 
                         {(showLabel || hovered || isSelected) && (
