@@ -18,9 +18,13 @@ export interface PlanetData {
   atmosphereColor?: string; // Color of the atmosphere scatter (Rayleigh)
   radius: number; // Relative size (Earth = 1)
   textureUrl?: string;
+  normalMapUrl?: string;
+  specularMapUrl?: string;
   description: string;
   elements: OrbitalElements;
   period: number; // Orbital period in Earth years
+  rotationPeriod: number; // Sidereal rotation period in hours (Earth = 23.93)
+  axialTilt: number; // Obliquity to orbit in degrees (Earth = 23.44)
   type: BodyType;
   moons?: PlanetData[];
 }

@@ -25,7 +25,9 @@ VISUAL_DATA = {
         "type": "planet",
         "color": "#A5A5A5",
         "radius": 0.38,
-        "description": "The smallest planet in the Solar System and the closest to the Sun."
+        "description": "The smallest planet in the Solar System and the closest to the Sun.",
+        "rotationPeriod": 1407.6,
+        "axialTilt": 0.03
     },
     "venus": {
         "name": "Venus",
@@ -33,7 +35,9 @@ VISUAL_DATA = {
         "color": "#E3BB76",
         "atmosphereColor": "#FFA500",
         "radius": 0.95,
-        "description": "The second planet from the Sun. It has a thick atmosphere that traps heat."
+        "description": "The second planet from the Sun. It has a thick atmosphere that traps heat.",
+        "rotationPeriod": -5832.5,
+        "axialTilt": 177.3
     },
     "earth": {
         "name": "Earth",
@@ -41,14 +45,21 @@ VISUAL_DATA = {
         "color": "#22A6B3",
         "atmosphereColor": "#4CA6FF",
         "radius": 1.0,
-        "description": "Our home. The only known planet to support life."
+        "description": "Our home. The only known planet to support life.",
+        "rotationPeriod": 23.93,
+        "axialTilt": 23.44,
+        "textureUrl": "/textures/earth_daymap.jpg",
+        "normalMapUrl": "/textures/earth_normal.jpg",
+        "specularMapUrl": "/textures/earth_specular.jpg"
     },
     "moon": { # Earth's Moon
         "name": "Moon",
         "type": "moon",
         "color": "#DDDDDD",
         "radius": 0.273,
-        "description": "Earth's only natural satellite."
+        "description": "Earth's only natural satellite.",
+        "rotationPeriod": 655.7,
+        "axialTilt": 6.68
     },
     "mars": {
         "name": "Mars",
@@ -56,7 +67,9 @@ VISUAL_DATA = {
         "color": "#FF6B6B",
         "atmosphereColor": "#C1440E",
         "radius": 0.53,
-        "description": "The Red Planet. Dusty, cold, desert world with a very thin atmosphere."
+        "description": "The Red Planet. Dusty, cold, desert world with a very thin atmosphere.",
+        "rotationPeriod": 24.62,
+        "axialTilt": 25.19
     },
     "jupiter": {
         "name": "Jupiter",
@@ -64,35 +77,45 @@ VISUAL_DATA = {
         "color": "#D4A373",
         "atmosphereColor": "#C6A584",
         "radius": 11.2,
-        "description": "The largest planet in the Solar System. A gas giant with a Great Red Spot."
+        "description": "The largest planet in the Solar System. A gas giant with a Great Red Spot.",
+        "rotationPeriod": 9.93,
+        "axialTilt": 3.13
     },
     "io": {
         "name": "Io",
         "type": "moon",
         "color": "#F4D03F",
         "radius": 0.286,
-        "description": "The most geologically active body in the Solar System."
+        "description": "The most geologically active body in the Solar System.",
+        "rotationPeriod": 42.46,
+        "axialTilt": 0.0
     },
     "europa": {
         "name": "Europa",
         "type": "moon",
         "color": "#C39BD3",
         "radius": 0.245,
-        "description": "An icy moon with a subsurface ocean."
+        "description": "An icy moon with a subsurface ocean.",
+        "rotationPeriod": 85.22,
+        "axialTilt": 0.0
     },
     "ganymede": {
         "name": "Ganymede",
         "type": "moon",
         "color": "#AAB7B8",
         "radius": 0.413,
-        "description": "The largest moon in the Solar System."
+        "description": "The largest moon in the Solar System.",
+        "rotationPeriod": 171.7,
+        "axialTilt": 0.0
     },
     "callisto": {
         "name": "Callisto",
         "type": "moon",
         "color": "#566573",
         "radius": 0.378,
-        "description": "One of the most heavily cratered objects in the Solar System."
+        "description": "One of the most heavily cratered objects in the Solar System.",
+        "rotationPeriod": 400.5,
+        "axialTilt": 0.0
     },
     "saturn": {
         "name": "Saturn",
@@ -100,7 +123,9 @@ VISUAL_DATA = {
         "color": "#FFEAA7",
         "atmosphereColor": "#F4D03F",
         "radius": 9.45,
-        "description": "Adorned with a dazzling, complex system of icy rings."
+        "description": "Adorned with a dazzling, complex system of icy rings.",
+        "rotationPeriod": 10.66,
+        "axialTilt": 26.73
     },
     "uranus": {
         "name": "Uranus",
@@ -108,7 +133,9 @@ VISUAL_DATA = {
         "color": "#74B9FF",
         "atmosphereColor": "#A0E4FF",
         "radius": 4.0,
-        "description": "An ice giant with a unique tilt, rotating on its side."
+        "description": "An ice giant with a unique tilt, rotating on its side.",
+        "rotationPeriod": -17.24,
+        "axialTilt": 97.77
     },
     "neptune": {
         "name": "Neptune",
@@ -116,7 +143,9 @@ VISUAL_DATA = {
         "color": "#0984E3",
         "atmosphereColor": "#4b70dd",
         "radius": 3.88,
-        "description": "The most distant major planet. Dark, cold, and whipped by supersonic winds."
+        "description": "The most distant major planet. Dark, cold, and whipped by supersonic winds.",
+        "rotationPeriod": 16.11,
+        "axialTilt": 28.32
     }
 }
 
@@ -357,6 +386,14 @@ def generate_ts_object(data, elements, moons_content=None):
     if "atmosphereColor" in data:
         s += f'{indent}atmosphereColor: "{data["atmosphereColor"]}",\n'
     s += f'{indent}radius: {data["radius"]},\n'
+    if "textureUrl" in data:
+        s += f'{indent}textureUrl: "{data["textureUrl"]}",\n'
+    if "normalMapUrl" in data:
+        s += f'{indent}normalMapUrl: "{data["normalMapUrl"]}",\n'
+    if "specularMapUrl" in data:
+        s += f'{indent}specularMapUrl: "{data["specularMapUrl"]}",\n'
+    s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
+    s += f'{indent}axialTilt: {data["axialTilt"]},\n'
     s += f'{indent}description: "{data["description"]}",\n'
     s += f'{indent}period: {elements["period"]:.4f},\n'
     s += f'{indent}elements: {{\n'

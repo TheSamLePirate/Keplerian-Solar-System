@@ -2,6 +2,7 @@ import React, { useRef, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
+import { TextureLoader } from "three";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 import { PLANET_SCALE, MOON_ORBIT_SCALE } from "../constants";
@@ -39,7 +40,7 @@ const AtmosphereMaterial = {
     uniform float densityFalloff; 
     uniform float intensity;      
 
-    #define SAMPLES 16
+    #define SAMPLES 8
     #define PI 3.14159265359
 
     // Ray-Sphere intersection with sphere centered at (0,0,0)
@@ -230,14 +231,106 @@ const Planet: React.FC<PlanetProps> = ({
     const tempVec = useMemo(() => new THREE.Vector3(), []);
     const tempSun = useMemo(() => new THREE.Vector3(), []);
 
+    // Grid Texture Generation
+    const gridTexture = useMemo(() => {
+        if (data.id !== 'earth') return null;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        // Transparent background
+        ctx.fillStyle = 'rgba(0,0,0,0)';
+        ctx.fillRect(0, 0, 1024, 512);
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+
+        // Longitude lines (every 30 degrees)
+        for (let i = 0; i <= 12; i++) {
+            const x = (i / 12) * 1024;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, 512);
+            ctx.stroke();
+
+            // Labels
+            if (i < 12) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.font = '12px Arial';
+                ctx.fillText(`${i * 30}°`, x + 5, 256);
+            }
+        }
+
+        // Latitude lines (every 30 degrees)
+        for (let i = 0; i <= 6; i++) {
+            const y = (i / 6) * 512;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(1024, y);
+            ctx.stroke();
+
+            // Labels
+            if (i > 0 && i < 6) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.font = '12px Arial';
+                const lat = 90 - (i * 30);
+                ctx.fillText(`${lat}°`, 512, y - 5);
+            }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }, [data.id]);
+
+
+
+    // Texture Loading
+    const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null }>({ map: null, normal: null, specular: null });
+
+    React.useEffect(() => {
+        if (data.textureUrl) {
+            const loader = new THREE.TextureLoader();
+            loader.load(data.textureUrl, (tex) => {
+                tex.colorSpace = THREE.SRGBColorSpace;
+                setTextures(prev => ({ ...prev, map: tex }));
+            });
+        }
+        if (data.normalMapUrl) {
+            const loader = new THREE.TextureLoader();
+            loader.load(data.normalMapUrl, (tex) => {
+                setTextures(prev => ({ ...prev, normal: tex }));
+            });
+        }
+        if (data.specularMapUrl) {
+            const loader = new THREE.TextureLoader();
+            loader.load(data.specularMapUrl, (tex) => {
+                setTextures(prev => ({ ...prev, specular: tex }));
+            });
+        }
+    }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl]);
+
     useFrame((state) => {
         if (groupRef.current) {
             // 1. Update Planet Position
             groupRef.current.position.copy(position);
 
-            // 2. Rotate Planet
+            // 2. Rotate Planet (Spin)
+            // Spin around LOCAL Y axis (which is tilted by parent group)
             if (meshRef.current) {
-                meshRef.current.rotation.y += 0.01 / (data.period > 0.1 ? data.period : 1);
+                // Calculate rotation angle based on simulated time
+                // rotationPeriod is in hours. time is in days.
+                // Angle = (time_days * 24 / period_hours) * 2PI (radians)
+                if (data.rotationPeriod && data.rotationPeriod !== 0) {
+                    const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2;
+                    meshRef.current.rotation.y = rotationAngle;
+                } else {
+                    // Fallback default rotation
+                    meshRef.current.rotation.y += 0.01 / (data.period > 0.1 ? data.period : 1);
+                }
             }
 
             // 3. Update Matrix World immediately
@@ -269,6 +362,12 @@ const Planet: React.FC<PlanetProps> = ({
         }
     });
 
+    // Axial Tilt Quaternion (Static)
+    // Tilt around X axis seems appropriate for standard Y-up geometry in XZ orbit plane.
+    const tiltRotation = useMemo(() => {
+        return new THREE.Euler(THREE.MathUtils.degToRad(data.axialTilt || 0), 0, 0);
+    }, [data.axialTilt]);
+
     return (
         <>
             {showOrbit && (
@@ -282,50 +381,70 @@ const Planet: React.FC<PlanetProps> = ({
             )}
 
             <group ref={groupRef}>
-                {/* Atmosphere Mesh (Outer Shell) */}
-                {hasAtmosphere && !isMoon && (
-                    <mesh>
-                        {/* Geometry matches atmRadius exactly */}
-                        <sphereGeometry args={[atmRadius, 64, 64]} />
-                        <shaderMaterial
-                            ref={atmMaterialRef}
-                            vertexShader={AtmosphereMaterial.vertexShader}
-                            fragmentShader={AtmosphereMaterial.fragmentShader}
-                            uniforms={uniforms}
-                            blending={THREE.AdditiveBlending}
-                            side={THREE.FrontSide}
-                            transparent
-                            depthWrite={false}
-                        />
-                    </mesh>
-                )}
+                <group rotation={tiltRotation}>
+                    {/* Atmosphere Mesh (Outer Shell) */}
+                    {hasAtmosphere && !isMoon && (
+                        <mesh>
+                            {/* Geometry matches atmRadius exactly */}
+                            <sphereGeometry args={[atmRadius, 64, 64]} />
+                            <shaderMaterial
+                                ref={atmMaterialRef}
+                                vertexShader={AtmosphereMaterial.vertexShader}
+                                fragmentShader={AtmosphereMaterial.fragmentShader}
+                                uniforms={uniforms}
+                                blending={THREE.AdditiveBlending}
+                                side={THREE.FrontSide}
+                                transparent
+                                depthWrite={false}
+                            />
+                        </mesh>
+                    )}
 
-                <mesh
-                    ref={meshRef}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(data);
-                    }}
-                    onPointerOver={() => setHover(true)}
-                    onPointerOut={() => setHover(false)}
-                    castShadow
-                    receiveShadow
-                >
-                    <sphereGeometry args={[size, 64, 64]} />
-                    <meshStandardMaterial {...materialProps} />
+                    <mesh
+                        ref={meshRef}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect(data);
+                        }}
+                        onPointerOver={() => setHover(true)}
+                        onPointerOut={() => setHover(false)}
+                        castShadow
+                        receiveShadow
+                    >
+                        <sphereGeometry args={[size, 64, 64]} />
+                        {loadedTextures.specular ? (
+                            <meshPhongMaterial
+                                color="white"
+                                map={loadedTextures.map || gridTexture || undefined}
+                                normalMap={loadedTextures.normal || undefined}
+                                normalScale={new THREE.Vector2(1, 1)}
+                                specularMap={loadedTextures.specular}
+                                specular={new THREE.Color('grey')}
+                                shininess={50}
+                            />
+                        ) : (
+                            <meshStandardMaterial
+                                {...materialProps}
+                                color={loadedTextures.map ? 'white' : materialProps.color}
+                                map={loadedTextures.map || gridTexture || undefined}
+                                normalMap={loadedTextures.normal || undefined}
+                                normalScale={new THREE.Vector2(1, 1)}
+                            />
+                        )}
 
-                    {(showLabel || hovered || isSelected) && (
-                        <Html position={[0, size * 1.5, 0]}>
-                            <div
-                                className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap
+                        {(showLabel || hovered || isSelected) && (
+                            <Html position={[0, size * 1.5, 0]}>
+                                <div
+                                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap
                             ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-black/50 text-white border border-white/20'}
                             `}
-                            >
-                                {data.name}
-                            </div>
-                        </Html>
-                    )}
-                </mesh>
+                                >
+                                    {data.name}
+                                </div>
+                            </Html>
+                        )}
+                    </mesh>
+                </group>
 
                 {data.moons && data.moons.map((moon) => (
                     <Planet
