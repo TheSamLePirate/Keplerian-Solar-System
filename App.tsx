@@ -9,7 +9,7 @@ const App: React.FC = () => {
     // Simulation State
     const [speedLog, setSpeedLog] = useState(50); // Slider 0-100
     const [paused, setPaused] = useState(false);
-    const [scaleFactor, setScaleFactor] = useState(0.1);
+    const [scaleFactor, setScaleFactor] = useState(0.5);
     const [showOrbits, setShowOrbits] = useState(true);
     const [showLabels, setShowLabels] = useState(true);
 
