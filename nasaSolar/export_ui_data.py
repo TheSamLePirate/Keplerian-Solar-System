@@ -70,6 +70,8 @@ VISUAL_DATA = {
         "color": "#FF6B6B",
         "atmosphereColor": "#C1440E",
         "radius": 0.53,
+        "textureUrl": "/textures/mars_daymap.jpg",
+        "normalMapUrl": "/textures/mars_normal.jpg",
         "description": "The Red Planet. Dusty, cold, desert world with a very thin atmosphere.",
         "rotationPeriod": 24.62,
         "axialTilt": 25.19
@@ -80,6 +82,7 @@ VISUAL_DATA = {
         "color": "#D4A373",
         "atmosphereColor": "#C6A584",
         "radius": 11.2,
+        "textureUrl": "/textures/jupiter_daymap.jpg",
         "description": "The largest planet in the Solar System. A gas giant with a Great Red Spot.",
         "rotationPeriod": 9.93,
         "axialTilt": 3.13

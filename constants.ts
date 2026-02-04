@@ -6,7 +6,7 @@ export const PLANET_SCALE = 0.5; // Base visual scale for planets
 export const MOON_ORBIT_SCALE = 30.0; // Visual exaggeration for moon orbits
 
 // Simulation Epoch (Start derived from Python export time)
-export const SIMULATION_EPOCH = new Date("2026-02-04T02:39:34Z").getTime();
+export const SIMULATION_EPOCH = new Date("2026-02-04T02:49:37Z").getTime();
 
 // Orbital elements computed from Skyfield for current epoch
 export const PLANETS: PlanetData[] = [
@@ -26,7 +26,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 7.0054,
       ascendingNode: 48.6424,
       perihelion: 29.2230,
-      meanLongitude: 15.1106,
+      meanLongitude: 15.1392,
     },
   },
   {
@@ -46,7 +46,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 3.3949,
       ascendingNode: 76.9166,
       perihelion: 54.9556,
-      meanLongitude: 331.6290,
+      meanLongitude: 331.6402,
     },
   },
   {
@@ -61,16 +61,16 @@ export const PLANETS: PlanetData[] = [
     specularMapUrl: "/textures/earth_specular.jpg",
     rotationPeriod: 23.93,
     axialTilt: 23.44,
-    rotationOffset: 3.039926516670688,
+    rotationOffset: 3.0838932132615824,
     description: "Our home. The only known planet to support life.",
     period: 1.0000,
     elements: {
       semiMajorAxis: 1.000002,
       eccentricity: 0.016673,
       inclination: 0.0000,
-      ascendingNode: 158.0989,
-      perihelion: 305.2579,
-      meanLongitude: 134.2866,
+      ascendingNode: 158.0946,
+      perihelion: 305.2622,
+      meanLongitude: 134.2935,
     },
     moons: [
   {
@@ -83,16 +83,16 @@ export const PLANETS: PlanetData[] = [
     normalMapUrl: "/textures/moon_normal.jpg",
     rotationPeriod: 655.7,
     axialTilt: 6.68,
-    rotationOffset: 5.872294242316643,
+    rotationOffset: 5.873869310932498,
     description: "Earth's only natural satellite.",
     period: 0.0769,
     elements: {
       semiMajorAxis: 0.002609,
-      eccentricity: 0.062495,
+      eccentricity: 0.062480,
       inclination: 5.2385,
       ascendingNode: 339.0343,
-      perihelion: 112.3808,
-      meanLongitude: 156.4577,
+      perihelion: 112.3629,
+      meanLongitude: 156.5479,
     },
   },
     ]
@@ -104,6 +104,8 @@ export const PLANETS: PlanetData[] = [
     color: "#FF6B6B",
     atmosphereColor: "#C1440E",
     radius: 0.53,
+    textureUrl: "/textures/mars_daymap.jpg",
+    normalMapUrl: "/textures/mars_normal.jpg",
     rotationPeriod: 24.62,
     axialTilt: 25.19,
     description: "The Red Planet. Dusty, cold, desert world with a very thin atmosphere.",
@@ -114,7 +116,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 1.8495,
       ascendingNode: 49.7629,
       perihelion: 286.7084,
-      meanLongitude: 310.1700,
+      meanLongitude: 310.1736,
     },
   },
   {
@@ -124,6 +126,7 @@ export const PLANETS: PlanetData[] = [
     color: "#D4A373",
     atmosphereColor: "#C6A584",
     radius: 11.2,
+    textureUrl: "/textures/jupiter_daymap.jpg",
     rotationPeriod: 9.93,
     axialTilt: 3.13,
     description: "The largest planet in the Solar System. A gas giant with a Great Red Spot.",
@@ -134,7 +137,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 1.3027,
       ascendingNode: 100.7400,
       perihelion: 274.8102,
-      meanLongitude: 106.6433,
+      meanLongitude: 106.6439,
     },
     moons: [
   {
@@ -149,11 +152,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0048,
     elements: {
       semiMajorAxis: 0.002821,
-      eccentricity: 0.003831,
+      eccentricity: 0.003841,
       inclination: 2.2123,
       ascendingNode: 338.8908,
-      perihelion: 215.9559,
-      meanLongitude: 72.7793,
+      perihelion: 215.8617,
+      meanLongitude: 74.1993,
     },
   },
   {
@@ -168,11 +171,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0097,
     elements: {
       semiMajorAxis: 0.004487,
-      eccentricity: 0.009455,
+      eccentricity: 0.009453,
       inclination: 2.1452,
       ascendingNode: 326.3453,
-      perihelion: 54.8643,
-      meanLongitude: 136.2475,
+      perihelion: 54.8657,
+      meanLongitude: 136.9549,
     },
   },
   {
@@ -187,11 +190,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0196,
     elements: {
       semiMajorAxis: 0.007154,
-      eccentricity: 0.001753,
+      eccentricity: 0.001751,
       inclination: 2.3428,
-      ascendingNode: 339.6022,
-      perihelion: 346.4577,
-      meanLongitude: 257.9265,
+      ascendingNode: 339.6021,
+      perihelion: 346.4192,
+      meanLongitude: 258.2775,
     },
   },
   {
@@ -206,11 +209,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0457,
     elements: {
       semiMajorAxis: 0.012586,
-      eccentricity: 0.007178,
+      eccentricity: 0.007176,
       inclination: 1.9551,
       ascendingNode: 337.0991,
-      perihelion: 34.6154,
-      meanLongitude: 105.0533,
+      perihelion: 34.6269,
+      meanLongitude: 105.2040,
     },
   },
     ]
@@ -232,7 +235,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 2.4863,
       ascendingNode: 113.9298,
       perihelion: 338.0195,
-      meanLongitude: 9.4190,
+      meanLongitude: 9.4193,
     },
   },
   {
@@ -247,12 +250,12 @@ export const PLANETS: PlanetData[] = [
     description: "An ice giant with a unique tilt, rotating on its side.",
     period: 84.6706,
     elements: {
-      semiMajorAxis: 19.281891,
+      semiMajorAxis: 19.281890,
       eccentricity: 0.046911,
       inclination: 0.7735,
       ascendingNode: 74.1334,
-      perihelion: 91.6847,
-      meanLongitude: 65.5202,
+      perihelion: 91.6848,
+      meanLongitude: 65.5203,
     },
   },
   {
@@ -267,12 +270,12 @@ export const PLANETS: PlanetData[] = [
     description: "The most distant major planet. Dark, cold, and whipped by supersonic winds.",
     period: 165.2293,
     elements: {
-      semiMajorAxis: 30.110591,
+      semiMajorAxis: 30.110590,
       eccentricity: 0.010997,
       inclination: 1.7681,
       ascendingNode: 132.0918,
-      perihelion: 276.7579,
-      meanLongitude: 2.5024,
+      perihelion: 276.7581,
+      meanLongitude: 2.5025,
     },
   },
 ];
