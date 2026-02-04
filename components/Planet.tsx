@@ -325,7 +325,10 @@ const Planet: React.FC<PlanetProps> = ({
                 // rotationPeriod is in hours. time is in days.
                 // Angle = (time_days * 24 / period_hours) * 2PI (radians)
                 if (data.rotationPeriod && data.rotationPeriod !== 0) {
-                    const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2;
+                    // Calculate rotation angle
+                    // Add initial phase offset from Mean Longitude to align texture (approx tidal locking)
+                    const initialOffset = data.elements.meanLongitude ? THREE.MathUtils.degToRad(data.elements.meanLongitude) + Math.PI : 0;
+                    const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2 + initialOffset;
                     meshRef.current.rotation.y = rotationAngle;
                 } else {
                     // Fallback default rotation
