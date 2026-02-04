@@ -21,6 +21,8 @@ interface ControlsProps {
     setAtmOpacity: (v: number) => void;
     atmPow: number;
     setAtmPow: (v: number) => void;
+    atmSamples: number;
+    setAtmSamples: (v: number) => void;
     // New Controls
     onResetTime: () => void;
     onResetCamera: () => void;
@@ -39,6 +41,59 @@ interface ControlsProps {
     // ISS Model Selection
     issModel: 'small' | 'big';
     setIssModel: (m: 'small' | 'big') => void;
+    // Post-processing
+    bloomThreshold: number;
+    setBloomThreshold: (v: number) => void;
+    bloomIntensity: number;
+    setBloomIntensity: (v: number) => void;
+    bloomRadius: number;
+    setBloomRadius: (v: number) => void;
+    noiseOpacity: number;
+    setNoiseOpacity: (v: number) => void;
+    vignetteDarkness: number;
+    setVignetteDarkness: (v: number) => void;
+    vignetteOffset: number;
+    setVignetteOffset: (v: number) => void;
+    chromaticAberrationOffset: number;
+    setChromaticAberrationOffset: (v: number) => void;
+    brightness: number;
+    setBrightness: (v: number) => void;
+    contrast: number;
+    setContrast: (v: number) => void;
+    exposure: number;
+    setExposure: (v: number) => void;
+    bloomSmoothing: number;
+    setBloomSmoothing: (v: number) => void;
+    hue: number;
+    setHue: (v: number) => void;
+    saturation: number;
+    setSaturation: (v: number) => void;
+    // Hidden
+    bloomMipmapBlur: boolean;
+    setBloomMipmapBlur: (v: boolean) => void;
+    toneMappingAdaptive: boolean;
+    setToneMappingAdaptive: (v: boolean) => void;
+    vignetteEskil: boolean;
+    setVignetteEskil: (v: boolean) => void;
+    noisePremultiply: boolean;
+    setNoisePremultiply: (v: boolean) => void;
+    chromaticRadial: boolean;
+    setChromaticRadial: (v: boolean) => void;
+    chromaticModulation: number;
+    setChromaticModulation: (v: number) => void;
+    // Toggles
+    enableBloom: boolean;
+    setEnableBloom: (v: boolean) => void;
+    enableNoise: boolean;
+    setEnableNoise: (v: boolean) => void;
+    enableVignette: boolean;
+    setEnableVignette: (v: boolean) => void;
+    enableChromaticAberration: boolean;
+    setEnableChromaticAberration: (v: boolean) => void;
+    enableBrightnessContrast: boolean;
+    setEnableBrightnessContrast: (v: boolean) => void;
+    enableHueSaturation: boolean;
+    setEnableHueSaturation: (v: boolean) => void;
 }
 
 import { SIMULATION_EPOCH } from '../constants';
@@ -54,6 +109,7 @@ const Controls: React.FC<ControlsProps> = ({
     fps,
     atmOpacity, setAtmOpacity,
     atmPow, setAtmPow,
+    atmSamples, setAtmSamples,
     onResetTime,
     onResetCamera,
     ambientLight, setAmbientLight,
@@ -62,7 +118,32 @@ const Controls: React.FC<ControlsProps> = ({
     shadowRadius, setShadowRadius,
     renderScale, setRenderScale,
     starsCount, setStarsCount,
-    issModel, setIssModel
+    issModel, setIssModel,
+    bloomThreshold, setBloomThreshold,
+    bloomIntensity, setBloomIntensity,
+    bloomRadius, setBloomRadius,
+    noiseOpacity, setNoiseOpacity,
+    vignetteDarkness, setVignetteDarkness,
+    vignetteOffset, setVignetteOffset,
+    chromaticAberrationOffset, setChromaticAberrationOffset,
+    brightness, setBrightness,
+    contrast, setContrast,
+    exposure, setExposure,
+    bloomSmoothing, setBloomSmoothing,
+    hue, setHue,
+    saturation, setSaturation,
+    bloomMipmapBlur, setBloomMipmapBlur,
+    toneMappingAdaptive, setToneMappingAdaptive,
+    vignetteEskil, setVignetteEskil,
+    noisePremultiply, setNoisePremultiply,
+    chromaticRadial, setChromaticRadial,
+    chromaticModulation, setChromaticModulation,
+    enableBloom, setEnableBloom,
+    enableNoise, setEnableNoise,
+    enableVignette, setEnableVignette,
+    enableChromaticAberration, setEnableChromaticAberration,
+    enableBrightnessContrast, setEnableBrightnessContrast,
+    enableHueSaturation, setEnableHueSaturation
 }) => {
     // Start date is now dynamic based on Python export
     const baseDate = SIMULATION_EPOCH;
@@ -287,28 +368,26 @@ const Controls: React.FC<ControlsProps> = ({
                     <div className="flex gap-2">
                         <button
                             onClick={() => setIssModel('small')}
-                            className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${
-                                issModel === 'small'
-                                    ? 'bg-blue-600 border-blue-500 text-white'
-                                    : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
-                            }`}
+                            className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${issModel === 'small'
+                                ? 'bg-blue-600 border-blue-500 text-white'
+                                : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
+                                }`}
                         >
                             Small
                         </button>
                         <button
                             onClick={() => setIssModel('big')}
-                            className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${
-                                issModel === 'big'
-                                    ? 'bg-blue-600 border-blue-500 text-white'
-                                    : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
-                            }`}
+                            className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${issModel === 'big'
+                                ? 'bg-blue-600 border-blue-500 text-white'
+                                : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
+                                }`}
                         >
                             Detailed
                         </button>
                     </div>
                 </div>
 
-                {/* Atmosphere Controls (Collapsible or Block) */}
+                {/* Atmosphere Controls */}
                 <div className="flex flex-col gap-3 border-t border-white/10 pt-3">
                     <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Atmosphere Settings</div>
 
@@ -339,8 +418,363 @@ const Controls: React.FC<ControlsProps> = ({
                                 className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                             />
                         </div>
+                        <div className="flex flex-col gap-1">
+                            <div className="flex justify-between text-[10px] text-gray-400">
+                                <span>Quality (Samples)</span>
+                                <span>{atmSamples}</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="8" max="64" step="1"
+                                value={atmSamples}
+                                onChange={(e) => setAtmSamples(parseInt(e.target.value, 10))}
+                                className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
                     </div>
                 </div>
+
+                {/* Post-Processing Controls */}
+                <div className="flex flex-col gap-3 border-t border-white/10 pt-3">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Post-Processing</div>
+
+                    {/* Exposure */}
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Exposure</span>
+                            <span>{exposure.toFixed(2)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0" max="4" step="0.1"
+                            value={exposure}
+                            onChange={(e) => setExposure(parseFloat(e.target.value))}
+                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+
+                    <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
+                        <span>Adaptive Tone Mapping</span>
+                        <input
+                            type="checkbox"
+                            checked={toneMappingAdaptive}
+                            onChange={(e) => setToneMappingAdaptive(e.target.checked)}
+                            className="accent-blue-500"
+                        />
+                    </div>
+
+                    {/* Bloom */}
+                    <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
+                        <div className="flex justify-between items-center">
+                            <div className="text-[10px] uppercase text-gray-500 font-bold">Bloom</div>
+                            <input
+                                type="checkbox"
+                                checked={enableBloom}
+                                onChange={(e) => setEnableBloom(e.target.checked)}
+                                className="accent-blue-500 w-3 h-3"
+                            />
+                        </div>
+
+                        {enableBloom && (
+                            <>
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>Threshold</span>
+                                    <span>{bloomThreshold.toFixed(1)}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0" max="2" step="0.1"
+                                    value={bloomThreshold}
+                                    onChange={(e) => setBloomThreshold(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Intensity</span>
+                                        <span>{bloomIntensity.toFixed(1)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="3" step="0.1"
+                                        value={bloomIntensity}
+                                        onChange={(e) => setBloomIntensity(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Radius</span>
+                                        <span>{bloomRadius.toFixed(2)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="1" step="0.05"
+                                        value={bloomRadius}
+                                        onChange={(e) => setBloomRadius(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Smoothing</span>
+                                        <span>{bloomSmoothing.toFixed(2)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="1" step="0.05"
+                                        value={bloomSmoothing}
+                                        onChange={(e) => setBloomSmoothing(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+
+                                <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
+                                    <span>Mipmap Blur</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={bloomMipmapBlur}
+                                        onChange={(e) => setBloomMipmapBlur(e.target.checked)}
+                                        className="accent-blue-500"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Vignette */}
+                    <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
+                        <div className="flex justify-between items-center">
+                            <div className="text-[10px] uppercase text-gray-500 font-bold">Vignette</div>
+                            <input
+                                type="checkbox"
+                                checked={enableVignette}
+                                onChange={(e) => setEnableVignette(e.target.checked)}
+                                className="accent-blue-500 w-3 h-3"
+                            />
+                        </div>
+
+                        {enableVignette && (
+                            <>
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>Darkness</span>
+                                    <span>{vignetteDarkness.toFixed(1)}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0" max="1" step="0.05"
+                                    value={vignetteDarkness}
+                                    onChange={(e) => setVignetteDarkness(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Offset</span>
+                                        <span>{vignetteOffset.toFixed(2)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="1" step="0.05"
+                                        value={vignetteOffset}
+                                        onChange={(e) => setVignetteOffset(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+
+                                <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
+                                    <span>Eskil</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={vignetteEskil}
+                                        onChange={(e) => setVignetteEskil(e.target.checked)}
+                                        className="accent-blue-500"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Noise */}
+                    <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
+                        <div className="flex justify-between items-center">
+                            <div className="text-[10px] uppercase text-gray-500 font-bold">Noise</div>
+                            <input
+                                type="checkbox"
+                                checked={enableNoise}
+                                onChange={(e) => setEnableNoise(e.target.checked)}
+                                className="accent-blue-500 w-3 h-3"
+                            />
+                        </div>
+
+                        {enableNoise && (
+                            <>
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>Opacity</span>
+                                    <span>{noiseOpacity.toFixed(3)}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0" max="0.2" step="0.005"
+                                    value={noiseOpacity}
+                                    onChange={(e) => setNoiseOpacity(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
+                                    <span>Premultiply</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={noisePremultiply}
+                                        onChange={(e) => setNoisePremultiply(e.target.checked)}
+                                        className="accent-blue-500"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Chromatic Aberration */}
+                    <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
+                        <div className="flex justify-between items-center">
+                            <div className="text-[10px] uppercase text-gray-500 font-bold">Chromatic Aberration</div>
+                            <input
+                                type="checkbox"
+                                checked={enableChromaticAberration}
+                                onChange={(e) => setEnableChromaticAberration(e.target.checked)}
+                                className="accent-blue-500 w-3 h-3"
+                            />
+                        </div>
+
+                        {enableChromaticAberration && (
+                            <>
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>Offset</span>
+                                    <span>{chromaticAberrationOffset.toFixed(3)}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0" max="0.01" step="0.0001"
+                                    value={chromaticAberrationOffset}
+                                    onChange={(e) => setChromaticAberrationOffset(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Modulation</span>
+                                        <span>{chromaticModulation.toFixed(1)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="5" step="0.1"
+                                        value={chromaticModulation}
+                                        onChange={(e) => setChromaticModulation(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+
+                                <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
+                                    <span>Radial</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={chromaticRadial}
+                                        onChange={(e) => setChromaticRadial(e.target.checked)}
+                                        className="accent-blue-500"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Color & Tone */}
+                    <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
+                        <div className="text-[10px] uppercase text-gray-500 font-bold">Color & Tone</div>
+
+                        {/* Brightness/Contrast Toggle */}
+                        <div className="flex justify-between items-center mt-1">
+                            <span className="text-[10px] text-gray-400">Brightness / Contrast</span>
+                            <input
+                                type="checkbox"
+                                checked={enableBrightnessContrast}
+                                onChange={(e) => setEnableBrightnessContrast(e.target.checked)}
+                                className="accent-blue-500 w-3 h-3"
+                            />
+                        </div>
+                        {enableBrightnessContrast && (
+                            <>
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>Brightness</span>
+                                    <span>{brightness.toFixed(2)}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="-0.5" max="0.5" step="0.05"
+                                    value={brightness}
+                                    onChange={(e) => setBrightness(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                />
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Contrast</span>
+                                        <span>{contrast.toFixed(2)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="-0.5" max="0.5" step="0.05"
+                                        value={contrast}
+                                        onChange={(e) => setContrast(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Hue/Saturation Toggle */}
+                        <div className="flex justify-between items-center mt-2">
+                            <span className="text-[10px] text-gray-400">Hue / Saturation</span>
+                            <input
+                                type="checkbox"
+                                checked={enableHueSaturation}
+                                onChange={(e) => setEnableHueSaturation(e.target.checked)}
+                                className="accent-blue-500 w-3 h-3"
+                            />
+                        </div>
+                        {enableHueSaturation && (
+                            <>
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Hue Shift</span>
+                                        <span>{hue.toFixed(2)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="6.28" step="0.1"
+                                        value={hue}
+                                        onChange={(e) => setHue(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-[10px] text-gray-400">
+                                        <span>Saturation</span>
+                                        <span>{saturation.toFixed(2)}</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0" max="2" step="0.05"
+                                        value={saturation}
+                                        onChange={(e) => setSaturation(parseFloat(e.target.value))}
+                                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>                </div>
 
             </div>
         </div>

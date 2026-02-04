@@ -26,13 +26,14 @@ const App: React.FC = () => {
     // Atmosphere Settings
     const [atmOpacity, setAtmOpacity] = useState(2.5);
     const [atmPow, setAtmPow] = useState(4.0);
+    const [atmSamples, setAtmSamples] = useState(32);
 
     // Light Settings
     const [ambientLight, setAmbientLight] = useState(0.05);
     const [shadowEnabled, setShadowEnabled] = useState(true);
     const [shadowMapSize, setShadowMapSize] = useState(4096 * 2);
     const [shadowRadius, setShadowRadius] = useState(2);
-    const [renderScale, setRenderScale] = useState(0.5);
+    const [renderScale, setRenderScale] = useState(1);
     const [starsCount, setStarsCount] = useState(200000);
 
     // Triggers
@@ -41,6 +42,37 @@ const App: React.FC = () => {
 
     // ISS Model Selection: 'small' or 'big'
     const [issModel, setIssModel] = useState<'small' | 'big'>('big');
+
+    // Post-processing State
+    const [bloomThreshold, setBloomThreshold] = useState(1.1);
+    const [bloomIntensity, setBloomIntensity] = useState(1.5);
+    const [bloomRadius, setBloomRadius] = useState(0.7);
+    const [noiseOpacity, setNoiseOpacity] = useState(0.015);
+    const [vignetteDarkness, setVignetteDarkness] = useState(0.4);
+    const [vignetteOffset, setVignetteOffset] = useState(0.1);
+    const [chromaticAberrationOffset, setChromaticAberrationOffset] = useState(0.002);
+    const [brightness, setBrightness] = useState(0.0);
+    const [contrast, setContrast] = useState(0.0);
+    const [exposure, setExposure] = useState(1.2);
+    const [bloomSmoothing, setBloomSmoothing] = useState(0.0);
+    const [hue, setHue] = useState(0.0);
+    const [saturation, setSaturation] = useState(0.0);
+
+    // Advanced/Hidden Props
+    const [bloomMipmapBlur, setBloomMipmapBlur] = useState(true);
+    const [toneMappingAdaptive, setToneMappingAdaptive] = useState(true);
+    const [vignetteEskil, setVignetteEskil] = useState(false);
+    const [noisePremultiply, setNoisePremultiply] = useState(false);
+    const [chromaticRadial, setChromaticRadial] = useState(false);
+    const [chromaticModulation, setChromaticModulation] = useState(0.0);
+
+    // Toggles for Effects
+    const [enableBloom, setEnableBloom] = useState(true);
+    const [enableNoise, setEnableNoise] = useState(true);
+    const [enableVignette, setEnableVignette] = useState(true);
+    const [enableChromaticAberration, setEnableChromaticAberration] = useState(true);
+    const [enableBrightnessContrast, setEnableBrightnessContrast] = useState(true);
+    const [enableHueSaturation, setEnableHueSaturation] = useState(true);
 
     // Calculate actual speed
     const actualSpeed = useMemo(() => {
@@ -115,6 +147,7 @@ const App: React.FC = () => {
                 onFpsUpdate={setFps}
                 atmOpacity={atmOpacity}
                 atmPow={atmPow}
+                atmSamples={atmSamples}
                 ambientLightIntensity={ambientLight}
                 shadowEnabled={shadowEnabled}
                 shadowMapSize={shadowMapSize}
@@ -124,6 +157,31 @@ const App: React.FC = () => {
                 resetTimeTrigger={resetTimeTrigger}
                 resetCameraTrigger={resetCameraTrigger}
                 issModel={issModel}
+                bloomThreshold={bloomThreshold}
+                bloomIntensity={bloomIntensity}
+                bloomRadius={bloomRadius}
+                bloomSmoothing={bloomSmoothing}
+                bloomMipmapBlur={bloomMipmapBlur}
+                noiseOpacity={noiseOpacity}
+                noisePremultiply={noisePremultiply}
+                vignetteDarkness={vignetteDarkness}
+                vignetteOffset={vignetteOffset}
+                vignetteEskil={vignetteEskil}
+                chromaticAberrationOffset={chromaticAberrationOffset}
+                chromaticRadial={chromaticRadial}
+                chromaticModulation={chromaticModulation}
+                brightness={brightness}
+                contrast={contrast}
+                exposure={exposure}
+                hue={hue}
+                saturation={saturation}
+                toneMappingAdaptive={toneMappingAdaptive}
+                enableBloom={enableBloom}
+                enableNoise={enableNoise}
+                enableVignette={enableVignette}
+                enableChromaticAberration={enableChromaticAberration}
+                enableBrightnessContrast={enableBrightnessContrast}
+                enableHueSaturation={enableHueSaturation}
             />
 
             <PlanetList
@@ -146,6 +204,7 @@ const App: React.FC = () => {
                 fps={fps}
                 atmOpacity={atmOpacity} setAtmOpacity={setAtmOpacity}
                 atmPow={atmPow} setAtmPow={setAtmPow}
+                atmSamples={atmSamples} setAtmSamples={setAtmSamples}
                 onResetTime={handleResetTime}
                 onResetCamera={handleResetCamera}
                 ambientLight={ambientLight} setAmbientLight={setAmbientLight}
@@ -155,6 +214,31 @@ const App: React.FC = () => {
                 renderScale={renderScale} setRenderScale={setRenderScale}
                 starsCount={starsCount} setStarsCount={setStarsCount}
                 issModel={issModel} setIssModel={setIssModel}
+                bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
+                bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
+                bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
+                bloomSmoothing={bloomSmoothing} setBloomSmoothing={setBloomSmoothing}
+                bloomMipmapBlur={bloomMipmapBlur} setBloomMipmapBlur={setBloomMipmapBlur}
+                noiseOpacity={noiseOpacity} setNoiseOpacity={setNoiseOpacity}
+                noisePremultiply={noisePremultiply} setNoisePremultiply={setNoisePremultiply}
+                vignetteDarkness={vignetteDarkness} setVignetteDarkness={setVignetteDarkness}
+                vignetteOffset={vignetteOffset} setVignetteOffset={setVignetteOffset}
+                vignetteEskil={vignetteEskil} setVignetteEskil={setVignetteEskil}
+                chromaticAberrationOffset={chromaticAberrationOffset} setChromaticAberrationOffset={setChromaticAberrationOffset}
+                chromaticRadial={chromaticRadial} setChromaticRadial={setChromaticRadial}
+                chromaticModulation={chromaticModulation} setChromaticModulation={setChromaticModulation}
+                brightness={brightness} setBrightness={setBrightness}
+                contrast={contrast} setContrast={setContrast}
+                exposure={exposure} setExposure={setExposure}
+                hue={hue} setHue={setHue}
+                saturation={saturation} setSaturation={setSaturation}
+                toneMappingAdaptive={toneMappingAdaptive} setToneMappingAdaptive={setToneMappingAdaptive}
+                enableBloom={enableBloom} setEnableBloom={setEnableBloom}
+                enableNoise={enableNoise} setEnableNoise={setEnableNoise}
+                enableVignette={enableVignette} setEnableVignette={setEnableVignette}
+                enableChromaticAberration={enableChromaticAberration} setEnableChromaticAberration={setEnableChromaticAberration}
+                enableBrightnessContrast={enableBrightnessContrast} setEnableBrightnessContrast={setEnableBrightnessContrast}
+                enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
             />
 
             <InfoPanel

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useThree, extend, Object3DNode } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_SCALE } from '../constants';
 
@@ -10,10 +10,10 @@ interface SunProps {
     shadowRadius: number;
 }
 
-const Sun: React.FC<SunProps> = ({ scaleFactor, shadowEnabled, shadowMapSize, shadowRadius }) => {
+const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, shadowEnabled, shadowMapSize, shadowRadius }, ref) => {
     const { gl } = useThree();
     const lightRef = useRef<THREE.PointLight>(null);
-    const size = 5 * PLANET_SCALE * scaleFactor; 
+    const size = 5 * PLANET_SCALE * scaleFactor;
     const cappedShadowSize = useMemo(() => {
         const maxSize = gl.capabilities.maxTextureSize || 4096;
         const pow2 = THREE.MathUtils.floorPowerOfTwo(maxSize);
@@ -45,6 +45,7 @@ const Sun: React.FC<SunProps> = ({ scaleFactor, shadowEnabled, shadowMapSize, sh
         canvas.height = 128;
         const context = canvas.getContext('2d');
         if (context) {
+            context.clearRect(0, 0, 128, 128); // Explicit clear
             const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
             gradient.addColorStop(0, 'rgba(255, 255, 230, 1)'); // Center white-ish
             gradient.addColorStop(0.2, 'rgba(255, 200, 100, 0.8)'); // Inner glow orange
@@ -53,18 +54,20 @@ const Sun: React.FC<SunProps> = ({ scaleFactor, shadowEnabled, shadowMapSize, sh
             context.fillStyle = gradient;
             context.fillRect(0, 0, 128, 128);
         }
-        return new THREE.CanvasTexture(canvas);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
     }, []);
 
     return (
         <group>
             {/* Main Light Source */}
-            <pointLight 
+            <pointLight
                 ref={lightRef}
-                intensity={3} 
-                distance={0} 
+                intensity={3}
+                distance={0}
                 decay={0} // 0 decay to ensure outer planets are lit, physically incorrect but necessary for viz
-                color="#fff" 
+                color="#fff"
                 castShadow={shadowEnabled}
                 shadow-mapSize-width={cappedShadowSize}
                 shadow-mapSize-height={cappedShadowSize}
@@ -73,19 +76,21 @@ const Sun: React.FC<SunProps> = ({ scaleFactor, shadowEnabled, shadowMapSize, sh
             />
             {/* Ambient fill for dark sides */}
             <ambientLight intensity={0.05} />
-            
+
             {/* Sun Sphere */}
-            <mesh>
+            <mesh ref={ref}>
                 <sphereGeometry args={[size, 64, 64]} />
                 <meshBasicMaterial color="#FFD700" toneMapped={false} />
             </mesh>
-            
-            {/* Corona Glow Sprite */}
+
+            {/* Corona Glow Sprite - Optional but good for static glow */}
             <sprite scale={[size * 8, size * 8, 1]}>
-                <spriteMaterial map={glowTexture} color="#FFD700" transparent opacity={0.8} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+                <spriteMaterial map={glowTexture} color="#FFD700" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
             </sprite>
         </group>
     );
-};
+});
+
+Sun.displayName = 'Sun';
 
 export default Sun;

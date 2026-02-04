@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
@@ -24,6 +25,7 @@ interface SceneContentProps {
     onFpsUpdate: (fps: number) => void;
     atmOpacity: number;
     atmPow: number;
+    atmSamples: number;
     ambientLightIntensity: number;
     shadowEnabled: boolean;
     shadowMapSize: number;
@@ -33,14 +35,46 @@ interface SceneContentProps {
     resetTimeTrigger: number;
     resetCameraTrigger: number;
     issModel: 'small' | 'big';
+    // Post-processing
+    bloomThreshold: number;
+    bloomIntensity: number;
+    bloomRadius: number;
+    noiseOpacity: number;
+    vignetteDarkness: number;
+    vignetteOffset: number;
+    chromaticAberrationOffset: number;
+    brightness: number;
+    contrast: number;
+    exposure: number;
+    bloomSmoothing: number;
+    hue: number;
+    saturation: number;
+    // Hidden
+    bloomMipmapBlur: boolean;
+    toneMappingAdaptive: boolean;
+    vignetteEskil: boolean;
+    noisePremultiply: boolean;
+    chromaticRadial: boolean;
+    chromaticModulation: number;
+    // Toggles
+    enableBloom: boolean;
+    enableNoise: boolean;
+    enableVignette: boolean;
+    enableChromaticAberration: boolean;
+    enableBrightnessContrast: boolean;
+    enableHueSaturation: boolean;
 }
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
-    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, ambientLightIntensity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetTimeTrigger, resetCameraTrigger, issModel
+    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetTimeTrigger, resetCameraTrigger, issModel,
+    bloomThreshold, bloomIntensity, bloomRadius, noiseOpacity, vignetteDarkness, vignetteOffset, chromaticAberrationOffset, brightness, contrast, exposure, bloomSmoothing, hue, saturation,
+    bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
+    enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation
 }) => {
     const [time, setTime] = useState(0);
     const lastUiUpdateRef = useRef(0);
     const controlsRef = useRef<any>(null);
+    const sunRef = useRef<THREE.Mesh>(null);
     const { camera } = useThree();
 
     const prevTargetPos = useRef(new THREE.Vector3(0, 0, 0));
@@ -151,6 +185,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             <Stars radius={3000} depth={50} count={starsCount} factor={4} saturation={0} fade speed={1} />
 
             <Sun
+                ref={sunRef}
                 scaleFactor={scaleFactor}
                 shadowEnabled={shadowEnabled}
                 shadowMapSize={shadowMapSize}
@@ -170,9 +205,27 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     scaleFactor={scaleFactor}
                     atmOpacity={atmOpacity}
                     atmPow={atmPow}
+                    atmSamples={atmSamples}
                     issModel={issModel}
                 />
             ))}
+
+            <EffectComposer depthBuffer={true}>
+                <SMAA />
+                {enableBloom && <Bloom luminanceThreshold={bloomThreshold} mipmapBlur={bloomMipmapBlur} intensity={bloomIntensity} radius={bloomRadius} luminanceSmoothing={bloomSmoothing} />}
+                <ToneMapping adaptive={toneMappingAdaptive} />
+                {enableVignette && <Vignette eskil={vignetteEskil} offset={vignetteOffset} darkness={vignetteDarkness} />}
+                {enableNoise && <Noise opacity={noiseOpacity} premultiply={noisePremultiply} />}
+                {enableChromaticAberration && (
+                    <ChromaticAberration
+                        offset={new THREE.Vector2(chromaticAberrationOffset, chromaticAberrationOffset)}
+                        radialModulation={chromaticRadial}
+                        modulationOffset={chromaticModulation}
+                    />
+                )}
+                {enableBrightnessContrast && <BrightnessContrast brightness={brightness} contrast={contrast} />}
+                {enableHueSaturation && <HueSaturation hue={hue} saturation={saturation} />}
+            </EffectComposer>
         </>
     );
 };
@@ -181,12 +234,12 @@ const Scene: React.FC<SceneContentProps> = (props) => {
     return (
         <Canvas
             shadows={props.shadowEnabled ? { type: THREE.PCFShadowMap } : false}
-            camera={{ position: [0, 50, 100], fov: 45, near: 0.001, far: 100000 }}
+            camera={{ position: [0, 50, 100], fov: 45, near: 0.00001, far: 30000 }}
             dpr={props.renderScale}
             gl={{
-                antialias: true,
+                antialias: false,
                 toneMapping: THREE.ACESFilmicToneMapping,
-                toneMappingExposure: 1.2,
+                toneMappingExposure: props.exposure,
                 powerPreference: 'high-performance'
             }}
             onPointerMissed={props.onBackgroundClick}
