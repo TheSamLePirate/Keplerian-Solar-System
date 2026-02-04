@@ -7,7 +7,7 @@ import { PlanetData } from './types';
 
 const App: React.FC = () => {
     // Simulation State
-    const [speedLog, setSpeedLog] = useState(50); // Slider 0-100
+    const [speedLog, setSpeedLog] = useState(0); // Slider 0-100
     const [paused, setPaused] = useState(false);
     const [scaleFactor, setScaleFactor] = useState(0.5);
     const [showOrbits, setShowOrbits] = useState(true);
@@ -38,7 +38,7 @@ const App: React.FC = () => {
     const actualSpeed = useMemo(() => {
         const minSpeed = 1 / 86400;
         const maxSpeed = 365.25;
-        if (speedLog === 0) return 0;
+        if (speedLog === 0) return minSpeed;
         const r = Math.pow(maxSpeed / minSpeed, speedLog / 100);
         return minSpeed * r;
     }, [speedLog]);

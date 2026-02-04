@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 
-import { PLANETS, MOON_ORBIT_SCALE } from '../constants';
+import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
 import { PlanetData } from '../types';
 import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
 import Planet from './Planet';
@@ -84,19 +84,31 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         if (isFollowing && followingBody && controlsRef.current) {
             let targetPos = new THREE.Vector3(0, 0, 0);
 
-            if (followingBody.type === 'moon') {
+            if (followingBody.type === 'moon' || followingBody.type === 'satellite') {
+                // Find parent planet for moons and satellites
                 const parent = PLANETS.find(p => p.moons?.some(m => m.id === followingBody.id));
                 if (parent) {
                     const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, time, parent.period);
                     const parentPos = new THREE.Vector3(...parentPosArray);
                     
-                    const moonPosArray = calculateOrbitalPositionWithPeriod(followingBody.elements, time, followingBody.period);
-                    const moonPos = new THREE.Vector3(
-                        moonPosArray[0] * MOON_ORBIT_SCALE,
-                        moonPosArray[1] * MOON_ORBIT_SCALE,
-                        moonPosArray[2] * MOON_ORBIT_SCALE
+                    const childPosArray = calculateOrbitalPositionWithPeriod(followingBody.elements, time, followingBody.period);
+                    let childPos = new THREE.Vector3(
+                        childPosArray[0] * MOON_ORBIT_SCALE,
+                        childPosArray[1] * MOON_ORBIT_SCALE,
+                        childPosArray[2] * MOON_ORBIT_SCALE
                     );
-                    targetPos.copy(parentPos).add(moonPos);
+                    
+                    // For satellites, apply minimum orbit radius (same logic as Planet.tsx)
+                    if (followingBody.type === 'satellite') {
+                        const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
+                        const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.8;
+                        const distance = childPos.length();
+                        if (distance > 0) {
+                            childPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
+                        }
+                    }
+                    
+                    targetPos.copy(parentPos).add(childPos);
                 }
             } else {
                 const posArray = calculateOrbitalPositionWithPeriod(followingBody.elements, time, followingBody.period);
@@ -118,8 +130,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         <>
             <OrbitControls 
                 ref={controlsRef}
-                minDistance={1} 
-                maxDistance={5000} 
+                minDistance={0.01} 
+                maxDistance={10000} 
                 enablePan={true}
                 dampingFactor={0.05}
             />
@@ -150,7 +162,7 @@ const Scene: React.FC<SceneContentProps> = (props) => {
     return (
         <Canvas 
             shadows="soft"
-            camera={{ position: [0, 50, 100], fov: 45, far: 50000 }}
+            camera={{ position: [0, 50, 100], fov: 45, near: 0.001, far: 100000 }}
             gl={{ 
                 antialias: true, 
                 toneMapping: THREE.ACESFilmicToneMapping, 

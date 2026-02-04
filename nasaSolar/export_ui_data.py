@@ -165,7 +165,7 @@ VISUAL_DATA = {
         "description": "The International Space Station, a modular space station in low Earth orbit.",
         "rotationPeriod": 0.0,  # No rotation (or attitude controlled)
         "axialTilt": 0.0,
-        "modelUrl": "/models/iss.glb"  # 3D model path
+        "modelUrl": "/models/ISS2.glb"  # 3D model path
     }
 }
 

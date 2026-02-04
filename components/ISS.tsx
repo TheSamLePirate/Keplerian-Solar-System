@@ -11,8 +11,8 @@ interface ISSModelProps {
  * Loads the ISS.glb model from the public/models folder
  */
 const ISSModel: React.FC<ISSModelProps> = ({ scale = 1 }) => {
-    const { scene } = useGLTF("/models/ISS.glb");
-    
+    const { scene } = useGLTF("/models/ISS2.glb");
+
     // Clone the scene to avoid issues with multiple instances
     const clonedScene = React.useMemo(() => {
         const clone = scene.clone();
@@ -29,10 +29,10 @@ const ISSModel: React.FC<ISSModelProps> = ({ scale = 1 }) => {
         });
         return clone;
     }, [scene]);
-    
+
     return (
-        <primitive 
-            object={clonedScene} 
+        <primitive
+            object={clonedScene}
             scale={[scale, scale, scale]}
         />
     );
