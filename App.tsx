@@ -34,6 +34,9 @@ const App: React.FC = () => {
     const [resetTimeTrigger, setResetTimeTrigger] = useState(0);
     const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
 
+    // ISS Model Selection: 'small' or 'big'
+    const [issModel, setIssModel] = useState<'small' | 'big'>('small');
+
     // Calculate actual speed
     const actualSpeed = useMemo(() => {
         const minSpeed = 1 / 86400;
@@ -110,6 +113,7 @@ const App: React.FC = () => {
                 ambientLightIntensity={ambientLight}
                 resetTimeTrigger={resetTimeTrigger}
                 resetCameraTrigger={resetCameraTrigger}
+                issModel={issModel}
             />
 
             <PlanetList
@@ -135,6 +139,7 @@ const App: React.FC = () => {
                 onResetTime={handleResetTime}
                 onResetCamera={handleResetCamera}
                 ambientLight={ambientLight} setAmbientLight={setAmbientLight}
+                issModel={issModel} setIssModel={setIssModel}
             />
 
             <InfoPanel

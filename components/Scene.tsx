@@ -27,10 +27,11 @@ interface SceneContentProps {
     ambientLightIntensity: number;
     resetTimeTrigger: number;
     resetCameraTrigger: number;
+    issModel: 'small' | 'big';
 }
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
-    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, ambientLightIntensity, resetTimeTrigger, resetCameraTrigger
+    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, ambientLightIntensity, resetTimeTrigger, resetCameraTrigger, issModel
 }) => {
     const [time, setTime] = useState(0);
     const controlsRef = useRef<any>(null);
@@ -152,6 +153,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     scaleFactor={scaleFactor}
                     atmOpacity={atmOpacity}
                     atmPow={atmPow}
+                    issModel={issModel}
                 />
             ))}
         </>

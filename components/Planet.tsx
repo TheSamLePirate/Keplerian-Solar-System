@@ -18,6 +18,7 @@ interface PlanetProps {
     scaleFactor: number;
     atmOpacity?: number;
     atmPow?: number;
+    issModel?: 'small' | 'big';
 }
 
 // Volumetric Rayleigh Scattering Shader (Local Space)
@@ -160,7 +161,8 @@ const Planet: React.FC<PlanetProps> = ({
     showLabel,
     scaleFactor,
     atmOpacity = 2.5,
-    atmPow = 4.0
+    atmPow = 4.0,
+    issModel = 'small'
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
@@ -207,6 +209,60 @@ const Planet: React.FC<PlanetProps> = ({
             pos[2] * visualOrbitScale
         );
     }, [data, time, visualOrbitScale, isSatellite, satelliteMinOrbitRadius]);
+
+    // ISS Orientation Calculation
+    // The ISS maintains attitude with:
+    // - +X axis pointing in velocity direction (prograde)
+    // - +Z axis pointing toward Earth (nadir)
+    // - +Y axis perpendicular to orbital plane
+    const issOrientation = useMemo(() => {
+        if (!isSatellite) return new THREE.Quaternion();
+        
+        // Get current position
+        const pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
+        const currentPos = new THREE.Vector3(
+            pos[0] * visualOrbitScale,
+            pos[1] * visualOrbitScale,
+            pos[2] * visualOrbitScale
+        );
+        
+        // Get position slightly in the future to calculate velocity direction
+        const dt = 0.0001; // Small time step in days
+        const futurePos = calculateOrbitalPositionWithPeriod(data.elements, time + dt, data.period);
+        const futureVec = new THREE.Vector3(
+            futurePos[0] * visualOrbitScale,
+            futurePos[1] * visualOrbitScale,
+            futurePos[2] * visualOrbitScale
+        );
+        
+        // Velocity direction (prograde) - this will be the ISS +X axis
+        const velocity = futureVec.sub(currentPos).normalize();
+        
+        // Nadir direction (toward Earth/parent center) - this will be the ISS -Z axis
+        // Since ISS orbits relative to parent, nadir points to origin (0,0,0)
+        const nadir = currentPos.clone().normalize().negate();
+        
+        // Calculate the orientation matrix
+        // X = velocity (prograde)
+        // Z = -nadir (away from Earth, so +Z is zenith, -Z is nadir)
+        // Y = Z cross X (perpendicular to orbital plane)
+        
+        const xAxis = velocity.clone();
+        const zAxis = nadir.clone().negate(); // +Z points away from Earth (zenith)
+        const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+        
+        // Recompute X to ensure orthogonality
+        xAxis.crossVectors(yAxis, zAxis).normalize();
+        
+        // Create rotation matrix from axes
+        const rotationMatrix = new THREE.Matrix4();
+        rotationMatrix.makeBasis(xAxis, yAxis, zAxis);
+        
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromRotationMatrix(rotationMatrix);
+        
+        return quaternion;
+    }, [isSatellite, data.elements, time, visualOrbitScale]);
 
     // Orbit Path
     const orbitPath = useMemo(() => {
@@ -451,6 +507,7 @@ const Planet: React.FC<PlanetProps> = ({
                     {/* Render ISS 3D model for satellites, sphere for other bodies */}
                     {isSatellite ? (
                         <group
+                            quaternion={issOrientation}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onSelect(data);
@@ -458,7 +515,7 @@ const Planet: React.FC<PlanetProps> = ({
                             onPointerOver={() => setHover(true)}
                             onPointerOut={() => setHover(false)}
                         >
-                            <ISSModel scale={size * 0.5} />
+                            <ISSModel scale={size * 0.5} modelType={issModel} />
                             {(showLabel || hovered || isSelected) && (
                                 <Html position={[0, size * 3, 0]}>
                                     <div
@@ -566,6 +623,7 @@ const Planet: React.FC<PlanetProps> = ({
                         scaleFactor={scaleFactor}
                         atmOpacity={atmOpacity}
                         atmPow={atmPow}
+                        issModel={issModel}
                     />
                 ))}
             </group>

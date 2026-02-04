@@ -26,6 +26,9 @@ interface ControlsProps {
     onResetCamera: () => void;
     ambientLight: number;
     setAmbientLight: (v: number) => void;
+    // ISS Model Selection
+    issModel: 'small' | 'big';
+    setIssModel: (m: 'small' | 'big') => void;
 }
 
 import { SIMULATION_EPOCH } from '../constants';
@@ -43,7 +46,8 @@ const Controls: React.FC<ControlsProps> = ({
     atmPow, setAtmPow,
     onResetTime,
     onResetCamera,
-    ambientLight, setAmbientLight
+    ambientLight, setAmbientLight,
+    issModel, setIssModel
 }) => {
     // Start date is now dynamic based on Python export
     const baseDate = SIMULATION_EPOCH;
@@ -177,6 +181,33 @@ const Controls: React.FC<ControlsProps> = ({
                         onChange={(e) => setAmbientLight(parseFloat(e.target.value))}
                         className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                     />
+                </div>
+
+                {/* ISS Model Selection */}
+                <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">ISS Model</div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setIssModel('small')}
+                            className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${
+                                issModel === 'small'
+                                    ? 'bg-blue-600 border-blue-500 text-white'
+                                    : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
+                            }`}
+                        >
+                            Small
+                        </button>
+                        <button
+                            onClick={() => setIssModel('big')}
+                            className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${
+                                issModel === 'big'
+                                    ? 'bg-blue-600 border-blue-500 text-white'
+                                    : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
+                            }`}
+                        >
+                            Detailed
+                        </button>
+                    </div>
                 </div>
 
                 {/* Atmosphere Controls (Collapsible or Block) */}
