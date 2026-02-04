@@ -1,0 +1,499 @@
+#!/usr/bin/env python3
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+import numpy as np
+from skyfield.api import load, Topos
+from skyfield.framelib import ecliptic_frame
+from skyfield.elementslib import osculating_elements_of
+
+# --- Configuration ---
+BSP_PLANETS = "de440s.bsp"
+BSP_JUPITER = "jup365.bsp"
+OUTPUT_FILE = "../constants.ts"
+
+# Visual Data (Preserved from original constants.ts)
+VISUAL_DATA = {
+    "mercury": {
+        "name": "Mercury",
+        "type": "planet",
+        "color": "#A5A5A5",
+        "radius": 0.38,
+        "description": "The smallest planet in the Solar System and the closest to the Sun."
+    },
+    "venus": {
+        "name": "Venus",
+        "type": "planet",
+        "color": "#E3BB76",
+        "atmosphereColor": "#FFA500",
+        "radius": 0.95,
+        "description": "The second planet from the Sun. It has a thick atmosphere that traps heat."
+    },
+    "earth": {
+        "name": "Earth",
+        "type": "planet",
+        "color": "#22A6B3",
+        "atmosphereColor": "#4CA6FF",
+        "radius": 1.0,
+        "description": "Our home. The only known planet to support life."
+    },
+    "moon": { # Earth's Moon
+        "name": "Moon",
+        "type": "moon",
+        "color": "#DDDDDD",
+        "radius": 0.273,
+        "description": "Earth's only natural satellite."
+    },
+    "mars": {
+        "name": "Mars",
+        "type": "planet",
+        "color": "#FF6B6B",
+        "atmosphereColor": "#C1440E",
+        "radius": 0.53,
+        "description": "The Red Planet. Dusty, cold, desert world with a very thin atmosphere."
+    },
+    "jupiter": {
+        "name": "Jupiter",
+        "type": "planet",
+        "color": "#D4A373",
+        "atmosphereColor": "#C6A584",
+        "radius": 11.2,
+        "description": "The largest planet in the Solar System. A gas giant with a Great Red Spot."
+    },
+    "io": {
+        "name": "Io",
+        "type": "moon",
+        "color": "#F4D03F",
+        "radius": 0.286,
+        "description": "The most geologically active body in the Solar System."
+    },
+    "europa": {
+        "name": "Europa",
+        "type": "moon",
+        "color": "#C39BD3",
+        "radius": 0.245,
+        "description": "An icy moon with a subsurface ocean."
+    },
+    "ganymede": {
+        "name": "Ganymede",
+        "type": "moon",
+        "color": "#AAB7B8",
+        "radius": 0.413,
+        "description": "The largest moon in the Solar System."
+    },
+    "callisto": {
+        "name": "Callisto",
+        "type": "moon",
+        "color": "#566573",
+        "radius": 0.378,
+        "description": "One of the most heavily cratered objects in the Solar System."
+    },
+    "saturn": {
+        "name": "Saturn",
+        "type": "planet",
+        "color": "#FFEAA7",
+        "atmosphereColor": "#F4D03F",
+        "radius": 9.45,
+        "description": "Adorned with a dazzling, complex system of icy rings."
+    },
+    "uranus": {
+        "name": "Uranus",
+        "type": "planet",
+        "color": "#74B9FF",
+        "atmosphereColor": "#A0E4FF",
+        "radius": 4.0,
+        "description": "An ice giant with a unique tilt, rotating on its side."
+    },
+    "neptune": {
+        "name": "Neptune",
+        "type": "planet",
+        "color": "#0984E3",
+        "atmosphereColor": "#4b70dd",
+        "radius": 3.88,
+        "description": "The most distant major planet. Dark, cold, and whipped by supersonic winds."
+    }
+}
+
+PLANET_ORDER = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"]
+
+BODY_MAPPING = {
+    "mercury": "mercury",
+    "venus": "venus",
+    "earth": "earth barycenter", # Use barycenter for planets usually
+    "mars": "mars barycenter",
+    "jupiter": "jupiter barycenter",
+    "saturn": "saturn barycenter",
+    "uranus": "uranus barycenter",
+    "neptune": "neptune barycenter",
+    "moon": "moon",
+    "io": "501",
+    "europa": "502",
+    "ganymede": "503",
+    "callisto": "504"
+}
+
+MOON_PARENTS = {
+    "earth": ["moon"],
+    "jupiter": ["io", "europa", "ganymede", "callisto"]
+}
+
+# Standard gravitational parameter in AU^3 / day^2
+# G = 6.674e-11 m^3/kg/s^2
+# 1 AU = 1.496e11 m
+# 1 day = 86400 s
+# GM_sun = 1.327e20 m^3/s^2
+# in AU^3/day^2 approx 0.0002959...
+GM_SUN = 0.0002959122082855911
+GM_JUPITER = GM_SUN / 1047.3486
+GM_EARTH = GM_SUN / 332946.0487
+
+def find_body(kernels, name):
+    target = name
+    if isinstance(name, str) and name.isdigit():
+        target = int(name)
+
+    for k in kernels:
+        try:
+            # Try original name first (in case string "399" exists as name)
+            return k[name]
+        except (KeyError, ValueError):
+            pass
+            
+    if target != name:
+        for k in kernels:
+            try:
+                return k[target]
+            except (KeyError, ValueError):
+                continue
+                
+    raise KeyError(f"{name} not found in any kernel")
+
+def elements_from_vectors(r_vec, v_vec, mu):
+    """
+    Calculate Keplerian elements from position and velocity vectors.
+    r_vec: Position vector [x, y, z] (AU)
+    v_vec: Velocity vector [vx, vy, vz] (AU/day)
+    mu: Gravitational parameter (AU^3/day^2)
+    """
+    h_vec = np.cross(r_vec, v_vec)
+    h = np.linalg.norm(h_vec)
+    
+    r = np.linalg.norm(r_vec)
+    v = np.linalg.norm(v_vec)
+    
+    # Eccentricity vector
+    # e_vec = ( (v^2 - mu/r)*r_vec - (r_vec.v_vec)*v_vec ) / mu
+    e_vec = ((v**2 - mu/r) * r_vec - np.dot(r_vec, v_vec) * v_vec) / mu
+    e = np.linalg.norm(e_vec)
+    
+    # Node vector n = k x h = (-hy, hx, 0)
+    # k = (0, 0, 1) usually (Ecliptic North Pole)
+    n_vec = np.array([-h_vec[1], h_vec[0], 0.0])
+    n = np.linalg.norm(n_vec)
+    
+    # Inclination
+    # cos(i) = hz / h
+    i = np.arccos(h_vec[2] / h)
+    
+    # Right Ascension of Ascending Node (Omega)
+    # cos(Omega) = nx / n
+    if n != 0:
+        Omega = np.arccos(n_vec[0] / n)
+        if n_vec[1] < 0:
+            Omega = 2 * np.pi - Omega
+    else:
+        Omega = 0.0
+        
+    # Argument of Periapsis (omega)
+    # cos(omega) = (n_vec . e_vec) / (n * e)
+    if n != 0 and e != 0:
+        dot = np.dot(n_vec, e_vec) / (n * e)
+        # clamp for float errors
+        dot = max(-1.0, min(1.0, dot))
+        omega = np.arccos(dot)
+        if e_vec[2] < 0:
+            omega = 2 * np.pi - omega
+    elif e != 0 and n == 0:
+        # Equatorial orbit?
+        # angle between e and x axis?
+        omega = 0.0 
+    else:
+        omega = 0.0
+        
+    # True Anomaly (nu)
+    # cos(nu) = (e_vec . r_vec) / (e * r)
+    if e != 0:
+        dot = np.dot(e_vec, r_vec) / (e * r)
+        dot = max(-1.0, min(1.0, dot))
+        nu = np.arccos(dot)
+        if np.dot(r_vec, v_vec) < 0:
+            nu = 2 * np.pi - nu
+    else:
+        nu = 0.0
+        
+    # Mean Anomaly
+    # E via tan(E/2) = sqrt((1-e)/(1+e)) * tan(nu/2)
+    E = 2 * np.arctan(np.sqrt((1 - e) / (1 + e)) * np.tan(nu / 2))
+    M = E - e * np.sin(E)
+    if M < 0:
+        M += 2 * np.pi
+    
+    # Semi-major axis
+    # a = mu / (2*mu/r - v^2)
+    # or from period: T = 2*pi * sqrt(a^3/mu)
+    energy = (v**2) / 2 - mu / r
+    if abs(energy) < 1e-10:
+        # Parabolic
+        a = float('inf')
+    else:
+        a = -mu / (2 * energy)
+        
+    # Mean Longitude = Omega + omega + M (loosely)
+    # Or just return M? The UI uses meanLongitude.
+    # In types.ts: meanLongitude: number; // L (degrees) at epoch J2000
+    # L = Omega + omega + M
+    L = Omega + omega + M
+    L = L % (2 * np.pi)
+    
+    # Period
+    # T = 2*pi*sqrt(a^3/mu)
+    if a > 0:
+        period_days = 2 * np.pi * np.sqrt(a**3 / mu)
+        period_years = period_days / 365.25
+    else:
+        period_years = 0.0
+
+    return {
+        "semiMajorAxis": float(a),
+        "eccentricity": float(e),
+        "inclination": float(np.degrees(i)),
+        "ascendingNode": float(np.degrees(Omega)),
+        "perihelion": float(np.degrees(omega)),
+        "meanLongitude": float(np.degrees(L)),
+        "period": float(period_years)
+    }
+
+def get_elements_for_body(kernels, body_name, center_name, t, body_id):
+    """
+    Returns dict of orbital elements relative to center in ECLIPTIC frame.
+    """
+    try:
+        center = find_body(kernels, center_name)
+        body = find_body(kernels, body_name)
+    except KeyError as e:
+        print(f"Error: {e}")
+        return None
+
+    icrs_pos = (body - center).at(t)
+    
+    # Transform to Ecliptic Frame
+    # ecliptic_frame is J2000 Ecliptic (inertial)
+    
+    # Get rotation matrix (3x3)
+    # Note: rotation_at(t) returns the matrix to rotate FROM the frame TO J2000? 
+    # Or FROM J2000 TO the frame?
+    # Skyfield docs: frame.rotation_at(t) returns M such that r_new = M * r_old?
+    # Usually it returns reflection of J2000 to Frame?
+    # Frame object has 'rotation_at(t)'.
+    # If I have a Position in ICRS (J2000), and I want Ecliptic.
+    # ICRS is the base.
+    # The matrix should be J2000 -> Ecliptic.
+    
+    matrix = ecliptic_frame.rotation_at(t)
+    
+    # Check if matrix needs distinct handling given Skyfield version?
+    # matrix is likely a numpy array (3,3).
+    
+    # icrs_pos.position.au is (3,)
+    # We use matrix multiply. 
+    # Actually Skyfield matrices are usually for multiplying column vectors.
+    # r_ecl = M @ r_icrs
+    
+    r_j2000 = icrs_pos.position.au
+    v_j2000 = icrs_pos.velocity.au_per_d
+    
+    # Based on verify check: np.dot(matrix, p_icrs) gives correct Ecliptic coordinates.
+    # So matrix is ICRS -> Frame.
+    
+    r_vec = np.dot(matrix, r_j2000)
+    v_vec = np.dot(matrix, v_j2000)
+    
+    # r_vec is now in Ecliptic J2000.
+    
+    # Determine mu
+    # center_name might be "399" now.
+    
+    if center_name == "sun" or center_name == "0" or center_name == "10":
+        mu = GM_SUN
+    elif center_name == "jupiter" or center_name == "599" or center_name == "5":
+        # Note: 5 is barycenter, 599 is Jupiter.
+        # usually we want Jupiter mass.
+        mu = GM_JUPITER
+    elif center_name == "earth" or center_name == "399":
+        mu = GM_EARTH
+    else:
+        # Fallback or lookup?
+        print(f"Warning: Unknown mass for center {center_name}, using Sun GM")
+        mu = GM_SUN
+        
+    return elements_from_vectors(r_vec, v_vec, mu)
+
+def generate_ts_object(data, elements, moons_content=None):
+    """
+    Generates the TS object string.
+    """
+    indent = "    "
+    s = "  {\n"
+    s += f'{indent}id: "{data["id"]}",\n'
+    s += f'{indent}name: "{data["name"]}",\n'
+    s += f'{indent}type: "{data["type"]}",\n'
+    s += f'{indent}color: "{data["color"]}",\n'
+    if "atmosphereColor" in data:
+        s += f'{indent}atmosphereColor: "{data["atmosphereColor"]}",\n'
+    s += f'{indent}radius: {data["radius"]},\n'
+    s += f'{indent}description: "{data["description"]}",\n'
+    s += f'{indent}period: {elements["period"]:.4f},\n'
+    s += f'{indent}elements: {{\n'
+    s += f'{indent}  semiMajorAxis: {elements["semiMajorAxis"]:.6f},\n'
+    s += f'{indent}  eccentricity: {elements["eccentricity"]:.6f},\n'
+    s += f'{indent}  inclination: {elements["inclination"]:.4f},\n'
+    s += f'{indent}  ascendingNode: {elements["ascendingNode"]:.4f},\n'
+    s += f'{indent}  perihelion: {elements["perihelion"]:.4f},\n'
+    s += f'{indent}  meanLongitude: {elements["meanLongitude"]:.4f},\n'
+    s += f'{indent}}},\n'
+    
+    if moons_content:
+        s += f'{indent}moons: [\n'
+        for m in moons_content:
+            s += m
+        s += f'{indent}]\n'
+        
+    s += "  },\n"
+    return s
+
+def main():
+    print("Loading kernels...")
+    
+    # Load primary planet kernel
+    if not Path(BSP_PLANETS).exists():
+        print(f"Error: {BSP_PLANETS} not found. Please download it or run the setup script.")
+        return
+
+    kernels = []
+    try:
+        eph = load(BSP_PLANETS)
+        print(f"Loaded {BSP_PLANETS}")
+        kernels.append(eph)
+        
+        try:
+            print(f"Loading {BSP_JUPITER} (downloading if missing)...")
+            eph_jup = load(BSP_JUPITER)
+            print(f"Jupiter Kernel Bodies: {eph_jup}")
+            kernels.append(eph_jup)
+        except Exception as e:
+             print(f"Warning: Could not load {BSP_JUPITER}: {e}")
+            
+    except Exception as e:
+        print(f"Failed to load kernels: {e}")
+        import traceback
+        traceback.print_exc()
+        return
+
+    ts = load.timescale()
+    t = ts.now()
+    # Or strict J2000? User said "as it is now".
+    # t = ts.utc(2026, 2, 4) # Debugging equivalent to "now"
+    
+    print(f"Exporting Solar System for {t.utc_iso()}...")
+
+    ts_content = """import { PlanetData } from "./types";
+
+// Scaling constants
+export const AU_SCALE = 50; // 1 AU = 50 3D units
+export const PLANET_SCALE = 0.5; // Base visual scale for planets
+export const MOON_ORBIT_SCALE = 30; // Visual exaggeration for moon orbits
+
+// Simulation Epoch (Start derived from Python export time)
+"""
+    ts_content += f'export const SIMULATION_EPOCH = new Date("{t.utc_iso()}").getTime();\n\n'
+    
+    ts_content += """// Orbital elements computed from Skyfield for current epoch
+export const PLANETS: PlanetData[] = [
+"""
+
+    for pid in PLANET_ORDER:
+        p_data = VISUAL_DATA[pid].copy()
+        p_data["id"] = pid
+        
+        # Determine center
+        center = "sun"
+        body_key = BODY_MAPPING.get(pid, pid)
+        
+        # Get Elements
+        print(f"Processing {pid}...")
+        elements = get_elements_for_body(kernels, body_key, center, t, pid)
+        
+        if not elements:
+            print(f"Skipping {pid} due to error.")
+            continue
+            
+        # Process Moons
+        moons_content = []
+        if pid in MOON_PARENTS:
+            for mid in MOON_PARENTS[pid]:
+                print(f"  Processing moon {mid}...")
+                m_data = VISUAL_DATA[mid].copy()
+                m_data["id"] = mid
+                
+                # Center for moon is the planet
+                # Note: 'earth barycenter' -> 'earth' for moon center?
+                # Skyfield: 'moon' orbits 'earth' (not barycenter) usually inside the kernel?
+                # Actually de440s has 'earth' relative to 'earth barycenter'.
+                # But 'moon' is relative to 'earth barycenter' implicitly or 'earth'?
+                # Usually we ask for (moon - earth).
+                
+                moon_center = body_key
+                # Need to be careful with barycenters. 
+                # Earth Barycenter = Earth + Moon.
+                # Center for Moon orbit should be Earth (399), not Barycenter (3).
+                # But de440s usually has 3 (Earth Barycenter), and 399 (Earth), 301 (Moon).
+                # If we select "earth barycenter" as planet, and orbit moon around it...
+                # The UI treats the planet as the center. 
+                # So we should calculate moon elements relative to the PLANET body (399), not Barycenter.
+                # Also we should probably export the PLANET (399) elements relative to Sun (or Sun Barycenter).
+                # But likely the difference for Earth vs Earth Barycenter relative to Sun is small but distinct.
+                # VISUAL_DATA["earth"] calls it "Earth".
+                # Let's try to use "earth" (399) if available for the moon's center.
+                
+                if pid == "earth":
+                    # For Earth Planet Orbit: Use Barycenter (3) relative to Sun? Or Earth (399)?
+                    # Standard is Barycenter orbits Sun.
+                    # Moon orbits Earth (399).
+                    moon_center = "399" # Earth
+                elif pid == "jupiter":
+                    # Galilean moons orbit Jupiter (599).
+                    moon_center = "599" # Jupiter
+                
+                # Check if these specific centers exist in kernel
+                # 'earth' (399) might be present if de440s has it.
+                # de440s usually has 399.
+                
+                m_elements = get_elements_for_body(kernels, BODY_MAPPING.get(mid, mid), moon_center, t, mid)
+                if m_elements:
+                    moons_content.append(generate_ts_object(m_data, m_elements, None))
+                else:
+                    print(f"Skipping moon {mid}")
+
+        ts_content += generate_ts_object(p_data, elements, moons_content)
+
+    ts_content += "];\n"
+    
+    print(f"Writing to {OUTPUT_FILE}...")
+    with open(OUTPUT_FILE, "w") as f:
+        f.write(ts_content)
+    
+    print("Done!")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,5 @@
+{
+  "name": "Keplerian Solar System",
+  "description": "A scientifically accurate, beautiful 3D solar system simulation using Keplerian physics and Three.js. Features real-time orbital mechanics, planet information, moons (Luna, Galilean moons), and an integrated AI assistant for cosmic queries.",
+  "requestFramePermissions": []
+}
