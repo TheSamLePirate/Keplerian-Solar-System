@@ -196,7 +196,7 @@ const Planet: React.FC<PlanetProps> = ({
     // Position Calculation
     const position = useMemo(() => {
         const pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
-
+        
         if (isSatellite) {
             // For satellites, normalize the orbital position and scale to minimum orbit radius
             const orbitPos = new THREE.Vector3(
@@ -211,7 +211,7 @@ const Planet: React.FC<PlanetProps> = ({
             }
             return orbitPos;
         }
-
+        
         return new THREE.Vector3(
             pos[0] * visualOrbitScale,
             pos[1] * visualOrbitScale,
@@ -226,7 +226,7 @@ const Planet: React.FC<PlanetProps> = ({
     // - +Y axis perpendicular to orbital plane
     const issOrientation = useMemo(() => {
         if (!isSatellite) return new THREE.Quaternion();
-
+        
         // Get current position
         const pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
         const currentPos = new THREE.Vector3(
@@ -234,7 +234,7 @@ const Planet: React.FC<PlanetProps> = ({
             pos[1] * visualOrbitScale,
             pos[2] * visualOrbitScale
         );
-
+        
         // Get position slightly in the future to calculate velocity direction
         const dt = 0.0001; // Small time step in days
         const futurePos = calculateOrbitalPositionWithPeriod(data.elements, time + dt, data.period);
@@ -243,33 +243,33 @@ const Planet: React.FC<PlanetProps> = ({
             futurePos[1] * visualOrbitScale,
             futurePos[2] * visualOrbitScale
         );
-
+        
         // Velocity direction (prograde) - this will be the ISS +X axis
         const velocity = futureVec.sub(currentPos).normalize();
-
+        
         // Nadir direction (toward Earth/parent center) - this will be the ISS -Z axis
         // Since ISS orbits relative to parent, nadir points to origin (0,0,0)
         const nadir = currentPos.clone().normalize().negate();
-
+        
         // Calculate the orientation matrix
         // X = velocity (prograde)
         // Z = -nadir (away from Earth, so +Z is zenith, -Z is nadir)
         // Y = Z cross X (perpendicular to orbital plane)
-
+        
         const xAxis = velocity.clone();
         const zAxis = nadir.clone().negate(); // +Z points away from Earth (zenith)
         const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
-
+        
         // Recompute X to ensure orthogonality
         xAxis.crossVectors(yAxis, zAxis).normalize();
-
+        
         // Create rotation matrix from axes
         const rotationMatrix = new THREE.Matrix4();
         rotationMatrix.makeBasis(xAxis, yAxis, zAxis);
-
+        
         const quaternion = new THREE.Quaternion();
         quaternion.setFromRotationMatrix(rotationMatrix);
-
+        
         return quaternion;
     }, [isSatellite, data.elements, time, visualOrbitScale]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,22 +25,28 @@ interface SceneContentProps {
     atmOpacity: number;
     atmPow: number;
     ambientLightIntensity: number;
+    shadowEnabled: boolean;
+    shadowMapSize: number;
+    shadowRadius: number;
+    renderScale: number;
+    starsCount: number;
     resetTimeTrigger: number;
     resetCameraTrigger: number;
     issModel: 'small' | 'big';
 }
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
-    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, ambientLightIntensity, resetTimeTrigger, resetCameraTrigger, issModel
+    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, ambientLightIntensity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetTimeTrigger, resetCameraTrigger, issModel
 }) => {
     const [time, setTime] = useState(0);
+    const lastUiUpdateRef = useRef(0);
     const controlsRef = useRef<any>(null);
     const { camera } = useThree();
-    
+
     const prevTargetPos = useRef(new THREE.Vector3(0, 0, 0));
     const prevResetTime = useRef(resetTimeTrigger);
     const prevResetCam = useRef(resetCameraTrigger);
-    
+
     // FPS Counters
     const frameCount = useRef(0);
     const lastFpsUpdate = useRef(0);
@@ -49,18 +55,19 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     if (resetTimeTrigger !== prevResetTime.current) {
         setTime(0);
         onTimeUpdate(0);
+        lastUiUpdateRef.current = 0;
         prevResetTime.current = resetTimeTrigger;
     }
 
     // Reset Camera
     if (resetCameraTrigger !== prevResetCam.current) {
-         if (controlsRef.current) {
-             controlsRef.current.reset();
-             camera.position.set(0, 50, 100);
-             controlsRef.current.target.set(0, 0, 0);
-             prevTargetPos.current.set(0, 0, 0);
-         }
-         prevResetCam.current = resetCameraTrigger;
+        if (controlsRef.current) {
+            controlsRef.current.reset();
+            camera.position.set(0, 50, 100);
+            controlsRef.current.target.set(0, 0, 0);
+            prevTargetPos.current.set(0, 0, 0);
+        }
+        prevResetCam.current = resetCameraTrigger;
     }
 
     // Animation Loop
@@ -78,27 +85,32 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         if (!paused) {
             const newTime = time + speed * delta;
             setTime(newTime);
-            onTimeUpdate(newTime);
+            const nowSeconds = state.clock.getElapsedTime();
+            if (nowSeconds - lastUiUpdateRef.current >= 0.01) {
+                onTimeUpdate(newTime);
+                lastUiUpdateRef.current = nowSeconds;
+            }
         }
 
         // Follow Logic - Uses followingBody instead of selectedPlanet
         if (isFollowing && followingBody && controlsRef.current) {
             let targetPos = new THREE.Vector3(0, 0, 0);
+            const currentTime = time;
 
             if (followingBody.type === 'moon' || followingBody.type === 'satellite') {
                 // Find parent planet for moons and satellites
                 const parent = PLANETS.find(p => p.moons?.some(m => m.id === followingBody.id));
                 if (parent) {
-                    const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, time, parent.period);
+                    const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, currentTime, parent.period);
                     const parentPos = new THREE.Vector3(...parentPosArray);
-                    
-                    const childPosArray = calculateOrbitalPositionWithPeriod(followingBody.elements, time, followingBody.period);
+
+                    const childPosArray = calculateOrbitalPositionWithPeriod(followingBody.elements, currentTime, followingBody.period);
                     let childPos = new THREE.Vector3(
                         childPosArray[0] * MOON_ORBIT_SCALE,
                         childPosArray[1] * MOON_ORBIT_SCALE,
                         childPosArray[2] * MOON_ORBIT_SCALE
                     );
-                    
+
                     // For satellites, apply minimum orbit radius (same logic as Planet.tsx)
                     if (followingBody.type === 'satellite') {
                         const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
@@ -108,11 +120,11 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                             childPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
                         }
                     }
-                    
+
                     targetPos.copy(parentPos).add(childPos);
                 }
             } else {
-                const posArray = calculateOrbitalPositionWithPeriod(followingBody.elements, time, followingBody.period);
+                const posArray = calculateOrbitalPositionWithPeriod(followingBody.elements, currentTime, followingBody.period);
                 targetPos.set(posArray[0], posArray[1], posArray[2]);
             }
 
@@ -129,23 +141,28 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
     return (
         <>
-            <OrbitControls 
+            <OrbitControls
                 ref={controlsRef}
-                minDistance={0.01} 
-                maxDistance={10000} 
+                minDistance={0.01}
+                maxDistance={10000}
                 enablePan={true}
                 dampingFactor={0.05}
             />
-            <Stars radius={3000} depth={50} count={10000} factor={4} saturation={0} fade speed={1} />
-            
-            <Sun scaleFactor={scaleFactor} />
+            <Stars radius={3000} depth={50} count={starsCount} factor={4} saturation={0} fade speed={1} />
+
+            <Sun
+                scaleFactor={scaleFactor}
+                shadowEnabled={shadowEnabled}
+                shadowMapSize={shadowMapSize}
+                shadowRadius={shadowRadius}
+            />
             <ambientLight intensity={ambientLightIntensity} />
-            
+
             {PLANETS.map((planet) => (
-                <Planet 
-                    key={planet.id} 
-                    data={planet} 
-                    time={time} 
+                <Planet
+                    key={planet.id}
+                    data={planet}
+                    time={time}
                     isSelected={selectedPlanet?.id === planet.id}
                     onSelect={onPlanetClick}
                     showOrbit={showOrbits}
@@ -162,18 +179,19 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
 const Scene: React.FC<SceneContentProps> = (props) => {
     return (
-        <Canvas 
-            shadows="soft"
+        <Canvas
+            shadows={props.shadowEnabled ? { type: THREE.PCFShadowMap } : false}
             camera={{ position: [0, 50, 100], fov: 45, near: 0.001, far: 100000 }}
-            gl={{ 
-                antialias: true, 
-                toneMapping: THREE.ACESFilmicToneMapping, 
+            dpr={props.renderScale}
+            gl={{
+                antialias: true,
+                toneMapping: THREE.ACESFilmicToneMapping,
                 toneMappingExposure: 1.2,
-                pixelRatio: window.devicePixelRatio
+                powerPreference: 'high-performance'
             }}
             onPointerMissed={props.onBackgroundClick}
         >
-             <SceneContentInternal {...props} />
+            <SceneContentInternal {...props} />
         </Canvas>
     );
 };

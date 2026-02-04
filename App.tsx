@@ -29,13 +29,18 @@ const App: React.FC = () => {
 
     // Light Settings
     const [ambientLight, setAmbientLight] = useState(0.05);
+    const [shadowEnabled, setShadowEnabled] = useState(true);
+    const [shadowMapSize, setShadowMapSize] = useState(4096 * 2);
+    const [shadowRadius, setShadowRadius] = useState(2);
+    const [renderScale, setRenderScale] = useState(0.5);
+    const [starsCount, setStarsCount] = useState(200000);
 
     // Triggers
     const [resetTimeTrigger, setResetTimeTrigger] = useState(0);
     const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
 
     // ISS Model Selection: 'small' or 'big'
-    const [issModel, setIssModel] = useState<'small' | 'big'>('small');
+    const [issModel, setIssModel] = useState<'small' | 'big'>('big');
 
     // Calculate actual speed
     const actualSpeed = useMemo(() => {
@@ -111,6 +116,11 @@ const App: React.FC = () => {
                 atmOpacity={atmOpacity}
                 atmPow={atmPow}
                 ambientLightIntensity={ambientLight}
+                shadowEnabled={shadowEnabled}
+                shadowMapSize={shadowMapSize}
+                shadowRadius={shadowRadius}
+                renderScale={renderScale}
+                starsCount={starsCount}
                 resetTimeTrigger={resetTimeTrigger}
                 resetCameraTrigger={resetCameraTrigger}
                 issModel={issModel}
@@ -139,6 +149,11 @@ const App: React.FC = () => {
                 onResetTime={handleResetTime}
                 onResetCamera={handleResetCamera}
                 ambientLight={ambientLight} setAmbientLight={setAmbientLight}
+                shadowEnabled={shadowEnabled} setShadowEnabled={setShadowEnabled}
+                shadowMapSize={shadowMapSize} setShadowMapSize={setShadowMapSize}
+                shadowRadius={shadowRadius} setShadowRadius={setShadowRadius}
+                renderScale={renderScale} setRenderScale={setRenderScale}
+                starsCount={starsCount} setStarsCount={setStarsCount}
                 issModel={issModel} setIssModel={setIssModel}
             />
 

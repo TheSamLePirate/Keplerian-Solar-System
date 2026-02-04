@@ -1,20 +1,42 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_SCALE } from '../constants';
 
 interface SunProps {
     scaleFactor: number;
+    shadowEnabled: boolean;
+    shadowMapSize: number;
+    shadowRadius: number;
 }
 
-const Sun: React.FC<SunProps> = ({ scaleFactor }) => {
+const Sun: React.FC<SunProps> = ({ scaleFactor, shadowEnabled, shadowMapSize, shadowRadius }) => {
     const { gl } = useThree();
+    const lightRef = useRef<THREE.PointLight>(null);
     const size = 5 * PLANET_SCALE * scaleFactor; 
-    const maxShadowSize = useMemo(() => {
+    const cappedShadowSize = useMemo(() => {
         const maxSize = gl.capabilities.maxTextureSize || 4096;
         const pow2 = THREE.MathUtils.floorPowerOfTwo(maxSize);
-        return Math.max(1024, Math.min(pow2, 16384));
-    }, [gl]);
+        return Math.max(256, Math.min(shadowMapSize, pow2));
+    }, [gl, shadowMapSize]);
+
+    useEffect(() => {
+        if (!lightRef.current) return;
+        const shadow = lightRef.current.shadow;
+        if (!shadow) return;
+
+        // Update shadow config and force a reallocation when size changes
+        shadow.mapSize.set(cappedShadowSize, cappedShadowSize);
+        shadow.radius = shadowRadius;
+        shadow.needsUpdate = true;
+
+        if (shadow.map) {
+            shadow.map.dispose();
+            shadow.map = null;
+        }
+
+        gl.shadowMap.needsUpdate = true;
+    }, [cappedShadowSize, shadowRadius, shadowEnabled, gl]);
 
     // Generate procedural glow texture
     const glowTexture = useMemo(() => {
@@ -38,15 +60,16 @@ const Sun: React.FC<SunProps> = ({ scaleFactor }) => {
         <group>
             {/* Main Light Source */}
             <pointLight 
+                ref={lightRef}
                 intensity={3} 
                 distance={0} 
                 decay={0} // 0 decay to ensure outer planets are lit, physically incorrect but necessary for viz
                 color="#fff" 
-                castShadow
-                shadow-mapSize-width={maxShadowSize}
-                shadow-mapSize-height={maxShadowSize}
+                castShadow={shadowEnabled}
+                shadow-mapSize-width={cappedShadowSize}
+                shadow-mapSize-height={cappedShadowSize}
                 shadow-bias={-0.00005}
-                shadow-radius={2}
+                shadow-radius={shadowRadius}
             />
             {/* Ambient fill for dark sides */}
             <ambientLight intensity={0.05} />

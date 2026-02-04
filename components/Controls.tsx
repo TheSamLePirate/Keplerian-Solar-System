@@ -26,6 +26,16 @@ interface ControlsProps {
     onResetCamera: () => void;
     ambientLight: number;
     setAmbientLight: (v: number) => void;
+    shadowEnabled: boolean;
+    setShadowEnabled: (b: boolean) => void;
+    shadowMapSize: number;
+    setShadowMapSize: (v: number) => void;
+    shadowRadius: number;
+    setShadowRadius: (v: number) => void;
+    renderScale: number;
+    setRenderScale: (v: number) => void;
+    starsCount: number;
+    setStarsCount: (v: number) => void;
     // ISS Model Selection
     issModel: 'small' | 'big';
     setIssModel: (m: 'small' | 'big') => void;
@@ -47,6 +57,11 @@ const Controls: React.FC<ControlsProps> = ({
     onResetTime,
     onResetCamera,
     ambientLight, setAmbientLight,
+    shadowEnabled, setShadowEnabled,
+    shadowMapSize, setShadowMapSize,
+    shadowRadius, setShadowRadius,
+    renderScale, setRenderScale,
+    starsCount, setStarsCount,
     issModel, setIssModel
 }) => {
     // Start date is now dynamic based on Python export
@@ -181,6 +196,89 @@ const Controls: React.FC<ControlsProps> = ({
                         onChange={(e) => setAmbientLight(parseFloat(e.target.value))}
                         className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                     />
+                </div>
+
+                {/* Visual Quality */}
+                <div className="flex flex-col gap-3 border-t border-white/10 pt-3">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Visual Quality</div>
+
+                    <label className="flex items-center justify-between text-xs text-gray-300">
+                        <span>Shadows</span>
+                        <input
+                            type="checkbox"
+                            checked={shadowEnabled}
+                            onChange={(e) => setShadowEnabled(e.target.checked)}
+                            className="accent-blue-500"
+                        />
+                    </label>
+
+                    <div className={`flex flex-col gap-1 ${shadowEnabled ? '' : 'opacity-50'}`}>
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Shadow Resolution</span>
+                            <span>{shadowMapSize}px</span>
+                        </div>
+                        <select
+                            value={shadowMapSize}
+                            onChange={(e) => setShadowMapSize(parseInt(e.target.value, 10))}
+                            disabled={!shadowEnabled}
+                            className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-gray-200"
+                        >
+                            <option value={1024}>1024</option>
+                            <option value={2048}>2048</option>
+                            <option value={4096}>4096</option>
+                            <option value={8192}>8192</option>
+                            <option value={16384}>16384</option>
+                        </select>
+                    </div>
+
+                    <div className={`flex flex-col gap-1 ${shadowEnabled ? '' : 'opacity-50'}`}>
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Shadow Softness</span>
+                            <span>{shadowRadius.toFixed(1)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="5"
+                            step="0.5"
+                            value={shadowRadius}
+                            onChange={(e) => setShadowRadius(parseFloat(e.target.value))}
+                            disabled={!shadowEnabled}
+                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Render Scale</span>
+                            <span>{renderScale.toFixed(2)}x</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0.75"
+                            max="2"
+                            step="0.25"
+                            value={renderScale}
+                            onChange={(e) => setRenderScale(parseFloat(e.target.value))}
+                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Star Density</span>
+                            <span>{starsCount}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="2000"
+                            max="20000"
+                            step="1000"
+                            value={starsCount}
+                            onChange={(e) => setStarsCount(parseInt(e.target.value, 10))}
+                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
                 </div>
 
                 {/* ISS Model Selection */}
