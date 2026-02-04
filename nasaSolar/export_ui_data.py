@@ -59,7 +59,9 @@ VISUAL_DATA = {
         "radius": 0.273,
         "description": "Earth's only natural satellite.",
         "rotationPeriod": 655.7,
-        "axialTilt": 6.68
+        "axialTilt": 6.68,
+        "textureUrl": "/textures/moon_daymap.jpg",
+        "normalMapUrl": "/textures/moon_normal.jpg"
     },
     "mars": {
         "name": "Mars",

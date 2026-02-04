@@ -20,7 +20,18 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ planet, onClose, onFollow, isFoll
             </button>
 
             <div className="mt-4 mb-6">
-                <h2 className="text-4xl font-thin tracking-wider mb-2" style={{color: planet.color}}>{planet.name}</h2>
+                {planet.textureUrl && (
+                    <div className="w-full h-24 mb-4 rounded-lg overflow-hidden border border-white/10 relative group">
+                        <img
+                            src={planet.textureUrl}
+                            alt={`${planet.name} Texture`}
+                            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+                        <div className="absolute bottom-1 right-2 text-[8px] text-gray-500 uppercase tracking-widest font-mono">Texture Preview</div>
+                    </div>
+                )}
+                <h2 className="text-4xl font-thin tracking-wider mb-2" style={{ color: planet.color }}>{planet.name}</h2>
                 <div className="flex items-center gap-2 mb-4">
                     <span className="text-xs font-bold px-2 py-0.5 rounded bg-white/10 uppercase tracking-widest text-gray-400">{planet.type}</span>
                     {planet.moons && (
@@ -33,67 +44,67 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ planet, onClose, onFollow, isFoll
                     {planet.description}
                 </p>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 <div className="mb-6">
                     <h3 className="text-xs font-bold uppercase text-gray-500 mb-3 border-b border-white/10 pb-1">Physical Characteristics</h3>
                     <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
-                         <div className="text-gray-400">Radius</div>
-                         <div className="font-mono text-right">{planet.radius.toFixed(3)} x Earth</div>
-                         
-                         <div className="text-gray-400">Atmosphere</div>
-                         <div className="font-mono text-right text-xs truncate">
-                             {planet.atmosphereColor ? 
-                                <span style={{color: planet.atmosphereColor}}>Detected</span> : 
+                        <div className="text-gray-400">Radius</div>
+                        <div className="font-mono text-right">{planet.radius.toFixed(3)} x Earth</div>
+
+                        <div className="text-gray-400">Atmosphere</div>
+                        <div className="font-mono text-right text-xs truncate">
+                            {planet.atmosphereColor ?
+                                <span style={{ color: planet.atmosphereColor }}>Detected</span> :
                                 <span className="text-gray-600">None</span>
-                             }
-                         </div>
+                            }
+                        </div>
                     </div>
                 </div>
 
                 <div className="mb-6">
                     <h3 className="text-xs font-bold uppercase text-gray-500 mb-3 border-b border-white/10 pb-1">Orbital Data</h3>
                     <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
-                         <div className="text-gray-400">Semi-Major Axis</div>
-                         <div className="font-mono text-right">{elements.semiMajorAxis.toFixed(4)} AU</div>
+                        <div className="text-gray-400">Semi-Major Axis</div>
+                        <div className="font-mono text-right">{elements.semiMajorAxis.toFixed(4)} AU</div>
 
-                         <div className="text-gray-400">Orbital Period</div>
-                         <div className="font-mono text-right">{planet.period.toFixed(4)} Yrs</div>
-                         
-                         <div className="text-gray-400">Eccentricity</div>
-                         <div className="font-mono text-right">{elements.eccentricity.toFixed(4)}</div>
-                         
-                         <div className="text-gray-400">Inclination</div>
-                         <div className="font-mono text-right">{elements.inclination.toFixed(2)}°</div>
+                        <div className="text-gray-400">Orbital Period</div>
+                        <div className="font-mono text-right">{planet.period.toFixed(4)} Yrs</div>
 
-                         <div className="text-gray-400">Ascending Node</div>
-                         <div className="font-mono text-right">{elements.ascendingNode.toFixed(1)}°</div>
+                        <div className="text-gray-400">Eccentricity</div>
+                        <div className="font-mono text-right">{elements.eccentricity.toFixed(4)}</div>
 
-                         <div className="text-gray-400">Perihelion</div>
-                         <div className="font-mono text-right">{elements.perihelion.toFixed(1)}°</div>
+                        <div className="text-gray-400">Inclination</div>
+                        <div className="font-mono text-right">{elements.inclination.toFixed(2)}°</div>
+
+                        <div className="text-gray-400">Ascending Node</div>
+                        <div className="font-mono text-right">{elements.ascendingNode.toFixed(1)}°</div>
+
+                        <div className="text-gray-400">Perihelion</div>
+                        <div className="font-mono text-right">{elements.perihelion.toFixed(1)}°</div>
                     </div>
                 </div>
 
                 {planet.moons && planet.moons.length > 0 && (
                     <div className="mb-6">
-                         <h3 className="text-xs font-bold uppercase text-gray-500 mb-3 border-b border-white/10 pb-1">Satellites</h3>
-                         <div className="flex flex-wrap gap-2">
-                             {planet.moons.map(m => (
-                                 <span key={m.id} className="text-xs bg-white/5 px-2 py-1 rounded text-gray-300 border border-white/5">
-                                     {m.name}
-                                 </span>
-                             ))}
-                         </div>
+                        <h3 className="text-xs font-bold uppercase text-gray-500 mb-3 border-b border-white/10 pb-1">Satellites</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {planet.moons.map(m => (
+                                <span key={m.id} className="text-xs bg-white/5 px-2 py-1 rounded text-gray-300 border border-white/5">
+                                    {m.name}
+                                </span>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
 
             <div className="pt-4 mt-auto border-t border-white/10">
-                <button 
+                <button
                     onClick={onFollow}
                     className={`w-full py-3 rounded text-sm font-bold uppercase tracking-widest transition-all
-                        ${isFollowingThisPlanet 
-                            ? 'bg-green-900/50 text-green-400 border border-green-500/50 hover:bg-green-900 cursor-default' 
+                        ${isFollowingThisPlanet
+                            ? 'bg-green-900/50 text-green-400 border border-green-500/50 hover:bg-green-900 cursor-default'
                             : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/50'
                         }`}
                     disabled={isFollowingThisPlanet}

@@ -412,33 +412,34 @@ const Planet: React.FC<PlanetProps> = ({
                         receiveShadow
                     >
                         <sphereGeometry args={[size, 64, 64]} />
-                        {loadedTextures.specular ? (
+                        {loadedTextures.map ? (
                             <meshPhongMaterial
                                 color="white"
                                 map={loadedTextures.map || gridTexture || undefined}
                                 normalMap={loadedTextures.normal || undefined}
                                 normalScale={new THREE.Vector2(1, 1)}
-                                specularMap={loadedTextures.specular}
-                                specular={new THREE.Color('grey')}
-                                shininess={50}
+                                specularMap={loadedTextures.specular || undefined}
+                                specular={loadedTextures.specular ? new THREE.Color('grey') : new THREE.Color(0x111111)}
+                                shininess={loadedTextures.specular ? 50 : 5}
                             />
                         ) : (
                             <meshStandardMaterial
                                 {...materialProps}
-                                color={loadedTextures.map ? 'white' : materialProps.color}
-                                map={loadedTextures.map || gridTexture || undefined}
-                                normalMap={loadedTextures.normal || undefined}
-                                normalScale={new THREE.Vector2(1, 1)}
+                                map={undefined}
+                                normalMap={undefined}
                             />
                         )}
 
                         {(showLabel || hovered || isSelected) && (
                             <Html position={[0, size * 1.5, 0]}>
                                 <div
-                                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap
+                                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
                             ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-black/50 text-white border border-white/20'}
                             `}
                                 >
+                                    {data.textureUrl && (
+                                        <img src={data.textureUrl} alt="" className="w-3 h-3 rounded-full object-cover border border-white/50" />
+                                    )}
                                     {data.name}
                                 </div>
                             </Html>
