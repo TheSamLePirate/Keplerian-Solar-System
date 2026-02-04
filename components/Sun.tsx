@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_SCALE } from '../constants';
 
@@ -7,7 +8,13 @@ interface SunProps {
 }
 
 const Sun: React.FC<SunProps> = ({ scaleFactor }) => {
+    const { gl } = useThree();
     const size = 5 * PLANET_SCALE * scaleFactor; 
+    const maxShadowSize = useMemo(() => {
+        const maxSize = gl.capabilities.maxTextureSize || 4096;
+        const pow2 = THREE.MathUtils.floorPowerOfTwo(maxSize);
+        return Math.max(1024, Math.min(pow2, 16384));
+    }, [gl]);
 
     // Generate procedural glow texture
     const glowTexture = useMemo(() => {
@@ -36,8 +43,8 @@ const Sun: React.FC<SunProps> = ({ scaleFactor }) => {
                 decay={0} // 0 decay to ensure outer planets are lit, physically incorrect but necessary for viz
                 color="#fff" 
                 castShadow
-                shadow-mapSize-width={4096}
-                shadow-mapSize-height={4096}
+                shadow-mapSize-width={maxShadowSize}
+                shadow-mapSize-height={maxShadowSize}
                 shadow-bias={-0.00005}
                 shadow-radius={2}
             />

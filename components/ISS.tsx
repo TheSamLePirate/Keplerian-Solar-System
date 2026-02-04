@@ -21,11 +21,18 @@ const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small' }) =
         // Traverse and update materials if needed
         clone.traverse((child) => {
             if (child instanceof THREE.Mesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
                 // Ensure proper material settings for visibility
                 if (child.material) {
-                    const material = child.material as THREE.MeshStandardMaterial;
-                    material.metalness = 0.5;
-                    material.roughness = 0.5;
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach((material) => {
+                        if (material instanceof THREE.MeshStandardMaterial) {
+                            material.metalness = 0.5;
+                            material.roughness = 0.5;
+                            material.needsUpdate = true;
+                        }
+                    });
                 }
             }
         });
