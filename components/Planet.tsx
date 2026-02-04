@@ -6,6 +6,7 @@ import { TextureLoader } from "three";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 import { PLANET_SCALE, MOON_ORBIT_SCALE } from "../constants";
+import ISSModel from "./ISS";
 
 interface PlanetProps {
     data: PlanetData;
@@ -168,39 +169,76 @@ const Planet: React.FC<PlanetProps> = ({
 
     // Constants
     const isMoon = data.type === 'moon';
-    const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE : 1;
+    const isSatellite = data.type === 'satellite';
+    const visualOrbitScale = (isMoon || isSatellite) ? MOON_ORBIT_SCALE : 1;
 
     // Use atmosphereColor if available
     const hasAtmosphere = !!data.atmosphereColor;
     const isGasGiant = ['jupiter', 'saturn', 'uranus', 'neptune'].includes(data.id);
 
+    // For satellites, we need a minimum orbit radius based on parent planet's visual size
+    // Earth radius=1.0, PLANET_SCALE=0.5, so Earth visual size = 0.5 * scaleFactor
+    // We want ISS to orbit at ~1.5x the planet's visual radius
+    const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor; // Assuming Earth as parent
+    const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.8;
+
     // Position Calculation
     const position = useMemo(() => {
         const pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
+        
+        if (isSatellite) {
+            // For satellites, normalize the orbital position and scale to minimum orbit radius
+            const orbitPos = new THREE.Vector3(
+                pos[0] * visualOrbitScale,
+                pos[1] * visualOrbitScale,
+                pos[2] * visualOrbitScale
+            );
+            const distance = orbitPos.length();
+            if (distance > 0) {
+                // Scale to ensure orbit is outside planet
+                orbitPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
+            }
+            return orbitPos;
+        }
+        
         return new THREE.Vector3(
             pos[0] * visualOrbitScale,
             pos[1] * visualOrbitScale,
             pos[2] * visualOrbitScale
         );
-    }, [data, time, visualOrbitScale]);
+    }, [data, time, visualOrbitScale, isSatellite, satelliteMinOrbitRadius]);
 
     // Orbit Path
     const orbitPath = useMemo(() => {
         const points: THREE.Vector3[] = [];
-        const segments = isMoon ? 64 : 180;
+        const segments = isSatellite ? 128 : (isMoon ? 64 : 180);
         const orbitalPeriodDays = data.period * 365.25;
 
         for (let i = 0; i <= segments; i++) {
             const t = (i / segments) * orbitalPeriodDays;
             const pos = calculateOrbitalPositionWithPeriod(data.elements, t, data.period);
-            points.push(new THREE.Vector3(
-                pos[0] * visualOrbitScale,
-                pos[1] * visualOrbitScale,
-                pos[2] * visualOrbitScale
-            ));
+            
+            if (isSatellite) {
+                const orbitPos = new THREE.Vector3(
+                    pos[0] * visualOrbitScale,
+                    pos[1] * visualOrbitScale,
+                    pos[2] * visualOrbitScale
+                );
+                const distance = orbitPos.length();
+                if (distance > 0) {
+                    orbitPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
+                }
+                points.push(orbitPos);
+            } else {
+                points.push(new THREE.Vector3(
+                    pos[0] * visualOrbitScale,
+                    pos[1] * visualOrbitScale,
+                    pos[2] * visualOrbitScale
+                ));
+            }
         }
         return points;
-    }, [data, visualOrbitScale]);
+    }, [data, visualOrbitScale, isSatellite, satelliteMinOrbitRadius]);
 
     const size = data.radius * PLANET_SCALE * scaleFactor;
     // Atmosphere shell size - slightly larger to separate from surface
@@ -410,85 +448,110 @@ const Planet: React.FC<PlanetProps> = ({
                         </mesh>
                     )}
 
-                    <mesh
-                        ref={meshRef}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onSelect(data);
-                        }}
-                        onPointerOver={() => setHover(true)}
-                        onPointerOut={() => setHover(false)}
-                        castShadow
-                        receiveShadow
-                    >
-                        <sphereGeometry args={[size, 64, 64]} />
-                        {loadedTextures.map ? (
-                            <meshPhongMaterial
-                                color="white"
-                                map={loadedTextures.map || gridTexture || undefined}
-                                normalMap={loadedTextures.normal || undefined}
-                                normalScale={new THREE.Vector2(1, 1)}
-                                specularMap={loadedTextures.specular || undefined}
-                                specular={loadedTextures.specular ? new THREE.Color('grey') : new THREE.Color(0x111111)}
-                                shininess={loadedTextures.specular ? 50 : 5}
-                            />
-                        ) : (
-                            <meshStandardMaterial
-                                {...materialProps}
-                                map={undefined}
-                                normalMap={undefined}
-                            />
-                        )}
-
-                        {/* Ring System */}
-                        {loadedTextures.ring && data.ringInnerRadius && data.ringOuterRadius && (
-                            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow castShadow>
-                                <ringGeometry
-                                    args={[size * data.ringInnerRadius, size * data.ringOuterRadius, 64]}
-                                    onUpdate={(geom) => {
-                                        // Fix UVs for radial texture strip (1D radial gradient)
-                                        // Map Radius (inner->outer) to U (0->1)
-                                        const pos = geom.attributes.position;
-                                        const uv = geom.attributes.uv;
-                                        const v3 = new THREE.Vector3();
-                                        const inner = size * (data.ringInnerRadius || 1.2);
-                                        const outer = size * (data.ringOuterRadius || 2.5);
-
-                                        for (let i = 0; i < pos.count; i++) {
-                                            v3.fromBufferAttribute(pos, i);
-                                            const len = v3.length();
-                                            const u = (len - inner) / (outer - inner);
-                                            // V is irrelevant for 1D strip, mostly
-                                            uv.setXY(i, u, 0.5);
-                                        }
-                                        uv.needsUpdate = true;
-                                    }}
+                    {/* Render ISS 3D model for satellites, sphere for other bodies */}
+                    {isSatellite ? (
+                        <group
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(data);
+                            }}
+                            onPointerOver={() => setHover(true)}
+                            onPointerOut={() => setHover(false)}
+                        >
+                            <ISSModel scale={size * 0.5} />
+                            {(showLabel || hovered || isSelected) && (
+                                <Html position={[0, size * 3, 0]}>
+                                    <div
+                                        className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                                ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-black/50 text-white border border-white/20'}
+                                `}
+                                    >
+                                        {data.name}
+                                    </div>
+                                </Html>
+                            )}
+                        </group>
+                    ) : (
+                        <mesh
+                            ref={meshRef}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(data);
+                            }}
+                            onPointerOver={() => setHover(true)}
+                            onPointerOut={() => setHover(false)}
+                            castShadow
+                            receiveShadow
+                        >
+                            <sphereGeometry args={[size, 64, 64]} />
+                            {loadedTextures.map ? (
+                                <meshPhongMaterial
+                                    color="white"
+                                    map={loadedTextures.map || gridTexture || undefined}
+                                    normalMap={loadedTextures.normal || undefined}
+                                    normalScale={new THREE.Vector2(1, 1)}
+                                    specularMap={loadedTextures.specular || undefined}
+                                    specular={loadedTextures.specular ? new THREE.Color('grey') : new THREE.Color(0x111111)}
+                                    shininess={loadedTextures.specular ? 50 : 5}
                                 />
+                            ) : (
                                 <meshStandardMaterial
-                                    map={loadedTextures.ring}
-                                    side={THREE.DoubleSide}
-                                    transparent
-                                    color={0xffffff} // Ensure no tinting
-                                    opacity={1.0}
+                                    {...materialProps}
+                                    map={undefined}
+                                    normalMap={undefined}
                                 />
-                            </mesh>
-                        )}
+                            )}
 
-                        {(showLabel || hovered || isSelected) && (
-                            <Html position={[0, size * 1.5, 0]}>
-                                <div
-                                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
-                            ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-black/50 text-white border border-white/20'}
-                            `}
-                                >
-                                    {data.textureUrl && (
-                                        <img src={data.textureUrl} alt="" className="w-3 h-3 rounded-full object-cover border border-white/50" />
-                                    )}
-                                    {data.name}
-                                </div>
-                            </Html>
-                        )}
-                    </mesh>
+                            {/* Ring System */}
+                            {loadedTextures.ring && data.ringInnerRadius && data.ringOuterRadius && (
+                                <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow castShadow>
+                                    <ringGeometry
+                                        args={[size * data.ringInnerRadius, size * data.ringOuterRadius, 64]}
+                                        onUpdate={(geom) => {
+                                            // Fix UVs for radial texture strip (1D radial gradient)
+                                            // Map Radius (inner->outer) to U (0->1)
+                                            const pos = geom.attributes.position;
+                                            const uv = geom.attributes.uv;
+                                            const v3 = new THREE.Vector3();
+                                            const inner = size * (data.ringInnerRadius || 1.2);
+                                            const outer = size * (data.ringOuterRadius || 2.5);
+
+                                            for (let i = 0; i < pos.count; i++) {
+                                                v3.fromBufferAttribute(pos, i);
+                                                const len = v3.length();
+                                                const u = (len - inner) / (outer - inner);
+                                                // V is irrelevant for 1D strip, mostly
+                                                uv.setXY(i, u, 0.5);
+                                            }
+                                            uv.needsUpdate = true;
+                                        }}
+                                    />
+                                    <meshStandardMaterial
+                                        map={loadedTextures.ring}
+                                        side={THREE.DoubleSide}
+                                        transparent
+                                        color={0xffffff} // Ensure no tinting
+                                        opacity={1.0}
+                                    />
+                                </mesh>
+                            )}
+
+                            {(showLabel || hovered || isSelected) && (
+                                <Html position={[0, size * 1.5, 0]}>
+                                    <div
+                                        className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                                ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-black/50 text-white border border-white/20'}
+                                `}
+                                    >
+                                        {data.textureUrl && (
+                                            <img src={data.textureUrl} alt="" className="w-3 h-3 rounded-full object-cover border border-white/50" />
+                                        )}
+                                        {data.name}
+                                    </div>
+                                </Html>
+                            )}
+                        </mesh>
+                    )}
                 </group>
 
                 {data.moons && data.moons.map((moon) => (

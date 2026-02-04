@@ -156,6 +156,16 @@ VISUAL_DATA = {
         "description": "The most distant major planet. Dark, cold, and whipped by supersonic winds.",
         "rotationPeriod": 16.11,
         "axialTilt": 28.32
+    },
+    "iss": {
+        "name": "ISS",
+        "type": "satellite",
+        "color": "#FFFFFF",
+        "radius": 0.008,  # Tiny compared to planets, but visible
+        "description": "The International Space Station, a modular space station in low Earth orbit.",
+        "rotationPeriod": 0.0,  # No rotation (or attitude controlled)
+        "axialTilt": 0.0,
+        "modelUrl": "/models/iss.glb"  # 3D model path
     }
 }
 
@@ -178,7 +188,7 @@ BODY_MAPPING = {
 }
 
 MOON_PARENTS = {
-    "earth": ["moon"],
+    "earth": ["moon", "iss"],
     "jupiter": ["io", "europa", "ganymede", "callisto"]
 }
 
@@ -191,6 +201,84 @@ MOON_PARENTS = {
 GM_SUN = 0.0002959122082855911
 GM_JUPITER = GM_SUN / 1047.3486
 GM_EARTH = GM_SUN / 332946.0487
+
+# ISS TLE URL from Celestrak
+ISS_TLE_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE"
+
+def get_iss_elements(t, ts):
+    """
+    Get ISS orbital elements from real TLE data using Skyfield.
+    Fetches current TLE from Celestrak and computes orbital elements.
+    """
+    from skyfield.api import EarthSatellite
+    import urllib.request
+    
+    try:
+        print("    Fetching ISS TLE from Celestrak...")
+        
+        # Fetch TLE data
+        with urllib.request.urlopen(ISS_TLE_URL, timeout=10) as response:
+            tle_data = response.read().decode('utf-8').strip().split('\n')
+        
+        if len(tle_data) >= 3:
+            name = tle_data[0].strip()
+            line1 = tle_data[1].strip()
+            line2 = tle_data[2].strip()
+        elif len(tle_data) >= 2:
+            name = "ISS (ZARYA)"
+            line1 = tle_data[0].strip()
+            line2 = tle_data[1].strip()
+        else:
+            raise ValueError("Invalid TLE data")
+        
+        print(f"    TLE Name: {name}")
+        print(f"    TLE Line1: {line1[:30]}...")
+        print(f"    TLE Line2: {line2[:30]}...")
+        
+        # Create satellite object
+        satellite = EarthSatellite(line1, line2, name, ts)
+        
+        # Get geocentric position at time t
+        geocentric = satellite.at(t)
+        
+        # Get position and velocity relative to Earth center
+        pos = geocentric.position.km  # km
+        vel = geocentric.velocity.km_per_s  # km/s
+        
+        # Convert to AU and AU/day for consistency
+        km_per_au = 1.496e8
+        sec_per_day = 86400.0
+        
+        r_au = np.array(pos) / km_per_au
+        v_au_day = np.array(vel) * sec_per_day / km_per_au
+        
+        # Calculate orbital elements from state vectors
+        elements = elements_from_vectors(r_au, v_au_day, GM_EARTH)
+        
+        # Override semi-major axis for visual display (keep orbit visible)
+        elements["semiMajorAxis"] = 0.0003  # Visual scale
+        
+        print(f"    ISS inclination: {elements['inclination']:.2f} deg")
+        print(f"    ISS ascending node: {elements['ascendingNode']:.2f} deg")
+        print(f"    ISS mean longitude: {elements['meanLongitude']:.2f} deg")
+        print(f"    ISS eccentricity: {elements['eccentricity']:.6f}")
+        
+        return elements
+        
+    except Exception as e:
+        print(f"    Warning: Could not fetch ISS TLE: {e}")
+        print("    Using fallback orbital parameters...")
+        
+        # Fallback to approximate values
+        return {
+            "semiMajorAxis": 0.0003,
+            "eccentricity": 0.0002,
+            "inclination": 51.64,
+            "ascendingNode": 0.0,
+            "perihelion": 0.0,
+            "meanLongitude": 0.0,
+            "period": 1.77e-4
+        }
 
 def find_body(kernels, name):
     target = name
@@ -402,7 +490,8 @@ def generate_ts_object(data, elements, moons_content=None):
         s += f'{indent}normalMapUrl: "{data["normalMapUrl"]}",\n'
     if "specularMapUrl" in data:
         s += f'{indent}specularMapUrl: "{data["specularMapUrl"]}",\n'
-    s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
+    if "modelUrl" in data:
+        s += f'{indent}modelUrl: "{data["modelUrl"]}",\n'
     s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
     s += f'{indent}axialTilt: {data["axialTilt"]},\n'
     if "rotationOffset" in data:
@@ -412,9 +501,9 @@ def generate_ts_object(data, elements, moons_content=None):
         s += f'{indent}ringInnerRadius: {data["ringInnerRadius"]},\n'
         s += f'{indent}ringOuterRadius: {data["ringOuterRadius"]},\n'
     s += f'{indent}description: "{data["description"]}",\n'
-    s += f'{indent}period: {elements["period"]:.4f},\n'
+    s += f'{indent}period: {elements["period"]:.6f},\n'
     s += f'{indent}elements: {{\n'
-    s += f'{indent}  semiMajorAxis: {elements["semiMajorAxis"]:.6f},\n'
+    s += f'{indent}  semiMajorAxis: {elements["semiMajorAxis"]:.10f},\n'
     s += f'{indent}  eccentricity: {elements["eccentricity"]:.6f},\n'
     s += f'{indent}  inclination: {elements["inclination"]:.4f},\n'
     s += f'{indent}  ascendingNode: {elements["ascendingNode"]:.4f},\n'
@@ -544,16 +633,21 @@ export const PLANETS: PlanetData[] = [
                 # 'earth' (399) might be present if de440s has it.
                 # de440s usually has 399.
                 
-                m_elements = get_elements_for_body(kernels, BODY_MAPPING.get(mid, mid), moon_center, t, mid)
-                if m_elements:
-                    # Special logic for Moon rotation alignment (tidal locking)
-                    if mid == 'moon':
-                         ml_deg = m_elements['meanLongitude']
-                         m_data['rotationOffset'] = math.radians(ml_deg) + math.pi
-
+                # Special handling for ISS (not in ephemeris)
+                if mid == 'iss':
+                    m_elements = get_iss_elements(t, ts)
                     moons_content.append(generate_ts_object(m_data, m_elements, None))
                 else:
-                    print(f"Skipping moon {mid}")
+                    m_elements = get_elements_for_body(kernels, BODY_MAPPING.get(mid, mid), moon_center, t, mid)
+                    if m_elements:
+                        # Special logic for Moon rotation alignment (tidal locking)
+                        if mid == 'moon':
+                             ml_deg = m_elements['meanLongitude']
+                             m_data['rotationOffset'] = math.radians(ml_deg) + math.pi
+
+                        moons_content.append(generate_ts_object(m_data, m_elements, None))
+                    else:
+                        print(f"Skipping moon {mid}")
 
         ts_content += generate_ts_object(p_data, elements, moons_content)
 

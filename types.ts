@@ -23,6 +23,7 @@ export interface PlanetData {
   ringMapUrl?: string;
   ringInnerRadius?: number; // Relative to planet radius (e.g. 1.1)
   ringOuterRadius?: number; // Relative to planet radius (e.g. 2.0)
+  modelUrl?: string; // Path to 3D model file (.glb) for satellites like ISS
   description: string;
   elements: OrbitalElements;
   period: number; // Orbital period in Earth years
