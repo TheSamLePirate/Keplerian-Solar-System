@@ -110,9 +110,14 @@ const AtmosphereMaterial = {
         
         vec3 totalScattering = vec3(0.0);
         float viewOpticalDepth = 0.0;
-        
-        // Boosting the scattering coefficient for visibility
-        vec3 scatteringCoeff = color * intensity * 20.0; 
+
+        // Base Rayleigh scattering coefficient with a subtle red boost
+        vec3 baseCoeff = color * intensity * 18.0;
+        baseCoeff.r *= 1.35;
+        vec3 warmCoeff = vec3(1.0, 0.45, 0.22) * intensity * 18.0;
+
+        float cosTheta = dot(rayDir, lightDir);
+        float phase = 0.75 * (1.0 + cosTheta * cosTheta);
         
         for(int i = 0; i < SAMPLES; i++) {
             vec3 samplePoint = currentPos + rayDir * (stepSize * 0.5);
@@ -132,12 +137,14 @@ const AtmosphereMaterial = {
             if (!inShadow) {
                 float sunOpticalDepthVal = opticalDepth(samplePoint, lightDir, sunDist, planetRadius, atmosphereRadius);
                 viewOpticalDepth += localDensity * stepSize;
-                
-                vec3 extinction = scatteringCoeff * 1.0; 
+
+                // Warmer tint when the sun is near the horizon (more red/orange Rayleigh)
+                float sunHeight = clamp(dot(lightDir, normalize(samplePoint)), 0.0, 1.0);
+                float sunset = pow(1.0 - sunHeight, 2.0);
+                vec3 scatteringCoeff = mix(baseCoeff, warmCoeff, sunset * 0.6);
+
+                vec3 extinction = scatteringCoeff; 
                 vec3 transmittance = exp(-(viewOpticalDepth + sunOpticalDepthVal) * extinction);
-                
-                float cosTheta = dot(rayDir, lightDir);
-                float phase = 0.75 * (1.0 + cosTheta * cosTheta);
                 
                 totalScattering += localDensity * stepSize * transmittance * scatteringCoeff * phase;
             }
@@ -145,9 +152,10 @@ const AtmosphereMaterial = {
             currentPos += rayDir * stepSize;
         }
 
-        // Soften edges slightly
-        float alpha = 1.0;
-        gl_FragColor = vec4(totalScattering, alpha);
+        // Soften edges slightly based on path length through the atmosphere
+        float thickness = rayLength / (atmosphereRadius - planetRadius);
+        float edgeFade = smoothstep(0.0, 1.0, thickness);
+        gl_FragColor = vec4(totalScattering * edgeFade, 1.0);
     }
   `
 };
@@ -167,6 +175,7 @@ const Planet: React.FC<PlanetProps> = ({
     const meshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
     const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
+    const atmMeshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
 
     // Constants
@@ -439,21 +448,19 @@ const Planet: React.FC<PlanetProps> = ({
 
             // 3. Update Matrix World immediately
             // This is critical for the subsequent worldToLocal calculations to be accurate for *this* frame
-            groupRef.current.updateMatrixWorld();
+            groupRef.current.updateMatrixWorld(true);
 
             // 4. Update Atmosphere Uniforms
-            if (atmMaterialRef.current) {
+            if (atmMaterialRef.current && atmMeshRef.current) {
                 const u = atmMaterialRef.current.uniforms;
 
-                // Transform Camera Position to Local Space of the Group (which is Atmosphere's space)
-                // Note: We use groupRef because atmMesh has identity transform relative to group.
                 tempVec.copy(state.camera.position);
-                groupRef.current.worldToLocal(tempVec);
+                atmMeshRef.current.worldToLocal(tempVec);
                 u.localCameraPos.value.copy(tempVec);
 
                 // Transform Sun Position (0,0,0 World) to Local Space
                 tempSun.set(0, 0, 0);
-                groupRef.current.worldToLocal(tempSun);
+                atmMeshRef.current.worldToLocal(tempSun);
                 u.localSunPos.value.copy(tempSun);
 
                 // Update dynamic values every frame to catch prop changes
@@ -488,7 +495,7 @@ const Planet: React.FC<PlanetProps> = ({
                 <group rotation={tiltRotation}>
                     {/* Atmosphere Mesh (Outer Shell) */}
                     {hasAtmosphere && !isMoon && (
-                        <mesh>
+                        <mesh ref={atmMeshRef}>
                             {/* Geometry matches atmRadius exactly */}
                             <sphereGeometry args={[atmRadius, 64, 64]} />
                             <shaderMaterial
