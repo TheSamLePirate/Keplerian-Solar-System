@@ -4,6 +4,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 import numpy as np
+import math
 from skyfield.api import load, Topos
 from skyfield.framelib import ecliptic_frame
 from skyfield.elementslib import osculating_elements_of
@@ -396,6 +397,8 @@ def generate_ts_object(data, elements, moons_content=None):
         s += f'{indent}specularMapUrl: "{data["specularMapUrl"]}",\n'
     s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
     s += f'{indent}axialTilt: {data["axialTilt"]},\n'
+    if "rotationOffset" in data:
+        s += f'{indent}rotationOffset: {data["rotationOffset"]},\n'
     s += f'{indent}description: "{data["description"]}",\n'
     s += f'{indent}period: {elements["period"]:.4f},\n'
     s += f'{indent}elements: {{\n'
@@ -450,6 +453,12 @@ def main():
     # t = ts.utc(2026, 2, 4) # Debugging equivalent to "now"
     
     print(f"Exporting Solar System for {t.utc_iso()}...")
+
+    # Calculate GAST for Earth (Greenwich Apparent Sidereal Time)
+    # This aligns the Prime Meridian correctly with the Equinox
+    gast_hours = t.gast
+    gast_rad = (gast_hours / 24.0) * 2 * math.pi
+    VISUAL_DATA["earth"]["rotationOffset"] = gast_rad
 
     ts_content = f"""import {{ PlanetData }} from "./types";
 
@@ -525,6 +534,11 @@ export const PLANETS: PlanetData[] = [
                 
                 m_elements = get_elements_for_body(kernels, BODY_MAPPING.get(mid, mid), moon_center, t, mid)
                 if m_elements:
+                    # Special logic for Moon rotation alignment (tidal locking)
+                    if mid == 'moon':
+                         ml_deg = m_elements['meanLongitude']
+                         m_data['rotationOffset'] = math.radians(ml_deg) + math.pi
+
                     moons_content.append(generate_ts_object(m_data, m_elements, None))
                 else:
                     print(f"Skipping moon {mid}")

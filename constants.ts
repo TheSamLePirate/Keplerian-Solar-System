@@ -6,7 +6,7 @@ export const PLANET_SCALE = 0.5; // Base visual scale for planets
 export const MOON_ORBIT_SCALE = 30.0; // Visual exaggeration for moon orbits
 
 // Simulation Epoch (Start derived from Python export time)
-export const SIMULATION_EPOCH = new Date("2026-02-04T02:22:16Z").getTime();
+export const SIMULATION_EPOCH = new Date("2026-02-04T02:39:34Z").getTime();
 
 // Orbital elements computed from Skyfield for current epoch
 export const PLANETS: PlanetData[] = [
@@ -26,7 +26,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 7.0054,
       ascendingNode: 48.6424,
       perihelion: 29.2230,
-      meanLongitude: 15.0614,
+      meanLongitude: 15.1106,
     },
   },
   {
@@ -46,7 +46,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 3.3949,
       ascendingNode: 76.9166,
       perihelion: 54.9556,
-      meanLongitude: 331.6098,
+      meanLongitude: 331.6290,
     },
   },
   {
@@ -61,15 +61,16 @@ export const PLANETS: PlanetData[] = [
     specularMapUrl: "/textures/earth_specular.jpg",
     rotationPeriod: 23.93,
     axialTilt: 23.44,
+    rotationOffset: 3.039926516670688,
     description: "Our home. The only known planet to support life.",
     period: 1.0000,
     elements: {
       semiMajorAxis: 1.000002,
       eccentricity: 0.016673,
       inclination: 0.0000,
-      ascendingNode: 158.1063,
-      perihelion: 305.2505,
-      meanLongitude: 134.2747,
+      ascendingNode: 158.0989,
+      perihelion: 305.2579,
+      meanLongitude: 134.2866,
     },
     moons: [
   {
@@ -82,15 +83,16 @@ export const PLANETS: PlanetData[] = [
     normalMapUrl: "/textures/moon_normal.jpg",
     rotationPeriod: 655.7,
     axialTilt: 6.68,
+    rotationOffset: 5.872294242316643,
     description: "Earth's only natural satellite.",
     period: 0.0769,
     elements: {
       semiMajorAxis: 0.002609,
-      eccentricity: 0.062521,
-      inclination: 5.2384,
-      ascendingNode: 339.0342,
-      perihelion: 112.4114,
-      meanLongitude: 156.3023,
+      eccentricity: 0.062495,
+      inclination: 5.2385,
+      ascendingNode: 339.0343,
+      perihelion: 112.3808,
+      meanLongitude: 156.4577,
     },
   },
     ]
@@ -112,7 +114,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 1.8495,
       ascendingNode: 49.7629,
       perihelion: 286.7084,
-      meanLongitude: 310.1637,
+      meanLongitude: 310.1700,
     },
   },
   {
@@ -132,7 +134,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 1.3027,
       ascendingNode: 100.7400,
       perihelion: 274.8102,
-      meanLongitude: 106.6424,
+      meanLongitude: 106.6433,
     },
     moons: [
   {
@@ -147,11 +149,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0048,
     elements: {
       semiMajorAxis: 0.002821,
-      eccentricity: 0.003815,
+      eccentricity: 0.003831,
       inclination: 2.2123,
       ascendingNode: 338.8908,
-      perihelion: 216.1274,
-      meanLongitude: 70.3344,
+      perihelion: 215.9559,
+      meanLongitude: 72.7793,
     },
   },
   {
@@ -166,11 +168,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0097,
     elements: {
       semiMajorAxis: 0.004487,
-      eccentricity: 0.009459,
+      eccentricity: 0.009455,
       inclination: 2.1452,
       ascendingNode: 326.3453,
-      perihelion: 54.8610,
-      meanLongitude: 135.0297,
+      perihelion: 54.8643,
+      meanLongitude: 136.2475,
     },
   },
   {
@@ -185,11 +187,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0196,
     elements: {
       semiMajorAxis: 0.007154,
-      eccentricity: 0.001756,
+      eccentricity: 0.001753,
       inclination: 2.3428,
       ascendingNode: 339.6022,
-      perihelion: 346.5183,
-      meanLongitude: 257.3222,
+      perihelion: 346.4577,
+      meanLongitude: 257.9265,
     },
   },
   {
@@ -204,11 +206,11 @@ export const PLANETS: PlanetData[] = [
     period: 0.0457,
     elements: {
       semiMajorAxis: 0.012586,
-      eccentricity: 0.007181,
+      eccentricity: 0.007178,
       inclination: 1.9551,
       ascendingNode: 337.0991,
-      perihelion: 34.5939,
-      meanLongitude: 104.7938,
+      perihelion: 34.6154,
+      meanLongitude: 105.0533,
     },
   },
     ]
@@ -225,12 +227,12 @@ export const PLANETS: PlanetData[] = [
     description: "Adorned with a dazzling, complex system of icy rings.",
     period: 29.5024,
     elements: {
-      semiMajorAxis: 9.547707,
+      semiMajorAxis: 9.547706,
       eccentricity: 0.055364,
       inclination: 2.4863,
       ascendingNode: 113.9298,
       perihelion: 338.0195,
-      meanLongitude: 9.4186,
+      meanLongitude: 9.4190,
     },
   },
   {
@@ -250,7 +252,7 @@ export const PLANETS: PlanetData[] = [
       inclination: 0.7735,
       ascendingNode: 74.1334,
       perihelion: 91.6847,
-      meanLongitude: 65.5200,
+      meanLongitude: 65.5202,
     },
   },
   {
@@ -265,11 +267,11 @@ export const PLANETS: PlanetData[] = [
     description: "The most distant major planet. Dark, cold, and whipped by supersonic winds.",
     period: 165.2293,
     elements: {
-      semiMajorAxis: 30.110593,
+      semiMajorAxis: 30.110591,
       eccentricity: 0.010997,
       inclination: 1.7681,
       ascendingNode: 132.0918,
-      perihelion: 276.7576,
+      perihelion: 276.7579,
       meanLongitude: 2.5024,
     },
   },

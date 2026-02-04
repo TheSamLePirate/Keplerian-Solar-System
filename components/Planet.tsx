@@ -326,8 +326,8 @@ const Planet: React.FC<PlanetProps> = ({
                 // Angle = (time_days * 24 / period_hours) * 2PI (radians)
                 if (data.rotationPeriod && data.rotationPeriod !== 0) {
                     // Calculate rotation angle
-                    // Add initial phase offset from Mean Longitude to align texture (approx tidal locking)
-                    const initialOffset = data.elements.meanLongitude ? THREE.MathUtils.degToRad(data.elements.meanLongitude) + Math.PI : 0;
+                    // Use calibrated rotationOffset (GAST for Earth, Tidal Lock for Moon)
+                    const initialOffset = data.rotationOffset || 0;
                     const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2 + initialOffset;
                     meshRef.current.rotation.y = rotationAngle;
                 } else {
