@@ -10,7 +10,7 @@ import ISSModel from "./ISS";
 
 interface PlanetProps {
     data: PlanetData;
-    time: number;
+    timeRef: React.MutableRefObject<number>;
     isSelected: boolean;
     onSelect: (planet: PlanetData) => void;
     showOrbit: boolean;
@@ -21,6 +21,21 @@ interface PlanetProps {
     atmSamples?: number;
     issModel?: 'small' | 'big';
 }
+
+// ... (AtmosphereMaterial definition remains unchanged - strict overwrite not needed if outside chunk but this is replace_file_content so I need to target specific chunks)
+
+// I will target the component definition start to fix props, and the end to fix JSX.
+
+// FIRST CHUNK: Interface and Component Start
+// SECOND CHUNK: JSX for ISS group
+// THIRD CHUNK: Recursive Planet call
+
+// Can I do this in one go with multi_replace? NO, I am using replace_file_content.
+// I should use multi_replace for non-contiguous edits.
+// But wait, the file is small enough? No, 650 lines.
+
+// Let's use multi_replace.
+
 
 // Volumetric Rayleigh Scattering Shader (Local Space)
 const AtmosphereMaterial = {
@@ -162,7 +177,7 @@ const AtmosphereMaterial = {
 
 const Planet: React.FC<PlanetProps> = ({
     data,
-    time,
+    timeRef,
     isSelected,
     onSelect,
     showOrbit,
@@ -175,6 +190,7 @@ const Planet: React.FC<PlanetProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
+    const issGroupRef = useRef<THREE.Group>(null);
     const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
     const atmMeshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
@@ -193,86 +209,6 @@ const Planet: React.FC<PlanetProps> = ({
     // We want ISS to orbit at ~1.5x the planet's visual radius
     const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor; // Assuming Earth as parent
     const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.8;
-
-    // Position Calculation
-    const position = useMemo(() => {
-        const pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
-
-        if (isSatellite) {
-            // For satellites, normalize the orbital position and scale to minimum orbit radius
-            const orbitPos = new THREE.Vector3(
-                pos[0] * visualOrbitScale,
-                pos[1] * visualOrbitScale,
-                pos[2] * visualOrbitScale
-            );
-            const distance = orbitPos.length();
-            if (distance > 0) {
-                // Scale to ensure orbit is outside planet
-                orbitPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
-            }
-            return orbitPos;
-        }
-
-        return new THREE.Vector3(
-            pos[0] * visualOrbitScale,
-            pos[1] * visualOrbitScale,
-            pos[2] * visualOrbitScale
-        );
-    }, [data, time, visualOrbitScale, isSatellite, satelliteMinOrbitRadius]);
-
-    // ISS Orientation Calculation
-    // The ISS maintains attitude with:
-    // - +X axis pointing in velocity direction (prograde)
-    // - +Z axis pointing toward Earth (nadir)
-    // - +Y axis perpendicular to orbital plane
-    const issOrientation = useMemo(() => {
-        if (!isSatellite) return new THREE.Quaternion();
-
-        // Get current position
-        const pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
-        const currentPos = new THREE.Vector3(
-            pos[0] * visualOrbitScale,
-            pos[1] * visualOrbitScale,
-            pos[2] * visualOrbitScale
-        );
-
-        // Get position slightly in the future to calculate velocity direction
-        const dt = 0.0001; // Small time step in days
-        const futurePos = calculateOrbitalPositionWithPeriod(data.elements, time + dt, data.period);
-        const futureVec = new THREE.Vector3(
-            futurePos[0] * visualOrbitScale,
-            futurePos[1] * visualOrbitScale,
-            futurePos[2] * visualOrbitScale
-        );
-
-        // Velocity direction (prograde) - this will be the ISS +X axis
-        const velocity = futureVec.sub(currentPos).normalize();
-
-        // Nadir direction (toward Earth/parent center) - this will be the ISS -Z axis
-        // Since ISS orbits relative to parent, nadir points to origin (0,0,0)
-        const nadir = currentPos.clone().normalize().negate();
-
-        // Calculate the orientation matrix
-        // X = velocity (prograde)
-        // Z = -nadir (away from Earth, so +Z is zenith, -Z is nadir)
-        // Y = Z cross X (perpendicular to orbital plane)
-
-        const xAxis = velocity.clone();
-        const zAxis = nadir.clone().negate(); // +Z points away from Earth (zenith)
-        const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
-
-        // Recompute X to ensure orthogonality
-        xAxis.crossVectors(yAxis, zAxis).normalize();
-
-        // Create rotation matrix from axes
-        const rotationMatrix = new THREE.Matrix4();
-        rotationMatrix.makeBasis(xAxis, yAxis, zAxis);
-
-        const quaternion = new THREE.Quaternion();
-        quaternion.setFromRotationMatrix(rotationMatrix);
-
-        return quaternion;
-    }, [isSatellite, data.elements, time, visualOrbitScale]);
 
     // Orbit Path
     const orbitPath = useMemo(() => {
@@ -334,6 +270,11 @@ const Planet: React.FC<PlanetProps> = ({
     // Pre-allocate vectors to avoid GC in loop
     const tempVec = useMemo(() => new THREE.Vector3(), []);
     const tempSun = useMemo(() => new THREE.Vector3(), []);
+    const tempMatrix = useMemo(() => new THREE.Matrix4(), []);
+    const tempXAxis = useMemo(() => new THREE.Vector3(), []);
+    const tempYAxis = useMemo(() => new THREE.Vector3(), []);
+    const tempZAxis = useMemo(() => new THREE.Vector3(), []);
+    const tempQuaternion = useMemo(() => new THREE.Quaternion(), []);
 
     // Grid Texture Generation
     const gridTexture = useMemo(() => {
@@ -432,52 +373,105 @@ const Planet: React.FC<PlanetProps> = ({
     }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl, data.ringMapUrl]);
 
     useFrame((state) => {
+        const time = timeRef.current;
+
+        // 1. Calculate Orbit Position
+        let pos = calculateOrbitalPositionWithPeriod(data.elements, time, data.period);
+        let currentPos = new THREE.Vector3(
+            pos[0] * visualOrbitScale,
+            pos[1] * visualOrbitScale,
+            pos[2] * visualOrbitScale
+        );
+
+        if (isSatellite) {
+            const distance = currentPos.length();
+            if (distance > 0) {
+                // Scale to ensure orbit is outside planet
+                currentPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
+            }
+        }
+
         if (groupRef.current) {
-            // 1. Update Planet Position
-            groupRef.current.position.copy(position);
+            // Update Planet Position
+            groupRef.current.position.copy(currentPos);
 
-            // 2. Rotate Planet (Spin)
-            // Spin around LOCAL Y axis (which is tilted by parent group)
-            if (meshRef.current) {
-                // Calculate rotation angle based on simulated time
-                // rotationPeriod is in hours. time is in days.
-                // Angle = (time_days * 24 / period_hours) * 2PI (radians)
-                if (data.rotationPeriod && data.rotationPeriod !== 0) {
-                    // Calculate rotation angle
-                    // Use calibrated rotationOffset (GAST for Earth, Tidal Lock for Moon)
-                    const initialOffset = data.rotationOffset || 0;
-                    const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2 + initialOffset;
-                    meshRef.current.rotation.y = rotationAngle;
-                } else {
-                    // Fallback default rotation
-                    meshRef.current.rotation.y += 0.01 / (data.period > 0.1 ? data.period : 1);
-                }
-            }
-
-            // 3. Update Matrix World immediately
-            // This is critical for the subsequent worldToLocal calculations to be accurate for *this* frame
+            // Update Matrix World immediately for accurate worldToLocal lookups
             groupRef.current.updateMatrixWorld(true);
+        }
 
-            // 4. Update Atmosphere Uniforms
-            if (atmMaterialRef.current && atmMeshRef.current) {
-                const u = atmMaterialRef.current.uniforms;
-
-                tempVec.copy(state.camera.position);
-                atmMeshRef.current.worldToLocal(tempVec);
-                u.localCameraPos.value.copy(tempVec);
-
-                // Transform Sun Position (0,0,0 World) to Local Space
-                tempSun.set(0, 0, 0);
-                atmMeshRef.current.worldToLocal(tempSun);
-                u.localSunPos.value.copy(tempSun);
-
-                // Update dynamic values every frame to catch prop changes
-                u.planetRadius.value = size;
-                u.atmosphereRadius.value = atmRadius;
-                u.densityFalloff.value = atmPow;
-                u.intensity.value = atmOpacity;
-                u.color.value.set(data.atmosphereColor);
+        // 2. Rotate Planet (Spin)
+        if (meshRef.current) {
+            if (data.rotationPeriod && data.rotationPeriod !== 0) {
+                const initialOffset = data.rotationOffset || 0;
+                const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2 + initialOffset;
+                meshRef.current.rotation.y = rotationAngle;
+            } else {
+                meshRef.current.rotation.y += 0.01 / (data.period > 0.1 ? data.period : 1);
             }
+        }
+
+        // 3. Update ISS Orientation
+        if (isSatellite && issGroupRef.current) {
+            // Get position slightly in the future to calculate velocity direction
+            const dt = 0.0001; // Small time step in days
+            const futurePosArr = calculateOrbitalPositionWithPeriod(data.elements, time + dt, data.period);
+            const futureVec = tempVec.set(
+                futurePosArr[0] * visualOrbitScale,
+                futurePosArr[1] * visualOrbitScale,
+                futurePosArr[2] * visualOrbitScale
+            );
+
+            // Normalize future pos if needed (same logic as currentPos)
+            const futureDist = futureVec.length();
+            if (futureDist > 0) {
+                futureVec.normalize().multiplyScalar(Math.max(futureDist, satelliteMinOrbitRadius));
+            }
+
+            // Velocity direction (prograde) - this will be the ISS +X axis
+            const velocity = futureVec.sub(currentPos).normalize();
+
+            // Nadir direction (toward Earth/parent center) - this will be the ISS -Z axis
+            // Since ISS orbits relative to parent, nadir points to origin (0,0,0)
+            const nadir = currentPos.clone().normalize().negate();
+
+            // Calculate the orientation matrix
+            // X = velocity (prograde)
+            // Z = -nadir (away from Earth, so +Z is zenith, -Z is nadir)
+            // Y = Z cross X (perpendicular to orbital plane)
+
+            tempXAxis.copy(velocity);
+            tempZAxis.copy(nadir).negate(); // +Z points away from Earth (zenith)
+            tempYAxis.crossVectors(tempZAxis, tempXAxis).normalize();
+
+            // Recompute X to ensure orthogonality
+            tempXAxis.crossVectors(tempYAxis, tempZAxis).normalize();
+
+            // Create rotation matrix from axes
+            tempMatrix.makeBasis(tempXAxis, tempYAxis, tempZAxis);
+            tempQuaternion.setFromRotationMatrix(tempMatrix);
+
+            issGroupRef.current.quaternion.copy(tempQuaternion);
+        }
+
+        // 4. Update Atmosphere Uniforms
+        if (atmMaterialRef.current && atmMeshRef.current) {
+            const u = atmMaterialRef.current.uniforms;
+
+            tempVec.copy(state.camera.position);
+            atmMeshRef.current.worldToLocal(tempVec);
+            u.localCameraPos.value.copy(tempVec);
+
+            // Transform Sun Position (0,0,0 World) to Local Space
+            tempSun.set(0, 0, 0);
+            atmMeshRef.current.worldToLocal(tempSun);
+            u.localSunPos.value.copy(tempSun);
+
+            // Update dynamic values every frame to catch prop changes
+            u.planetRadius.value = size;
+            u.atmosphereRadius.value = atmRadius;
+            u.densityFalloff.value = atmPow;
+            u.intensity.value = atmOpacity;
+            u.color.value.set(data.atmosphereColor);
         }
     });
 
@@ -523,7 +517,7 @@ const Planet: React.FC<PlanetProps> = ({
                     {/* Render ISS 3D model for satellites, sphere for other bodies */}
                     {isSatellite ? (
                         <group
-                            quaternion={issOrientation}
+                            ref={issGroupRef}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onSelect(data);
@@ -635,7 +629,7 @@ const Planet: React.FC<PlanetProps> = ({
                     <Planet
                         key={moon.id}
                         data={moon}
-                        time={time}
+                        timeRef={timeRef}
                         isSelected={false}
                         onSelect={onSelect}
                         showOrbit={showOrbit}

@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Scene from './components/Scene';
 import Controls from './components/Controls';
+import SimulationStats from './components/SimulationStats';
 import InfoPanel from './components/InfoPanel';
 import PlanetList from './components/PlanetList';
 import { PlanetData } from './types';
@@ -29,9 +30,9 @@ const App: React.FC = () => {
     const [atmSamples, setAtmSamples] = useState(32);
 
     // Light Settings
-    const [ambientLight, setAmbientLight] = useState(0.05);
+    const [ambientLight, setAmbientLight] = useState(0);
     const [shadowEnabled, setShadowEnabled] = useState(true);
-    const [shadowMapSize, setShadowMapSize] = useState(4096 * 2);
+    const [shadowMapSize, setShadowMapSize] = useState(4096);
     const [shadowRadius, setShadowRadius] = useState(2);
     const [renderScale, setRenderScale] = useState(1);
     const [starsCount, setStarsCount] = useState(200000);
@@ -47,10 +48,10 @@ const App: React.FC = () => {
     const [bloomThreshold, setBloomThreshold] = useState(1.1);
     const [bloomIntensity, setBloomIntensity] = useState(1.5);
     const [bloomRadius, setBloomRadius] = useState(0.7);
-    const [noiseOpacity, setNoiseOpacity] = useState(0.015);
-    const [vignetteDarkness, setVignetteDarkness] = useState(0.4);
+    const [noiseOpacity, setNoiseOpacity] = useState(0.07);
+    const [vignetteDarkness, setVignetteDarkness] = useState(0.9);
     const [vignetteOffset, setVignetteOffset] = useState(0.1);
-    const [chromaticAberrationOffset, setChromaticAberrationOffset] = useState(0.002);
+    const [chromaticAberrationOffset, setChromaticAberrationOffset] = useState(0);
     const [brightness, setBrightness] = useState(0.0);
     const [contrast, setContrast] = useState(0.0);
     const [exposure, setExposure] = useState(1.2);
@@ -70,7 +71,7 @@ const App: React.FC = () => {
     const [enableBloom, setEnableBloom] = useState(true);
     const [enableNoise, setEnableNoise] = useState(true);
     const [enableVignette, setEnableVignette] = useState(true);
-    const [enableChromaticAberration, setEnableChromaticAberration] = useState(true);
+    const [enableChromaticAberration, setEnableChromaticAberration] = useState(false);
     const [enableBrightnessContrast, setEnableBrightnessContrast] = useState(true);
     const [enableHueSaturation, setEnableHueSaturation] = useState(true);
 
@@ -86,49 +87,51 @@ const App: React.FC = () => {
     // Handlers
 
     // Click on 3D Object
-    const handle3DPlanetClick = (p: PlanetData) => {
+    // Click on 3D Object
+    const handle3DPlanetClick = useCallback((p: PlanetData) => {
         setSelectedPlanet(p);
         setFollowingBody(p);
         setIsFollowing(true);
-    };
+    }, []);
 
-    const handleBackgroundClick = () => {
+    const handleBackgroundClick = useCallback(() => {
         setSelectedPlanet(null);
         // Do not stop following if background is clicked, just close info panel
         // But if we want to stop following, we can use the controls or esc
-    };
+    }, []);
 
     // List: Click Name
-    const handleListSelect = (p: PlanetData) => {
+    const handleListSelect = useCallback((p: PlanetData) => {
         setSelectedPlanet(p);
         // Does NOT automatically follow
-    };
+    }, []);
 
     // List: Click Scope/Target
-    const handleListFollow = (p: PlanetData) => {
+    const handleListFollow = useCallback((p: PlanetData) => {
         setSelectedPlanet(p); // Also select it for info
         setFollowingBody(p);
         setIsFollowing(true);
-    };
+    }, []);
 
     // InfoPanel: Click Track
-    const handleTrackFromPanel = () => {
+    // InfoPanel: Click Track
+    const handleTrackFromPanel = useCallback(() => {
         if (selectedPlanet) {
             setFollowingBody(selectedPlanet);
             setIsFollowing(true);
         }
-    };
+    }, [selectedPlanet]);
 
-    const handleResetTime = () => {
+    const handleResetTime = useCallback(() => {
         setSimTime(0);
         setResetTimeTrigger(prev => prev + 1);
-    };
+    }, []);
 
-    const handleResetCamera = () => {
+    const handleResetCamera = useCallback(() => {
         setFollowingBody(null);
         setIsFollowing(false);
         setResetCameraTrigger(prev => prev + 1);
-    };
+    }, []);
 
     return (
         <div className="w-full h-screen bg-black relative overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
@@ -192,61 +195,68 @@ const App: React.FC = () => {
                 isFollowingActive={isFollowing}
             />
 
-            <Controls
-                speedLog={speedLog} setSpeedLog={setSpeedLog}
-                actualSpeed={actualSpeed}
-                scaleFactor={scaleFactor} setScaleFactor={setScaleFactor}
-                showOrbits={showOrbits} setShowOrbits={setShowOrbits}
-                showLabels={showLabels} setShowLabels={setShowLabels}
-                paused={paused} setPaused={setPaused}
-                isFollowing={isFollowing} setIsFollowing={setIsFollowing}
+            <SimulationStats
                 date={simTime}
                 fps={fps}
-                atmOpacity={atmOpacity} setAtmOpacity={setAtmOpacity}
-                atmPow={atmPow} setAtmPow={setAtmPow}
-                atmSamples={atmSamples} setAtmSamples={setAtmSamples}
+                actualSpeed={actualSpeed}
+                paused={paused}
+                setPaused={setPaused}
                 onResetTime={handleResetTime}
-                onResetCamera={handleResetCamera}
-                ambientLight={ambientLight} setAmbientLight={setAmbientLight}
-                shadowEnabled={shadowEnabled} setShadowEnabled={setShadowEnabled}
-                shadowMapSize={shadowMapSize} setShadowMapSize={setShadowMapSize}
-                shadowRadius={shadowRadius} setShadowRadius={setShadowRadius}
-                renderScale={renderScale} setRenderScale={setRenderScale}
-                starsCount={starsCount} setStarsCount={setStarsCount}
-                issModel={issModel} setIssModel={setIssModel}
-                bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
-                bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
-                bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
-                bloomSmoothing={bloomSmoothing} setBloomSmoothing={setBloomSmoothing}
-                bloomMipmapBlur={bloomMipmapBlur} setBloomMipmapBlur={setBloomMipmapBlur}
-                noiseOpacity={noiseOpacity} setNoiseOpacity={setNoiseOpacity}
-                noisePremultiply={noisePremultiply} setNoisePremultiply={setNoisePremultiply}
-                vignetteDarkness={vignetteDarkness} setVignetteDarkness={setVignetteDarkness}
-                vignetteOffset={vignetteOffset} setVignetteOffset={setVignetteOffset}
-                vignetteEskil={vignetteEskil} setVignetteEskil={setVignetteEskil}
-                chromaticAberrationOffset={chromaticAberrationOffset} setChromaticAberrationOffset={setChromaticAberrationOffset}
-                chromaticRadial={chromaticRadial} setChromaticRadial={setChromaticRadial}
-                chromaticModulation={chromaticModulation} setChromaticModulation={setChromaticModulation}
-                brightness={brightness} setBrightness={setBrightness}
-                contrast={contrast} setContrast={setContrast}
-                exposure={exposure} setExposure={setExposure}
-                hue={hue} setHue={setHue}
-                saturation={saturation} setSaturation={setSaturation}
-                toneMappingAdaptive={toneMappingAdaptive} setToneMappingAdaptive={setToneMappingAdaptive}
-                enableBloom={enableBloom} setEnableBloom={setEnableBloom}
-                enableNoise={enableNoise} setEnableNoise={setEnableNoise}
-                enableVignette={enableVignette} setEnableVignette={setEnableVignette}
-                enableChromaticAberration={enableChromaticAberration} setEnableChromaticAberration={setEnableChromaticAberration}
-                enableBrightnessContrast={enableBrightnessContrast} setEnableBrightnessContrast={setEnableBrightnessContrast}
-                enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
             />
 
-            <InfoPanel
-                planet={selectedPlanet}
-                onClose={() => setSelectedPlanet(null)}
-                onFollow={handleTrackFromPanel}
-                isFollowingThisPlanet={isFollowing && followingBody?.id === selectedPlanet?.id}
-            />
+            {/* Right Sidebar */}
+            <div className="absolute top-4 bottom-4 right-4 w-[360px] flex flex-col gap-4 pointer-events-none z-20">
+                <InfoPanel
+                    planet={selectedPlanet}
+                    onClose={() => setSelectedPlanet(null)}
+                    onFollow={handleTrackFromPanel}
+                    isFollowingThisPlanet={isFollowing && followingBody?.id === selectedPlanet?.id}
+                />
+
+                <Controls
+                    speedLog={speedLog} setSpeedLog={setSpeedLog}
+                    scaleFactor={scaleFactor} setScaleFactor={setScaleFactor}
+                    showOrbits={showOrbits} setShowOrbits={setShowOrbits}
+                    showLabels={showLabels} setShowLabels={setShowLabels}
+                    isFollowing={isFollowing} setIsFollowing={setIsFollowing}
+                    atmOpacity={atmOpacity} setAtmOpacity={setAtmOpacity}
+                    atmPow={atmPow} setAtmPow={setAtmPow}
+                    atmSamples={atmSamples} setAtmSamples={setAtmSamples}
+                    onResetCamera={handleResetCamera}
+                    ambientLight={ambientLight} setAmbientLight={setAmbientLight}
+                    shadowEnabled={shadowEnabled} setShadowEnabled={setShadowEnabled}
+                    shadowMapSize={shadowMapSize} setShadowMapSize={setShadowMapSize}
+                    shadowRadius={shadowRadius} setShadowRadius={setShadowRadius}
+                    renderScale={renderScale} setRenderScale={setRenderScale}
+                    starsCount={starsCount} setStarsCount={setStarsCount}
+                    issModel={issModel} setIssModel={setIssModel}
+                    bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
+                    bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
+                    bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
+                    bloomSmoothing={bloomSmoothing} setBloomSmoothing={setBloomSmoothing}
+                    bloomMipmapBlur={bloomMipmapBlur} setBloomMipmapBlur={setBloomMipmapBlur}
+                    noiseOpacity={noiseOpacity} setNoiseOpacity={setNoiseOpacity}
+                    noisePremultiply={noisePremultiply} setNoisePremultiply={setNoisePremultiply}
+                    vignetteDarkness={vignetteDarkness} setVignetteDarkness={setVignetteDarkness}
+                    vignetteOffset={vignetteOffset} setVignetteOffset={setVignetteOffset}
+                    vignetteEskil={vignetteEskil} setVignetteEskil={setVignetteEskil}
+                    chromaticAberrationOffset={chromaticAberrationOffset} setChromaticAberrationOffset={setChromaticAberrationOffset}
+                    chromaticRadial={chromaticRadial} setChromaticRadial={setChromaticRadial}
+                    chromaticModulation={chromaticModulation} setChromaticModulation={setChromaticModulation}
+                    brightness={brightness} setBrightness={setBrightness}
+                    contrast={contrast} setContrast={setContrast}
+                    exposure={exposure} setExposure={setExposure}
+                    hue={hue} setHue={setHue}
+                    saturation={saturation} setSaturation={setSaturation}
+                    toneMappingAdaptive={toneMappingAdaptive} setToneMappingAdaptive={setToneMappingAdaptive}
+                    enableBloom={enableBloom} setEnableBloom={setEnableBloom}
+                    enableNoise={enableNoise} setEnableNoise={setEnableNoise}
+                    enableVignette={enableVignette} setEnableVignette={setEnableVignette}
+                    enableChromaticAberration={enableChromaticAberration} setEnableChromaticAberration={setEnableChromaticAberration}
+                    enableBrightnessContrast={enableBrightnessContrast} setEnableBrightnessContrast={setEnableBrightnessContrast}
+                    enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
+                />
+            </div>
 
             {/* Title Overlay */}
             <div className="absolute top-4 left-4 pointer-events-none z-10 select-none">

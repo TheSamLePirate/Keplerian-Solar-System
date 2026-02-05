@@ -71,7 +71,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
     enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation
 }) => {
-    const [time, setTime] = useState(0);
+    // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
+    const timeRef = useRef(0);
     const lastUiUpdateRef = useRef(0);
     const controlsRef = useRef<any>(null);
     const sunRef = useRef<THREE.Mesh>(null);
@@ -87,7 +88,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
     // Reset Time
     if (resetTimeTrigger !== prevResetTime.current) {
-        setTime(0);
+        timeRef.current = 0;
         onTimeUpdate(0);
         lastUiUpdateRef.current = 0;
         prevResetTime.current = resetTimeTrigger;
@@ -117,11 +118,13 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         }
 
         if (!paused) {
-            const newTime = time + speed * delta;
-            setTime(newTime);
+            // Update time ref directly without state update
+            timeRef.current += speed * delta;
+
             const nowSeconds = state.clock.getElapsedTime();
+            // Throttle UI updates to ~10 FPS (0.1s) to reduce App re-renders
             if (nowSeconds - lastUiUpdateRef.current >= 0.01) {
-                onTimeUpdate(newTime);
+                onTimeUpdate(timeRef.current);
                 lastUiUpdateRef.current = nowSeconds;
             }
         }
@@ -129,7 +132,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         // Follow Logic - Uses followingBody instead of selectedPlanet
         if (isFollowing && followingBody && controlsRef.current) {
             let targetPos = new THREE.Vector3(0, 0, 0);
-            const currentTime = time;
+            const currentTime = timeRef.current;
 
             if (followingBody.type === 'moon' || followingBody.type === 'satellite') {
                 // Find parent planet for moons and satellites
@@ -197,7 +200,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 <Planet
                     key={planet.id}
                     data={planet}
-                    time={time}
+                    timeRef={timeRef}
                     isSelected={selectedPlanet?.id === planet.id}
                     onSelect={onPlanetClick}
                     showOrbit={showOrbits}

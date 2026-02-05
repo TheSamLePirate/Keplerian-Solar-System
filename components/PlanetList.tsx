@@ -84,4 +84,4 @@ const PlanetList: React.FC<PlanetListProps> = ({ onSelect, onFollow, selectedId,
     );
 };
 
-export default PlanetList;
+export default React.memo(PlanetList);
