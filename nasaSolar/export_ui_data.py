@@ -252,8 +252,15 @@ def get_iss_elements(t, ts):
         r_au = np.array(pos) / km_per_au
         v_au_day = np.array(vel) * sec_per_day / km_per_au
         
-        # Calculate orbital elements from state vectors
-        elements = elements_from_vectors(r_au, v_au_day, GM_EARTH)
+        # Transform from ICRS (Equatorial) to Ecliptic J2000
+        # The simulation universe is Ecliptic-based.
+        matrix = ecliptic_frame.rotation_at(ts.now()) # Use current matrix
+        
+        r_au_ecl = np.dot(matrix, r_au)
+        v_au_ecl = np.dot(matrix, v_au_day)
+
+        # Calculate orbital elements from state vectors in Ecliptic Frame
+        elements = elements_from_vectors(r_au_ecl, v_au_ecl, GM_EARTH)
         
         # Override semi-major axis for visual display (keep orbit visible)
         elements["semiMajorAxis"] = 0.0003  # Visual scale

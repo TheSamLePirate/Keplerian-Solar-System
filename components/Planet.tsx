@@ -478,7 +478,12 @@ const Planet: React.FC<PlanetProps> = ({
     // Axial Tilt Quaternion (Static)
     // Tilt around X axis seems appropriate for standard Y-up geometry in XZ orbit plane.
     const tiltRotation = useMemo(() => {
-        return new THREE.Euler(THREE.MathUtils.degToRad(data.axialTilt || 0), 0, 0);
+        // Negative tilt to align North Pole towards Sun at Summer Solstice (Longitude 270)
+        // Standard Three.js: X-rotation 23.5 moves +Y (Up) towards +Z (Back).
+        // Physics Mapping: +Z (Three) = -Y (Physics).
+        // Physics +Y is Sun direction at Solstice (Earth at -Y).
+        // Be lean towards +Y (Sun) => Lean towards -Z (Three) => Negative X-rotation.
+        return new THREE.Euler(THREE.MathUtils.degToRad(-(data.axialTilt || 0)), 0, 0);
     }, [data.axialTilt]);
 
     return (
