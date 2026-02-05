@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlanetData } from '../types';
+import { planetLodStore, PlanetLodInfo } from './Planet';
 
 interface InfoPanelProps {
     planet: PlanetData | null;
@@ -9,6 +10,22 @@ interface InfoPanelProps {
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({ planet, onClose, onFollow, isFollowingThisPlanet }) => {
+    const [lodInfo, setLodInfo] = useState<PlanetLodInfo | null>(null);
+
+    // Poll the LOD store at ~10 Hz to update the display without impacting perf
+    const planetId = planet?.id;
+    useEffect(() => {
+        if (!planetId) { setLodInfo(null); return; }
+        // Read immediately on selection, then poll
+        const read = () => {
+            const info = planetLodStore.get(planetId);
+            setLodInfo(info ?? null);
+        };
+        read();
+        const interval = setInterval(read, 100);
+        return () => clearInterval(interval);
+    }, [planetId]);
+
     if (!planet) return null;
 
     const { elements } = planet;
@@ -61,6 +78,42 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ planet, onClose, onFollow, isFoll
                             }
                         </div>
                     </div>
+                </div>
+
+                <div className="mb-6">
+                    <h3 className="text-xs font-bold uppercase text-gray-500 mb-3 border-b border-white/10 pb-1">Atmosphere LOD</h3>
+                    {lodInfo ? (
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+                            <div className="text-gray-400">Screen Size</div>
+                            <div className="font-mono text-right">{(lodInfo.apparentSize * 100).toFixed(1)}%</div>
+
+                            <div className="text-gray-400">Samples</div>
+                            <div className="font-mono text-right">
+                                <span className={
+                                    lodInfo.samples <= 8 ? 'text-red-400' :
+                                    lodInfo.samples <= 16 ? 'text-yellow-400' :
+                                    lodInfo.samples <= 32 ? 'text-blue-400' :
+                                    'text-green-400'
+                                }>{lodInfo.samples}</span>
+                                <span className="text-gray-600"> / 64</span>
+                            </div>
+
+                            <div className="text-gray-400">LOD Level</div>
+                            <div className="font-mono text-right">
+                                {lodInfo.samples <= 8 ? (
+                                    <span className="text-red-400">Low</span>
+                                ) : lodInfo.samples <= 16 ? (
+                                    <span className="text-yellow-400">Medium</span>
+                                ) : lodInfo.samples <= 32 ? (
+                                    <span className="text-blue-400">High</span>
+                                ) : (
+                                    <span className="text-green-400">Ultra</span>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-sm text-gray-600 italic">No atmosphere shader active</div>
+                    )}
                 </div>
 
                 <div className="mb-6">

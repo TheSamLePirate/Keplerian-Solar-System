@@ -367,7 +367,7 @@ const Controls: React.FC<ControlsProps> = ({
                     </div>
                     <div className="flex flex-col gap-1">
                         <div className="flex justify-between text-[10px] text-gray-400">
-                            <span>Quality (Samples)</span>
+                            <span>Max Quality (LOD Samples)</span>
                             <span>{atmSamples}</span>
                         </div>
                         <input
