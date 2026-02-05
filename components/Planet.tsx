@@ -2,7 +2,6 @@ import React, { useRef, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
-import { TextureLoader } from "three";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 import { PLANET_SCALE, MOON_ORBIT_SCALE } from "../constants";
@@ -344,32 +343,53 @@ const Planet: React.FC<PlanetProps> = ({
     const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null, ring: THREE.Texture | null }>({ map: null, normal: null, specular: null, ring: null });
 
     React.useEffect(() => {
+        let cancelled = false;
+        const loadedTextures: THREE.Texture[] = [];
+        const loader = new THREE.TextureLoader();
+
         if (data.textureUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.textureUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
                 tex.colorSpace = THREE.SRGBColorSpace;
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, map: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load texture: ${data.textureUrl}`, err);
             });
         }
         if (data.normalMapUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.normalMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, normal: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load normal map: ${data.normalMapUrl}`, err);
             });
         }
         if (data.specularMapUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.specularMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, specular: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load specular map: ${data.specularMapUrl}`, err);
             });
         }
         if (data.ringMapUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.ringMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
                 tex.colorSpace = THREE.SRGBColorSpace;
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, ring: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load ring texture: ${data.ringMapUrl}`, err);
             });
         }
+
+        return () => {
+            cancelled = true;
+            loadedTextures.forEach(tex => tex.dispose());
+        };
     }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl, data.ringMapUrl]);
 
     useFrame((state) => {
@@ -637,6 +657,7 @@ const Planet: React.FC<PlanetProps> = ({
                         scaleFactor={scaleFactor}
                         atmOpacity={atmOpacity}
                         atmPow={atmPow}
+                        atmSamples={atmSamples}
                         issModel={issModel}
                     />
                 ))}

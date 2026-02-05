@@ -87,7 +87,6 @@ const App: React.FC = () => {
     // Handlers
 
     // Click on 3D Object
-    // Click on 3D Object
     const handle3DPlanetClick = useCallback((p: PlanetData) => {
         setSelectedPlanet(p);
         setFollowingBody(p);
@@ -113,7 +112,6 @@ const App: React.FC = () => {
         setIsFollowing(true);
     }, []);
 
-    // InfoPanel: Click Track
     // InfoPanel: Click Track
     const handleTrackFromPanel = useCallback(() => {
         if (selectedPlanet) {

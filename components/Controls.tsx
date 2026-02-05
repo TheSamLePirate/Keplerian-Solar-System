@@ -22,7 +22,6 @@ interface ControlsProps {
     atmSamples: number;
     setAtmSamples: (v: number) => void;
     // New Controls
-    // New Controls
     onResetCamera: () => void;
     ambientLight: number;
     setAmbientLight: (v: number) => void;

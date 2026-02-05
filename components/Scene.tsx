@@ -79,6 +79,11 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     const { camera } = useThree();
 
     const prevTargetPos = useRef(new THREE.Vector3(0, 0, 0));
+    // Pre-allocated vectors for camera follow loop (avoid GC pressure from per-frame allocations)
+    const _targetPos = useRef(new THREE.Vector3());
+    const _parentPos = useRef(new THREE.Vector3());
+    const _childPos = useRef(new THREE.Vector3());
+    const _deltaPos = useRef(new THREE.Vector3());
     const prevResetTime = useRef(resetTimeTrigger);
     const prevResetCam = useRef(resetCameraTrigger);
 
@@ -122,8 +127,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             timeRef.current += speed * delta;
 
             const nowSeconds = state.clock.getElapsedTime();
-            // Throttle UI updates to ~10 FPS (0.1s) to reduce App re-renders
-            if (nowSeconds - lastUiUpdateRef.current >= 0.01) {
+            // Throttle UI updates to ~60 FPS (~0.016s) to reduce App re-renders
+            if (nowSeconds - lastUiUpdateRef.current >= 0.016) {
                 onTimeUpdate(timeRef.current);
                 lastUiUpdateRef.current = nowSeconds;
             }
@@ -131,7 +136,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
         // Follow Logic - Uses followingBody instead of selectedPlanet
         if (isFollowing && followingBody && controlsRef.current) {
-            let targetPos = new THREE.Vector3(0, 0, 0);
+            const targetPos = _targetPos.current.set(0, 0, 0);
             const currentTime = timeRef.current;
 
             if (followingBody.type === 'moon' || followingBody.type === 'satellite') {
@@ -139,10 +144,10 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 const parent = PLANETS.find(p => p.moons?.some(m => m.id === followingBody.id));
                 if (parent) {
                     const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, currentTime, parent.period);
-                    const parentPos = new THREE.Vector3(...parentPosArray);
+                    const parentPos = _parentPos.current.set(parentPosArray[0], parentPosArray[1], parentPosArray[2]);
 
                     const childPosArray = calculateOrbitalPositionWithPeriod(followingBody.elements, currentTime, followingBody.period);
-                    let childPos = new THREE.Vector3(
+                    const childPos = _childPos.current.set(
                         childPosArray[0] * MOON_ORBIT_SCALE,
                         childPosArray[1] * MOON_ORBIT_SCALE,
                         childPosArray[2] * MOON_ORBIT_SCALE
@@ -166,7 +171,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             }
 
             controlsRef.current.target.copy(targetPos);
-            const deltaPos = targetPos.clone().sub(prevTargetPos.current);
+            const deltaPos = _deltaPos.current.copy(targetPos).sub(prevTargetPos.current);
             camera.position.add(deltaPos);
             prevTargetPos.current.copy(targetPos);
         } else {
