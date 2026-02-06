@@ -351,6 +351,7 @@ const Controls: React.FC<ControlsProps> = ({
             <AccordionSection title="Gravity Field" isOpen={accordionState.gravity ?? false} onToggle={() => toggleAccordion('gravity')}>
                 <div className="pb-1 border-b border-white/5 mb-1">
                     <Toggle label="Show Potential" checked={gravityVisible} onChange={setGravityVisible} />
+                    <Toggle label="Show Particles (100k)" checked={gravityParticlesVisible} onChange={setGravityParticlesVisible} />
                 </div>
                 {gravityVisible && (
                     <div className="flex flex-col gap-1 mt-1">
@@ -368,7 +369,6 @@ const Controls: React.FC<ControlsProps> = ({
                         <Slider label="Direction Saturation" value={gravityDirectionSat} min={0.0} max={2.0} step={0.1} onChange={setGravityDirectionSat} format={v => v.toFixed(1)} />
                         <Slider label="Plane Size (AU)" value={gravityPlaneSize} min={50} max={500} step={10} onChange={setGravityPlaneSize} format={v => v.toFixed(0)} />
                         <Slider label="Y Offset" value={gravityYOffset} min={-50} max={50} step={1} onChange={setGravityYOffset} format={v => v.toFixed(1)} />
-                        <Toggle label="Show Particles (100k)" checked={gravityParticlesVisible} onChange={setGravityParticlesVisible} />
                     </div>
                 )}
             </AccordionSection>
