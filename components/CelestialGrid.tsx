@@ -46,13 +46,14 @@ const CelestialGrid: React.FC<CelestialGridProps> = ({
             for (let i = 0; i <= segments; i++) {
                 const theta = (i / segments) * Math.PI * 2;
                 const x = r * Math.cos(theta);
-                const z = r * Math.sin(theta);
+                const z = -r * Math.sin(theta); // Invert Z to match Physics/Star mapping (-y -> z)
+
+                points.push(x, y, z);
 
                 const thetaNext = ((i + 1) / segments) * Math.PI * 2;
                 const xNext = r * Math.cos(thetaNext);
-                const zNext = r * Math.sin(thetaNext);
+                const zNext = -r * Math.sin(thetaNext);
 
-                points.push(x, y, z);
                 points.push(xNext, y, zNext);
             }
 
@@ -70,11 +71,11 @@ const CelestialGrid: React.FC<CelestialGridProps> = ({
             for (let i = 0; i <= segments; i++) {
                 const theta = (i / segments) * Math.PI * 2;
                 const x = r * Math.cos(theta);
-                const z = r * Math.sin(theta);
+                const z = -r * Math.sin(theta); // Invert Z
 
                 const thetaNext = ((i + 1) / segments) * Math.PI * 2;
                 const xNext = r * Math.cos(thetaNext);
-                const zNext = r * Math.sin(thetaNext);
+                const zNext = -r * Math.sin(thetaNext);
 
                 points.push(x, y, z);
                 points.push(xNext, y, zNext);
@@ -98,8 +99,11 @@ const CelestialGrid: React.FC<CelestialGridProps> = ({
                 const r2 = radius * Math.cos(lat2);
                 const y2 = radius * Math.sin(lat2);
 
-                points.push(r1 * cosLon, y1, r1 * sinLon);
-                points.push(r2 * cosLon, y2, r2 * sinLon);
+                // Point 1
+                // z = -r sin(lon)
+                points.push(r1 * cosLon, y1, -r1 * sinLon);
+                // Point 2
+                points.push(r2 * cosLon, y2, -r2 * sinLon);
             }
 
             // Labels
@@ -108,7 +112,7 @@ const CelestialGrid: React.FC<CelestialGridProps> = ({
                 : `${lon}°`;
 
             labels.push({
-                pos: [radius * cosLon, 0, radius * sinLon],
+                pos: [radius * cosLon, 0, -radius * sinLon], // Invert Z
                 text: labelText
             });
         }
