@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import AccordionSection from './ui/AccordionSection';
 
 interface ControlsProps {
     speedLog: number;
@@ -9,20 +10,14 @@ interface ControlsProps {
     setShowOrbits: (b: boolean) => void;
     showLabels: boolean;
     setShowLabels: (b: boolean) => void;
-
-
     isFollowing: boolean;
     setIsFollowing: (b: boolean) => void;
-
-    // New Atmosphere Controls
     atmOpacity: number;
     setAtmOpacity: (v: number) => void;
     atmPow: number;
     setAtmPow: (v: number) => void;
     atmSamples: number;
     setAtmSamples: (v: number) => void;
-    // New Controls
-    // New Controls
     onResetCamera: () => void;
     ambientLight: number;
     setAmbientLight: (v: number) => void;
@@ -36,10 +31,8 @@ interface ControlsProps {
     setRenderScale: (v: number) => void;
     starsCount: number;
     setStarsCount: (v: number) => void;
-    // ISS Model Selection
     issModel: 'small' | 'big';
     setIssModel: (m: 'small' | 'big') => void;
-    // Post-processing
     bloomThreshold: number;
     setBloomThreshold: (v: number) => void;
     bloomIntensity: number;
@@ -66,7 +59,6 @@ interface ControlsProps {
     setHue: (v: number) => void;
     saturation: number;
     setSaturation: (v: number) => void;
-    // Hidden
     bloomMipmapBlur: boolean;
     setBloomMipmapBlur: (v: boolean) => void;
     toneMappingAdaptive: boolean;
@@ -79,7 +71,6 @@ interface ControlsProps {
     setChromaticRadial: (v: boolean) => void;
     chromaticModulation: number;
     setChromaticModulation: (v: number) => void;
-    // Toggles
     enableBloom: boolean;
     setEnableBloom: (v: boolean) => void;
     enableNoise: boolean;
@@ -92,10 +83,37 @@ interface ControlsProps {
     setEnableBrightnessContrast: (v: boolean) => void;
     enableHueSaturation: boolean;
     setEnableHueSaturation: (v: boolean) => void;
+    // Accordion state from parent
+    accordionState: Record<string, boolean>;
+    toggleAccordion: (id: string) => void;
 }
 
+const Slider: React.FC<{
+    label: string; value: number; min: number; max: number; step: number;
+    onChange: (v: number) => void; format?: (v: number) => string; disabled?: boolean;
+}> = ({ label, value, min, max, step, onChange, format, disabled }) => (
+    <div className={`flex flex-col gap-0.5 ${disabled ? 'opacity-40' : ''}`}>
+        <div className="flex justify-between text-[10px] text-gray-400">
+            <span>{label}</span>
+            <span className="font-mono">{format ? format(value) : value.toFixed(2)}</span>
+        </div>
+        <input
+            type="range" min={min} max={max} step={step} value={value}
+            onChange={e => onChange(parseFloat(e.target.value))}
+            disabled={disabled}
+            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+        />
+    </div>
+);
 
-
+const Toggle: React.FC<{
+    label: string; checked: boolean; onChange: (v: boolean) => void;
+}> = ({ label, checked, onChange }) => (
+    <div className="flex items-center justify-between text-[10px] text-gray-400">
+        <span>{label}</span>
+        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="accent-blue-500" />
+    </div>
+);
 
 const Controls: React.FC<ControlsProps> = ({
     speedLog, setSpeedLog,
@@ -138,185 +156,98 @@ const Controls: React.FC<ControlsProps> = ({
     enableVignette, setEnableVignette,
     enableChromaticAberration, setEnableChromaticAberration,
     enableBrightnessContrast, setEnableBrightnessContrast,
-    enableHueSaturation, setEnableHueSaturation
+    enableHueSaturation, setEnableHueSaturation,
+    accordionState, toggleAccordion,
 }) => {
-
-
     return (
-        <div className="pointer-events-auto bg-black/80 backdrop-blur-md rounded-lg p-4 border border-white/10 flex flex-col gap-4 w-full shadow-lg overflow-y-auto custom-scrollbar flex-shrink-0" style={{ maxHeight: '50vh' }}>
-
-            {/* Camera Control Row */}
-            < div className="flex gap-2" >
-                <button
-                    onClick={() => setIsFollowing(!isFollowing)}
-                    className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${isFollowing
-                        ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]'
-                        : 'bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50'
-                        }`}
-                >
-                    {isFollowing ? "Locked On" : "Free Cam"}
-                </button>
-                <button
-                    onClick={onResetCamera}
-                    className="px-3 py-2 rounded text-xs font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-                    title="Reset Camera View"
-                >
-                    Reset View
-                </button>
-            </div >
-
-            {/* Speed Slider */}
-            < div className="flex flex-col gap-1" >
-                <div className="flex justify-between text-xs text-gray-400 uppercase tracking-wider font-bold">
-                    <span>Time Speed</span>
+        <div className="flex flex-col w-full">
+            {/* Camera */}
+            <AccordionSection title="Camera" isOpen={accordionState.camera ?? true} onToggle={() => toggleAccordion('camera')}>
+                <div className="flex gap-1.5">
+                    <button
+                        onClick={() => setIsFollowing(!isFollowing)}
+                        className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${isFollowing
+                            ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]'
+                            : 'bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50'
+                            }`}
+                    >
+                        {isFollowing ? "Locked On" : "Free Cam"}
+                    </button>
+                    <button
+                        onClick={onResetCamera}
+                        className="px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                        Reset
+                    </button>
                 </div>
-                <input
-                    type="range"
-                    min="0" max="100" step="1"
-                    value={speedLog}
-                    onChange={(e) => setSpeedLog(parseFloat(e.target.value))}
-                    className="w-full accent-blue-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-            </div >
+            </AccordionSection>
 
-            {/* Visibility Toggles */}
-            < div className="grid grid-cols-2 gap-3 p-2 bg-white/5 rounded border border-white/5" >
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                    <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${showOrbits ? 'bg-blue-500 border-blue-500' : 'border-gray-500 group-hover:border-white'}`}>
-                        {showOrbits && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                    </div>
-                    <span className="text-xs text-gray-300 group-hover:text-white">Show Orbits</span>
-                    <input type="checkbox" checked={showOrbits} onChange={(e) => setShowOrbits(e.target.checked)} className="hidden" />
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                    <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-colors ${showLabels ? 'bg-blue-500 border-blue-500' : 'border-gray-500 group-hover:border-white'}`}>
-                        {showLabels && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
-                    </div>
-                    <span className="text-xs text-gray-300 group-hover:text-white">Show Labels</span>
-                    <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} className="hidden" />
-                </label>
-            </div >
+            {/* Simulation */}
+            <AccordionSection title="Simulation" isOpen={accordionState.simulation ?? true} onToggle={() => toggleAccordion('simulation')}>
+                <Slider label="Time Speed" value={speedLog} min={0} max={100} step={1} onChange={setSpeedLog} format={v => `${v.toFixed(0)}%`} />
 
-            {/* Size Controls */}
-            < div className="flex flex-col gap-1" >
-                <div className="flex justify-between text-xs text-gray-400 uppercase tracking-wider font-bold">
-                    <span>Planet Scale</span>
-                    <span>{scaleFactor.toFixed(1)}x</span>
+                <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white/5 rounded border border-white/5">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                        <div className={`w-2.5 h-2.5 rounded-sm border flex items-center justify-center transition-colors ${showOrbits ? 'bg-blue-500 border-blue-500' : 'border-gray-500 group-hover:border-white'}`}>
+                            {showOrbits && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        <span className="text-[10px] text-gray-300 group-hover:text-white">Orbits</span>
+                        <input type="checkbox" checked={showOrbits} onChange={e => setShowOrbits(e.target.checked)} className="hidden" />
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                        <div className={`w-2.5 h-2.5 rounded-sm border flex items-center justify-center transition-colors ${showLabels ? 'bg-blue-500 border-blue-500' : 'border-gray-500 group-hover:border-white'}`}>
+                            {showLabels && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        <span className="text-[10px] text-gray-300 group-hover:text-white">Labels</span>
+                        <input type="checkbox" checked={showLabels} onChange={e => setShowLabels(e.target.checked)} className="hidden" />
+                    </label>
                 </div>
-                <input
-                    type="range"
-                    min="0.1" max="5" step="0.1"
-                    value={scaleFactor}
-                    onChange={(e) => setScaleFactor(parseFloat(e.target.value))}
-                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-            </div >
 
-            {/* Lighting Controls */}
-            < div className="flex flex-col gap-1" >
-                <div className="flex justify-between text-xs text-gray-400 uppercase tracking-wider font-bold">
-                    <span>Ambient Light</span>
-                    <span>{(ambientLight * 100).toFixed(0)}%</span>
-                </div>
-                <input
-                    type="range"
-                    min="0" max="1" step="0.05"
-                    value={ambientLight}
-                    onChange={(e) => setAmbientLight(parseFloat(e.target.value))}
-                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                />
-            </div >
+                <Slider label="Planet Scale" value={scaleFactor} min={0.1} max={5} step={0.1} onChange={setScaleFactor} format={v => `${v.toFixed(1)}x`} />
+            </AccordionSection>
+
+            {/* Lighting */}
+            <AccordionSection title="Lighting" isOpen={accordionState.lighting ?? false} onToggle={() => toggleAccordion('lighting')}>
+                <Slider label="Ambient Light" value={ambientLight} min={0} max={1} step={0.05} onChange={setAmbientLight} format={v => `${(v * 100).toFixed(0)}%`} />
+            </AccordionSection>
 
             {/* Visual Quality */}
-            < div className="flex flex-col gap-3 border-t border-white/10 pt-3" >
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Visual Quality</div>
+            <AccordionSection title="Visual Quality" isOpen={accordionState.quality ?? false} onToggle={() => toggleAccordion('quality')}>
+                <Toggle label="Shadows" checked={shadowEnabled} onChange={setShadowEnabled} />
 
-                <label className="flex items-center justify-between text-xs text-gray-300">
-                    <span>Shadows</span>
-                    <input
-                        type="checkbox"
-                        checked={shadowEnabled}
-                        onChange={(e) => setShadowEnabled(e.target.checked)}
-                        className="accent-blue-500"
-                    />
-                </label>
-
-                <div className={`flex flex-col gap-1 ${shadowEnabled ? '' : 'opacity-50'}`}>
-                    <div className="flex justify-between text-[10px] text-gray-400">
-                        <span>Shadow Resolution</span>
-                        <span>{shadowMapSize}px</span>
+                <div className={shadowEnabled ? '' : 'opacity-40'}>
+                    <div className="flex flex-col gap-0.5">
+                        <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Shadow Resolution</span>
+                            <span className="font-mono">{shadowMapSize}px</span>
+                        </div>
+                        <select
+                            value={shadowMapSize}
+                            onChange={e => setShadowMapSize(parseInt(e.target.value, 10))}
+                            disabled={!shadowEnabled}
+                            className="w-full bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-gray-200"
+                        >
+                            <option value={1024}>1024</option>
+                            <option value={2048}>2048</option>
+                            <option value={4096}>4096</option>
+                            <option value={8192}>8192</option>
+                            <option value={16384}>16384</option>
+                        </select>
                     </div>
-                    <select
-                        value={shadowMapSize}
-                        onChange={(e) => setShadowMapSize(parseInt(e.target.value, 10))}
-                        disabled={!shadowEnabled}
-                        className="w-full bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-gray-200"
-                    >
-                        <option value={1024}>1024</option>
-                        <option value={2048}>2048</option>
-                        <option value={4096}>4096</option>
-                        <option value={8192}>8192</option>
-                        <option value={16384}>16384</option>
-                    </select>
+
+                    <Slider label="Shadow Softness" value={shadowRadius} min={0} max={5} step={0.5} onChange={setShadowRadius} disabled={!shadowEnabled} format={v => v.toFixed(1)} />
                 </div>
 
-                <div className={`flex flex-col gap-1 ${shadowEnabled ? '' : 'opacity-50'}`}>
-                    <div className="flex justify-between text-[10px] text-gray-400">
-                        <span>Shadow Softness</span>
-                        <span>{shadowRadius.toFixed(1)}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="5"
-                        step="0.5"
-                        value={shadowRadius}
-                        onChange={(e) => setShadowRadius(parseFloat(e.target.value))}
-                        disabled={!shadowEnabled}
-                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                    />
-                </div>
+                <Slider label="Render Scale" value={renderScale} min={0.75} max={2} step={0.25} onChange={setRenderScale} format={v => `${v.toFixed(2)}x`} />
+                <Slider label="Star Density" value={starsCount} min={2000} max={20000} step={1000} onChange={v => setStarsCount(Math.round(v))} format={v => `${v}`} />
+            </AccordionSection>
 
-                <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[10px] text-gray-400">
-                        <span>Render Scale</span>
-                        <span>{renderScale.toFixed(2)}x</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0.75"
-                        max="2"
-                        step="0.25"
-                        value={renderScale}
-                        onChange={(e) => setRenderScale(parseFloat(e.target.value))}
-                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                    />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[10px] text-gray-400">
-                        <span>Star Density</span>
-                        <span>{starsCount}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="2000"
-                        max="20000"
-                        step="1000"
-                        value={starsCount}
-                        onChange={(e) => setStarsCount(parseInt(e.target.value, 10))}
-                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                    />
-                </div>
-            </div >
-
-            {/* ISS Model Selection */}
-            < div className="flex flex-col gap-2 border-t border-white/10 pt-3" >
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">ISS Model</div>
-                <div className="flex gap-2">
+            {/* ISS Model */}
+            <AccordionSection title="ISS Model" isOpen={accordionState.iss ?? false} onToggle={() => toggleAccordion('iss')}>
+                <div className="flex gap-1.5">
                     <button
                         onClick={() => setIssModel('small')}
-                        className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${issModel === 'small'
+                        className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${issModel === 'small'
                             ? 'bg-blue-600 border-blue-500 text-white'
                             : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
                             }`}
@@ -325,7 +256,7 @@ const Controls: React.FC<ControlsProps> = ({
                     </button>
                     <button
                         onClick={() => setIssModel('big')}
-                        className={`flex-1 px-3 py-2 rounded text-xs font-bold uppercase tracking-wider transition-all border ${issModel === 'big'
+                        className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${issModel === 'big'
                             ? 'bg-blue-600 border-blue-500 text-white'
                             : 'bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white'
                             }`}
@@ -333,397 +264,90 @@ const Controls: React.FC<ControlsProps> = ({
                         Detailed
                     </button>
                 </div>
-            </div >
+            </AccordionSection>
 
-            {/* Atmosphere Controls */}
-            < div className="flex flex-col gap-3 border-t border-white/10 pt-3" >
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Atmosphere Settings</div>
+            {/* Atmosphere */}
+            <AccordionSection title="Atmosphere" isOpen={accordionState.atmosphere ?? false} onToggle={() => toggleAccordion('atmosphere')}>
+                <Slider label="Density / Opacity" value={atmOpacity} min={0} max={10} step={0.1} onChange={setAtmOpacity} format={v => v.toFixed(1)} />
+                <Slider label="Thickness (Falloff)" value={atmPow} min={0.5} max={8} step={0.1} onChange={setAtmPow} format={v => v.toFixed(1)} />
+                <Slider label="Quality (Samples)" value={atmSamples} min={8} max={64} step={1} onChange={v => setAtmSamples(Math.round(v))} format={v => `${v}`} />
+            </AccordionSection>
 
-                <div className="grid grid-cols-1 gap-3">
-                    <div className="flex flex-col gap-1">
-                        <div className="flex justify-between text-[10px] text-gray-400">
-                            <span>Density / Opacity</span>
-                            <span>{atmOpacity.toFixed(1)}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0" max="10" step="0.1"
-                            value={atmOpacity}
-                            onChange={(e) => setAtmOpacity(parseFloat(e.target.value))}
-                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <div className="flex justify-between text-[10px] text-gray-400">
-                            <span>Thickness (Falloff)</span>
-                            <span>{atmPow.toFixed(1)}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="0.5" max="8" step="0.1"
-                            value={atmPow}
-                            onChange={(e) => setAtmPow(parseFloat(e.target.value))}
-                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <div className="flex justify-between text-[10px] text-gray-400">
-                            <span>Quality (Samples)</span>
-                            <span>{atmSamples}</span>
-                        </div>
-                        <input
-                            type="range"
-                            min="8" max="64" step="1"
-                            value={atmSamples}
-                            onChange={(e) => setAtmSamples(parseInt(e.target.value, 10))}
-                            className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
-                </div>
-            </div >
-
-            {/* Post-Processing Controls */}
-            < div className="flex flex-col gap-3 border-t border-white/10 pt-3" >
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Post-Processing</div>
-
-                {/* Exposure */}
-                <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[10px] text-gray-400">
-                        <span>Exposure</span>
-                        <span>{exposure.toFixed(2)}</span>
-                    </div>
-                    <input
-                        type="range"
-                        min="0" max="4" step="0.1"
-                        value={exposure}
-                        onChange={(e) => setExposure(parseFloat(e.target.value))}
-                        className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                    />
-                </div>
-
-                <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
-                    <span>Adaptive Tone Mapping</span>
-                    <input
-                        type="checkbox"
-                        checked={toneMappingAdaptive}
-                        onChange={(e) => setToneMappingAdaptive(e.target.checked)}
-                        className="accent-blue-500"
-                    />
-                </div>
+            {/* Post-Processing */}
+            <AccordionSection title="Post-Processing" isOpen={accordionState.postprocess ?? false} onToggle={() => toggleAccordion('postprocess')}>
+                <Slider label="Exposure" value={exposure} min={0} max={4} step={0.1} onChange={setExposure} />
+                <Toggle label="Adaptive Tone Mapping" checked={toneMappingAdaptive} onChange={setToneMappingAdaptive} />
 
                 {/* Bloom */}
-                <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
-                    <div className="flex justify-between items-center">
-                        <div className="text-[10px] uppercase text-gray-500 font-bold">Bloom</div>
-                        <input
-                            type="checkbox"
-                            checked={enableBloom}
-                            onChange={(e) => setEnableBloom(e.target.checked)}
-                            className="accent-blue-500 w-3 h-3"
-                        />
-                    </div>
-
+                <div className="pt-1 border-t border-white/5">
+                    <Toggle label="Bloom" checked={enableBloom} onChange={setEnableBloom} />
                     {enableBloom && (
-                        <>
-                            <div className="flex justify-between text-[10px] text-gray-400">
-                                <span>Threshold</span>
-                                <span>{bloomThreshold.toFixed(1)}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0" max="2" step="0.1"
-                                value={bloomThreshold}
-                                onChange={(e) => setBloomThreshold(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                            />
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Intensity</span>
-                                    <span>{bloomIntensity.toFixed(1)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="3" step="0.1"
-                                    value={bloomIntensity}
-                                    onChange={(e) => setBloomIntensity(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Radius</span>
-                                    <span>{bloomRadius.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="1" step="0.05"
-                                    value={bloomRadius}
-                                    onChange={(e) => setBloomRadius(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Smoothing</span>
-                                    <span>{bloomSmoothing.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="1" step="0.05"
-                                    value={bloomSmoothing}
-                                    onChange={(e) => setBloomSmoothing(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
-                                <span>Mipmap Blur</span>
-                                <input
-                                    type="checkbox"
-                                    checked={bloomMipmapBlur}
-                                    onChange={(e) => setBloomMipmapBlur(e.target.checked)}
-                                    className="accent-blue-500"
-                                />
-                            </div>
-                        </>
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Slider label="Threshold" value={bloomThreshold} min={0} max={2} step={0.1} onChange={setBloomThreshold} format={v => v.toFixed(1)} />
+                            <Slider label="Intensity" value={bloomIntensity} min={0} max={3} step={0.1} onChange={setBloomIntensity} format={v => v.toFixed(1)} />
+                            <Slider label="Radius" value={bloomRadius} min={0} max={1} step={0.05} onChange={setBloomRadius} />
+                            <Slider label="Smoothing" value={bloomSmoothing} min={0} max={1} step={0.05} onChange={setBloomSmoothing} />
+                            <Toggle label="Mipmap Blur" checked={bloomMipmapBlur} onChange={setBloomMipmapBlur} />
+                        </div>
                     )}
                 </div>
 
                 {/* Vignette */}
-                <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
-                    <div className="flex justify-between items-center">
-                        <div className="text-[10px] uppercase text-gray-500 font-bold">Vignette</div>
-                        <input
-                            type="checkbox"
-                            checked={enableVignette}
-                            onChange={(e) => setEnableVignette(e.target.checked)}
-                            className="accent-blue-500 w-3 h-3"
-                        />
-                    </div>
-
+                <div className="pt-1 border-t border-white/5">
+                    <Toggle label="Vignette" checked={enableVignette} onChange={setEnableVignette} />
                     {enableVignette && (
-                        <>
-                            <div className="flex justify-between text-[10px] text-gray-400">
-                                <span>Darkness</span>
-                                <span>{vignetteDarkness.toFixed(1)}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0" max="1" step="0.05"
-                                value={vignetteDarkness}
-                                onChange={(e) => setVignetteDarkness(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                            />
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Offset</span>
-                                    <span>{vignetteOffset.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="1" step="0.05"
-                                    value={vignetteOffset}
-                                    onChange={(e) => setVignetteOffset(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
-                                <span>Eskil</span>
-                                <input
-                                    type="checkbox"
-                                    checked={vignetteEskil}
-                                    onChange={(e) => setVignetteEskil(e.target.checked)}
-                                    className="accent-blue-500"
-                                />
-                            </div>
-                        </>
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Slider label="Darkness" value={vignetteDarkness} min={0} max={1} step={0.05} onChange={setVignetteDarkness} format={v => v.toFixed(1)} />
+                            <Slider label="Offset" value={vignetteOffset} min={0} max={1} step={0.05} onChange={setVignetteOffset} />
+                            <Toggle label="Eskil" checked={vignetteEskil} onChange={setVignetteEskil} />
+                        </div>
                     )}
                 </div>
 
                 {/* Noise */}
-                <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
-                    <div className="flex justify-between items-center">
-                        <div className="text-[10px] uppercase text-gray-500 font-bold">Noise</div>
-                        <input
-                            type="checkbox"
-                            checked={enableNoise}
-                            onChange={(e) => setEnableNoise(e.target.checked)}
-                            className="accent-blue-500 w-3 h-3"
-                        />
-                    </div>
-
+                <div className="pt-1 border-t border-white/5">
+                    <Toggle label="Noise" checked={enableNoise} onChange={setEnableNoise} />
                     {enableNoise && (
-                        <>
-                            <div className="flex justify-between text-[10px] text-gray-400">
-                                <span>Opacity</span>
-                                <span>{noiseOpacity.toFixed(3)}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0" max="0.2" step="0.005"
-                                value={noiseOpacity}
-                                onChange={(e) => setNoiseOpacity(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                            />
-
-                            <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
-                                <span>Premultiply</span>
-                                <input
-                                    type="checkbox"
-                                    checked={noisePremultiply}
-                                    onChange={(e) => setNoisePremultiply(e.target.checked)}
-                                    className="accent-blue-500"
-                                />
-                            </div>
-                        </>
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Slider label="Opacity" value={noiseOpacity} min={0} max={0.2} step={0.005} onChange={setNoiseOpacity} format={v => v.toFixed(3)} />
+                            <Toggle label="Premultiply" checked={noisePremultiply} onChange={setNoisePremultiply} />
+                        </div>
                     )}
                 </div>
 
                 {/* Chromatic Aberration */}
-                <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
-                    <div className="flex justify-between items-center">
-                        <div className="text-[10px] uppercase text-gray-500 font-bold">Chromatic Aberration</div>
-                        <input
-                            type="checkbox"
-                            checked={enableChromaticAberration}
-                            onChange={(e) => setEnableChromaticAberration(e.target.checked)}
-                            className="accent-blue-500 w-3 h-3"
-                        />
-                    </div>
-
+                <div className="pt-1 border-t border-white/5">
+                    <Toggle label="Chromatic Aberration" checked={enableChromaticAberration} onChange={setEnableChromaticAberration} />
                     {enableChromaticAberration && (
-                        <>
-                            <div className="flex justify-between text-[10px] text-gray-400">
-                                <span>Offset</span>
-                                <span>{chromaticAberrationOffset.toFixed(3)}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="0" max="0.01" step="0.0001"
-                                value={chromaticAberrationOffset}
-                                onChange={(e) => setChromaticAberrationOffset(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                            />
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Modulation</span>
-                                    <span>{chromaticModulation.toFixed(1)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="5" step="0.1"
-                                    value={chromaticModulation}
-                                    onChange={(e) => setChromaticModulation(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="flex flex-row items-center justify-between text-[10px] text-gray-400">
-                                <span>Radial</span>
-                                <input
-                                    type="checkbox"
-                                    checked={chromaticRadial}
-                                    onChange={(e) => setChromaticRadial(e.target.checked)}
-                                    className="accent-blue-500"
-                                />
-                            </div>
-                        </>
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Slider label="Offset" value={chromaticAberrationOffset} min={0} max={0.01} step={0.0001} onChange={setChromaticAberrationOffset} format={v => v.toFixed(3)} />
+                            <Slider label="Modulation" value={chromaticModulation} min={0} max={5} step={0.1} onChange={setChromaticModulation} format={v => v.toFixed(1)} />
+                            <Toggle label="Radial" checked={chromaticRadial} onChange={setChromaticRadial} />
+                        </div>
                     )}
                 </div>
 
                 {/* Color & Tone */}
-                <div className="flex flex-col gap-1 pt-2 border-t border-white/5">
-                    <div className="text-[10px] uppercase text-gray-500 font-bold">Color & Tone</div>
-
-                    {/* Brightness/Contrast Toggle */}
-                    <div className="flex justify-between items-center mt-1">
-                        <span className="text-[10px] text-gray-400">Brightness / Contrast</span>
-                        <input
-                            type="checkbox"
-                            checked={enableBrightnessContrast}
-                            onChange={(e) => setEnableBrightnessContrast(e.target.checked)}
-                            className="accent-blue-500 w-3 h-3"
-                        />
-                    </div>
+                <div className="pt-1 border-t border-white/5">
+                    <Toggle label="Brightness / Contrast" checked={enableBrightnessContrast} onChange={setEnableBrightnessContrast} />
                     {enableBrightnessContrast && (
-                        <>
-                            <div className="flex justify-between text-[10px] text-gray-400">
-                                <span>Brightness</span>
-                                <span>{brightness.toFixed(2)}</span>
-                            </div>
-                            <input
-                                type="range"
-                                min="-0.5" max="0.5" step="0.05"
-                                value={brightness}
-                                onChange={(e) => setBrightness(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                            />
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Contrast</span>
-                                    <span>{contrast.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="-0.5" max="0.5" step="0.05"
-                                    value={contrast}
-                                    onChange={(e) => setContrast(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-                        </>
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Slider label="Brightness" value={brightness} min={-0.5} max={0.5} step={0.05} onChange={setBrightness} />
+                            <Slider label="Contrast" value={contrast} min={-0.5} max={0.5} step={0.05} onChange={setContrast} />
+                        </div>
                     )}
 
-                    {/* Hue/Saturation Toggle */}
-                    <div className="flex justify-between items-center mt-2">
-                        <span className="text-[10px] text-gray-400">Hue / Saturation</span>
-                        <input
-                            type="checkbox"
-                            checked={enableHueSaturation}
-                            onChange={(e) => setEnableHueSaturation(e.target.checked)}
-                            className="accent-blue-500 w-3 h-3"
-                        />
+                    <div className="mt-1">
+                        <Toggle label="Hue / Saturation" checked={enableHueSaturation} onChange={setEnableHueSaturation} />
                     </div>
                     {enableHueSaturation && (
-                        <>
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Hue Shift</span>
-                                    <span>{hue.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="6.28" step="0.1"
-                                    value={hue}
-                                    onChange={(e) => setHue(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                                <div className="flex justify-between text-[10px] text-gray-400">
-                                    <span>Saturation</span>
-                                    <span>{saturation.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="0" max="2" step="0.05"
-                                    value={saturation}
-                                    onChange={(e) => setSaturation(parseFloat(e.target.value))}
-                                    className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                />
-                            </div>
-                        </>
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Slider label="Hue Shift" value={hue} min={0} max={6.28} step={0.1} onChange={setHue} />
+                            <Slider label="Saturation" value={saturation} min={0} max={2} step={0.05} onChange={setSaturation} />
+                        </div>
                     )}
                 </div>
-            </div>
+            </AccordionSection>
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { PlanetData } from '../types';
 import { PLANETS } from '../constants';
 
@@ -11,10 +11,6 @@ interface PlanetListProps {
 }
 
 const PlanetList: React.FC<PlanetListProps> = ({ onSelect, onFollow, selectedId, followingId, isFollowingActive }) => {
-    const [isOpen, setIsOpen] = useState(true);
-
-    const toggle = () => setIsOpen(!isOpen);
-
     const renderItem = (p: PlanetData, depth = 0) => {
         const isSelected = selectedId === p.id;
         const isFollowed = isFollowingActive && followingId === p.id;
@@ -22,21 +18,21 @@ const PlanetList: React.FC<PlanetListProps> = ({ onSelect, onFollow, selectedId,
         return (
             <div key={p.id} className="flex flex-col">
                 <div
-                    className={`group flex items-center justify-between pl-3 pr-2 py-1 text-sm transition-colors
+                    className={`group flex items-center justify-between pr-1.5 py-0.5 text-[11px] transition-colors
                     ${isSelected ? 'bg-blue-600/20 border-l-2 border-blue-500' : 'hover:bg-white/5 border-l-2 border-transparent'}
                     `}
-                    style={{ paddingLeft: `${depth * 12 + 12}px` }}
+                    style={{ paddingLeft: `${depth * 10 + 8}px` }}
                 >
                     <button
                         onClick={() => onSelect(p)}
-                        className="flex-1 text-left flex items-center gap-2 outline-none"
+                        className="flex-1 text-left flex items-center gap-1.5 outline-none min-w-0"
                     >
                         {p.textureUrl ? (
-                            <img src={p.textureUrl} alt="" className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                            <img src={p.textureUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover border border-white/30 flex-shrink-0" />
                         ) : (
-                            <span className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: p.color }}></span>
+                            <span className="w-2.5 h-2.5 rounded-full border border-white/30 flex-shrink-0" style={{ backgroundColor: p.color }}></span>
                         )}
-                        <span className={isSelected ? 'text-white font-bold' : 'text-gray-400 group-hover:text-gray-200'}>
+                        <span className={`truncate ${isSelected ? 'text-white font-bold' : 'text-gray-400 group-hover:text-gray-200'}`}>
                             {p.name}
                         </span>
                     </button>
@@ -47,12 +43,12 @@ const PlanetList: React.FC<PlanetListProps> = ({ onSelect, onFollow, selectedId,
                             onFollow(p);
                         }}
                         title="Follow Body"
-                        className={`p-1.5 rounded-md transition-all ${isFollowed ? 'text-green-400 bg-green-400/10' : 'text-gray-600 hover:text-white hover:bg-white/10'}`}
+                        className={`p-1 rounded-md transition-all flex-shrink-0 ${isFollowed ? 'text-green-400 bg-green-400/10' : 'text-gray-600 hover:text-white hover:bg-white/10'}`}
                     >
                         {isFollowed ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
                         )}
                     </button>
                 </div>
@@ -62,24 +58,8 @@ const PlanetList: React.FC<PlanetListProps> = ({ onSelect, onFollow, selectedId,
     };
 
     return (
-        <div className="absolute top-20 left-4 z-10 flex flex-col items-start pointer-events-none">
-            <button
-                onClick={toggle}
-                className="pointer-events-auto flex items-center gap-2 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-gray-300 hover:text-white mb-2 shadow-lg"
-            >
-                <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                Bodies
-            </button>
-
-            {isOpen && (
-                <div className="pointer-events-auto bg-black/80 backdrop-blur-md border border-white/10 rounded-lg overflow-hidden w-56 max-h-[60vh] overflow-y-auto custom-scrollbar shadow-2xl">
-                    <div className="py-2">
-                        {PLANETS.map(p => renderItem(p))}
-                    </div>
-                </div>
-            )}
+        <div className="py-1">
+            {PLANETS.map(p => renderItem(p))}
         </div>
     );
 };

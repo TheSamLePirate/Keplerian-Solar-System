@@ -1,0 +1,47 @@
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+/* Resize cursor override during active drag */
+body.resizing-col {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.resizing-col * {
+  cursor: col-resize !important;
+}
+
+/* Sidebar width transition */
+.sidebar-animate {
+  transition: width 200ms ease-out, opacity 150ms ease-out;
+}
+.sidebar-animate.resizing {
+  transition: none;
+}
+
+/* Accordion collapse/expand */
+.accordion-body {
+  overflow: hidden;
+  transition: max-height 180ms ease-out, opacity 150ms ease-out;
+}
+
+/* Range input compact styling */
+input[type="range"] {
+  height: 2px;
+}

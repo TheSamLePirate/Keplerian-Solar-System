@@ -1,22 +1,23 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import Scene from './components/Scene';
 import Controls from './components/Controls';
-import SimulationStats from './components/SimulationStats';
 import InfoPanel from './components/InfoPanel';
 import PlanetList from './components/PlanetList';
+import Toolbar from './components/ui/Toolbar';
+import BottomBar from './components/ui/BottomBar';
+import PanelShell from './components/ui/PanelShell';
+import ResizableSidebar from './components/ui/ResizableSidebar';
+import { usePanelLayout } from './hooks/usePanelLayout';
 import { PlanetData } from './types';
 
 const App: React.FC = () => {
     // Simulation State
-    const [speedLog, setSpeedLog] = useState(0); // Slider 0-100
+    const [speedLog, setSpeedLog] = useState(0);
     const [paused, setPaused] = useState(false);
     const [scaleFactor, setScaleFactor] = useState(0.5);
     const [showOrbits, setShowOrbits] = useState(true);
-    const [showLabels, setShowLabels] = useState(true);
+    const [showLabels, setShowLabels] = useState(false);
 
-    // State separation: 
-    // selectedPlanet = Planet displayed in InfoPanel / Highlighted in scene
-    // followingBody = Planet the camera is tracking
     const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
     const [followingBody, setFollowingBody] = useState<PlanetData | null>(null);
     const [isFollowing, setIsFollowing] = useState(false);
@@ -25,8 +26,8 @@ const App: React.FC = () => {
     const [fps, setFps] = useState(0);
 
     // Atmosphere Settings
-    const [atmOpacity, setAtmOpacity] = useState(2.5);
-    const [atmPow, setAtmPow] = useState(4.0);
+    const [atmOpacity, setAtmOpacity] = useState(0.1);
+    const [atmPow, setAtmPow] = useState(8);
     const [atmSamples, setAtmSamples] = useState(32);
 
     // Light Settings
@@ -41,7 +42,7 @@ const App: React.FC = () => {
     const [resetTimeTrigger, setResetTimeTrigger] = useState(0);
     const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
 
-    // ISS Model Selection: 'small' or 'big'
+    // ISS Model Selection
     const [issModel, setIssModel] = useState<'small' | 'big'>('big');
 
     // Post-processing State
@@ -59,7 +60,7 @@ const App: React.FC = () => {
     const [hue, setHue] = useState(0.0);
     const [saturation, setSaturation] = useState(0.0);
 
-    // Advanced/Hidden Props
+    // Advanced Props
     const [bloomMipmapBlur, setBloomMipmapBlur] = useState(true);
     const [toneMappingAdaptive, setToneMappingAdaptive] = useState(true);
     const [vignetteEskil, setVignetteEskil] = useState(false);
@@ -67,13 +68,16 @@ const App: React.FC = () => {
     const [chromaticRadial, setChromaticRadial] = useState(false);
     const [chromaticModulation, setChromaticModulation] = useState(0.0);
 
-    // Toggles for Effects
+    // Effect Toggles
     const [enableBloom, setEnableBloom] = useState(true);
     const [enableNoise, setEnableNoise] = useState(true);
     const [enableVignette, setEnableVignette] = useState(true);
     const [enableChromaticAberration, setEnableChromaticAberration] = useState(false);
     const [enableBrightnessContrast, setEnableBrightnessContrast] = useState(true);
     const [enableHueSaturation, setEnableHueSaturation] = useState(true);
+
+    // Panel Layout State
+    const { panels, accordionState, togglePanel, setPanelVisible, toggleAccordion } = usePanelLayout();
 
     // Calculate actual speed
     const actualSpeed = useMemo(() => {
@@ -85,36 +89,29 @@ const App: React.FC = () => {
     }, [speedLog]);
 
     // Handlers
-
-    // Click on 3D Object
-    // Click on 3D Object
     const handle3DPlanetClick = useCallback((p: PlanetData) => {
         setSelectedPlanet(p);
         setFollowingBody(p);
         setIsFollowing(true);
-    }, []);
+        setPanelVisible('info', true);
+    }, [setPanelVisible]);
 
     const handleBackgroundClick = useCallback(() => {
         setSelectedPlanet(null);
-        // Do not stop following if background is clicked, just close info panel
-        // But if we want to stop following, we can use the controls or esc
     }, []);
 
-    // List: Click Name
     const handleListSelect = useCallback((p: PlanetData) => {
         setSelectedPlanet(p);
-        // Does NOT automatically follow
-    }, []);
+        setPanelVisible('info', true);
+    }, [setPanelVisible]);
 
-    // List: Click Scope/Target
     const handleListFollow = useCallback((p: PlanetData) => {
-        setSelectedPlanet(p); // Also select it for info
+        setSelectedPlanet(p);
         setFollowingBody(p);
         setIsFollowing(true);
-    }, []);
+        setPanelVisible('info', true);
+    }, [setPanelVisible]);
 
-    // InfoPanel: Click Track
-    // InfoPanel: Click Track
     const handleTrackFromPanel = useCallback(() => {
         if (selectedPlanet) {
             setFollowingBody(selectedPlanet);
@@ -133,8 +130,37 @@ const App: React.FC = () => {
         setResetCameraTrigger(prev => prev + 1);
     }, []);
 
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+
+            switch (e.key) {
+                case '1': togglePanel('bodies'); break;
+                case '2': togglePanel('info'); break;
+                case '3': togglePanel('controls'); break;
+                case ' ':
+                    e.preventDefault();
+                    setPaused(p => !p);
+                    break;
+                case 'Escape':
+                    setSelectedPlanet(null);
+                    setIsFollowing(false);
+                    setFollowingBody(null);
+                    break;
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [togglePanel]);
+
+    // Determine sidebar visibility
+    const leftVisible = panels.bodies;
+    const rightVisible = panels.info || panels.controls;
+
     return (
         <div className="w-full h-screen bg-black relative overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
+            {/* 3D Scene - Full screen */}
             <Scene
                 speed={actualSpeed}
                 paused={paused}
@@ -187,81 +213,141 @@ const App: React.FC = () => {
                 enableHueSaturation={enableHueSaturation}
             />
 
-            <PlanetList
-                onSelect={handleListSelect}
-                onFollow={handleListFollow}
-                selectedId={selectedPlanet?.id}
-                followingId={followingBody?.id}
-                isFollowingActive={isFollowing}
-            />
+            {/* UI Overlay */}
+            <div className="absolute inset-0 pointer-events-none z-20 flex flex-col">
+                {/* Top Bar */}
+                <div className="flex items-center gap-3 px-3 py-1.5 pointer-events-auto bg-black/60 backdrop-blur-md border-b border-white/5 flex-shrink-0">
+                    {/* Title */}
+                    <div className="select-none flex-shrink-0">
+                        <h1 className="text-lg font-thin tracking-widest text-white/90 leading-none">ORBITAL</h1>
+                        <p className="text-[8px] text-blue-400 font-bold tracking-[0.25em] uppercase leading-none">Keplerian Simulation</p>
+                    </div>
 
-            <SimulationStats
-                date={simTime}
-                fps={fps}
-                actualSpeed={actualSpeed}
-                paused={paused}
-                setPaused={setPaused}
-                onResetTime={handleResetTime}
-            />
+                    {/* Separator */}
+                    <div className="w-px h-6 bg-white/10 flex-shrink-0" />
 
-            {/* Right Sidebar */}
-            <div className="absolute top-4 bottom-4 right-4 w-[360px] flex flex-col gap-4 pointer-events-none z-20">
-                <InfoPanel
-                    planet={selectedPlanet}
-                    onClose={() => setSelectedPlanet(null)}
-                    onFollow={handleTrackFromPanel}
-                    isFollowingThisPlanet={isFollowing && followingBody?.id === selectedPlanet?.id}
-                />
+                    {/* Toolbar */}
+                    <Toolbar panels={panels} togglePanel={togglePanel} />
 
-                <Controls
-                    speedLog={speedLog} setSpeedLog={setSpeedLog}
-                    scaleFactor={scaleFactor} setScaleFactor={setScaleFactor}
-                    showOrbits={showOrbits} setShowOrbits={setShowOrbits}
-                    showLabels={showLabels} setShowLabels={setShowLabels}
-                    isFollowing={isFollowing} setIsFollowing={setIsFollowing}
-                    atmOpacity={atmOpacity} setAtmOpacity={setAtmOpacity}
-                    atmPow={atmPow} setAtmPow={setAtmPow}
-                    atmSamples={atmSamples} setAtmSamples={setAtmSamples}
-                    onResetCamera={handleResetCamera}
-                    ambientLight={ambientLight} setAmbientLight={setAmbientLight}
-                    shadowEnabled={shadowEnabled} setShadowEnabled={setShadowEnabled}
-                    shadowMapSize={shadowMapSize} setShadowMapSize={setShadowMapSize}
-                    shadowRadius={shadowRadius} setShadowRadius={setShadowRadius}
-                    renderScale={renderScale} setRenderScale={setRenderScale}
-                    starsCount={starsCount} setStarsCount={setStarsCount}
-                    issModel={issModel} setIssModel={setIssModel}
-                    bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
-                    bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
-                    bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
-                    bloomSmoothing={bloomSmoothing} setBloomSmoothing={setBloomSmoothing}
-                    bloomMipmapBlur={bloomMipmapBlur} setBloomMipmapBlur={setBloomMipmapBlur}
-                    noiseOpacity={noiseOpacity} setNoiseOpacity={setNoiseOpacity}
-                    noisePremultiply={noisePremultiply} setNoisePremultiply={setNoisePremultiply}
-                    vignetteDarkness={vignetteDarkness} setVignetteDarkness={setVignetteDarkness}
-                    vignetteOffset={vignetteOffset} setVignetteOffset={setVignetteOffset}
-                    vignetteEskil={vignetteEskil} setVignetteEskil={setVignetteEskil}
-                    chromaticAberrationOffset={chromaticAberrationOffset} setChromaticAberrationOffset={setChromaticAberrationOffset}
-                    chromaticRadial={chromaticRadial} setChromaticRadial={setChromaticRadial}
-                    chromaticModulation={chromaticModulation} setChromaticModulation={setChromaticModulation}
-                    brightness={brightness} setBrightness={setBrightness}
-                    contrast={contrast} setContrast={setContrast}
-                    exposure={exposure} setExposure={setExposure}
-                    hue={hue} setHue={setHue}
-                    saturation={saturation} setSaturation={setSaturation}
-                    toneMappingAdaptive={toneMappingAdaptive} setToneMappingAdaptive={setToneMappingAdaptive}
-                    enableBloom={enableBloom} setEnableBloom={setEnableBloom}
-                    enableNoise={enableNoise} setEnableNoise={setEnableNoise}
-                    enableVignette={enableVignette} setEnableVignette={setEnableVignette}
-                    enableChromaticAberration={enableChromaticAberration} setEnableChromaticAberration={setEnableChromaticAberration}
-                    enableBrightnessContrast={enableBrightnessContrast} setEnableBrightnessContrast={setEnableBrightnessContrast}
-                    enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
-                />
-            </div>
+                    {/* Spacer */}
+                    <div className="flex-1" />
 
-            {/* Title Overlay */}
-            <div className="absolute top-4 left-4 pointer-events-none z-10 select-none">
-                <h1 className="text-3xl font-thin tracking-widest text-white/90 drop-shadow-md">ORBITAL</h1>
-                <p className="text-xs text-blue-400 font-bold tracking-[0.3em] uppercase drop-shadow-sm">Keplerian Simulation</p>
+                    {/* Mini FPS */}
+                    <span className={`text-[10px] font-mono flex-shrink-0 ${fps < 30 ? 'text-red-500' : 'text-green-500/60'}`}>
+                        {fps} FPS
+                    </span>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 flex min-h-0">
+                    {/* Left Sidebar */}
+                    <ResizableSidebar
+                        side="left"
+                        defaultWidth={220}
+                        minWidth={160}
+                        maxWidth={400}
+                        visible={leftVisible}
+                    >
+                        <PanelShell title="Bodies" noPadding maxHeight="100%">
+                            <PlanetList
+                                onSelect={handleListSelect}
+                                onFollow={handleListFollow}
+                                selectedId={selectedPlanet?.id}
+                                followingId={followingBody?.id}
+                                isFollowingActive={isFollowing}
+                            />
+                        </PanelShell>
+                    </ResizableSidebar>
+
+                    {/* Center - passthrough */}
+                    <div className="flex-1" />
+
+                    {/* Right Sidebar */}
+                    <ResizableSidebar
+                        side="right"
+                        defaultWidth={300}
+                        minWidth={220}
+                        maxWidth={500}
+                        visible={rightVisible}
+                    >
+                        {/* Info Panel */}
+                        {panels.info && selectedPlanet && (
+                            <PanelShell title="Object Info" className="flex-shrink-0">
+                                <InfoPanel
+                                    planet={selectedPlanet}
+                                    onClose={() => setSelectedPlanet(null)}
+                                    onFollow={handleTrackFromPanel}
+                                    isFollowingThisPlanet={isFollowing && followingBody?.id === selectedPlanet?.id}
+                                />
+                            </PanelShell>
+                        )}
+
+                        {/* Controls */}
+                        {panels.controls && (
+                            <PanelShell title="Settings" className="flex-1 min-h-0" maxHeight="100%">
+                                <Controls
+                                    speedLog={speedLog} setSpeedLog={setSpeedLog}
+                                    scaleFactor={scaleFactor} setScaleFactor={setScaleFactor}
+                                    showOrbits={showOrbits} setShowOrbits={setShowOrbits}
+                                    showLabels={showLabels} setShowLabels={setShowLabels}
+                                    isFollowing={isFollowing} setIsFollowing={setIsFollowing}
+                                    atmOpacity={atmOpacity} setAtmOpacity={setAtmOpacity}
+                                    atmPow={atmPow} setAtmPow={setAtmPow}
+                                    atmSamples={atmSamples} setAtmSamples={setAtmSamples}
+                                    onResetCamera={handleResetCamera}
+                                    ambientLight={ambientLight} setAmbientLight={setAmbientLight}
+                                    shadowEnabled={shadowEnabled} setShadowEnabled={setShadowEnabled}
+                                    shadowMapSize={shadowMapSize} setShadowMapSize={setShadowMapSize}
+                                    shadowRadius={shadowRadius} setShadowRadius={setShadowRadius}
+                                    renderScale={renderScale} setRenderScale={setRenderScale}
+                                    starsCount={starsCount} setStarsCount={setStarsCount}
+                                    issModel={issModel} setIssModel={setIssModel}
+                                    bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
+                                    bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
+                                    bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
+                                    bloomSmoothing={bloomSmoothing} setBloomSmoothing={setBloomSmoothing}
+                                    bloomMipmapBlur={bloomMipmapBlur} setBloomMipmapBlur={setBloomMipmapBlur}
+                                    noiseOpacity={noiseOpacity} setNoiseOpacity={setNoiseOpacity}
+                                    noisePremultiply={noisePremultiply} setNoisePremultiply={setNoisePremultiply}
+                                    vignetteDarkness={vignetteDarkness} setVignetteDarkness={setVignetteDarkness}
+                                    vignetteOffset={vignetteOffset} setVignetteOffset={setVignetteOffset}
+                                    vignetteEskil={vignetteEskil} setVignetteEskil={setVignetteEskil}
+                                    chromaticAberrationOffset={chromaticAberrationOffset} setChromaticAberrationOffset={setChromaticAberrationOffset}
+                                    chromaticRadial={chromaticRadial} setChromaticRadial={setChromaticRadial}
+                                    chromaticModulation={chromaticModulation} setChromaticModulation={setChromaticModulation}
+                                    brightness={brightness} setBrightness={setBrightness}
+                                    contrast={contrast} setContrast={setContrast}
+                                    exposure={exposure} setExposure={setExposure}
+                                    hue={hue} setHue={setHue}
+                                    saturation={saturation} setSaturation={setSaturation}
+                                    toneMappingAdaptive={toneMappingAdaptive} setToneMappingAdaptive={setToneMappingAdaptive}
+                                    enableBloom={enableBloom} setEnableBloom={setEnableBloom}
+                                    enableNoise={enableNoise} setEnableNoise={setEnableNoise}
+                                    enableVignette={enableVignette} setEnableVignette={setEnableVignette}
+                                    enableChromaticAberration={enableChromaticAberration} setEnableChromaticAberration={setEnableChromaticAberration}
+                                    enableBrightnessContrast={enableBrightnessContrast} setEnableBrightnessContrast={setEnableBrightnessContrast}
+                                    enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
+                                    accordionState={accordionState}
+                                    toggleAccordion={toggleAccordion}
+                                />
+                            </PanelShell>
+                        )}
+                    </ResizableSidebar>
+                </div>
+
+                {/* Bottom Bar */}
+                <div className="flex-shrink-0">
+                    <BottomBar
+                        date={simTime}
+                        fps={fps}
+                        actualSpeed={actualSpeed}
+                        paused={paused}
+                        setPaused={setPaused}
+                        onResetTime={handleResetTime}
+                        speedLog={speedLog}
+                        setSpeedLog={setSpeedLog}
+                    />
+                </div>
             </div>
         </div>
     );
