@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, Suspense } from 'react';
+
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation, N8AO } from '@react-three/postprocessing';
@@ -424,7 +425,9 @@ const Scene: React.FC<SceneContentProps> = React.memo((props) => {
             }}
             onPointerMissed={props.onBackgroundClick}
         >
-            <SceneContentInternal {...props} />
+            <Suspense fallback={null}>
+                <SceneContentInternal {...props} />
+            </Suspense>
         </Canvas>
     );
 });

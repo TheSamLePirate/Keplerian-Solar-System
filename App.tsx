@@ -7,6 +7,7 @@ import Toolbar from './components/ui/Toolbar';
 import BottomBar from './components/ui/BottomBar';
 import PanelShell from './components/ui/PanelShell';
 import ResizableSidebar from './components/ui/ResizableSidebar';
+import SplashLoader from './components/ui/SplashLoader';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { PlanetData } from './types';
 import { SIMULATION_EPOCH } from './constants';
@@ -191,6 +192,9 @@ const App: React.FC = () => {
 
     return (
         <div className="w-full h-screen bg-black relative overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
+            {/* Loading Screen */}
+            <SplashLoader />
+
             {/* 3D Scene - Full screen */}
             <Scene
                 speed={actualSpeed}

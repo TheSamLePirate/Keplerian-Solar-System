@@ -359,7 +359,7 @@ const Controls: React.FC<ControlsProps> = ({
                         <Toggle label="Show Equilibrium" checked={gravityShowEquilibrium} onChange={setGravityShowEquilibrium} />
                         <Toggle label="Show Eff. Potential" checked={gravityShowEffective} onChange={setGravityShowEffective} />
                         <Toggle label="Exclude Sun" checked={gravityExcludeSun} onChange={setGravityExcludeSun} />
-                        {gravityShowEquilibrium && <Slider label="Equilibrium Thresh (Log)" value={Math.log10(gravityEquilibriumThreshold)} min={-5} max={1} step={0.1} onChange={v => setGravityEquilibriumThreshold(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />}
+                        {gravityShowEquilibrium && <Slider label="Equilibrium Thresh (Log)" value={Math.log10(gravityEquilibriumThreshold)} min={-10} max={1} step={0.1} onChange={v => setGravityEquilibriumThreshold(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />}
                         {gravityShowContours && <Slider label="Contour Frequency" value={gravityContourFreq} min={10} max={1000} step={10} onChange={setGravityContourFreq} format={v => v.toFixed(0)} />}
                         <Slider label="Opacity" value={gravityOpacity} min={0} max={1} step={0.05} onChange={setGravityOpacity} format={v => v.toFixed(2)} />
                         <Slider label="Min Strength (Log)" value={Math.log10(gravityMin)} min={-10} max={-2} step={0.1} onChange={v => setGravityMin(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />

@@ -47,9 +47,8 @@ vec3 calculateGravity(vec3 pos) {
         // Sun is index 0. If exclude sun is on, skip i=0
         if (uExcludeSun && i == 0) continue;
 
-        // Project to Ecliptic Plane (y=0) to see L-points correctly even if plane is offset
-        vec3 projectedPos = vec3(pos.x, 0.0, pos.z);
-        vec3 r = uBodiesPos[i] - projectedPos;
+        // Use actual 3D position (including Y offset) to sample potential at that height
+        vec3 r = uBodiesPos[i] - pos;
         float distSq = dot(r, r);
         // Match GravityParticles logic
         // a += normalize(r) * (mass / max(distSq, 0.04))
