@@ -1,10 +1,10 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
+import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE, AU_SCALE, SUN_MASS } from '../constants';
 import { PlanetData } from '../types';
 import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
 import Planet from './Planet';
@@ -79,12 +79,17 @@ interface SceneContentProps {
     gravityMin: number;
     gravityMax: number;
     gravityIntensityPow: number;
-    gravitySteps: number;
     gravityDirectionSat: number;
     gravityShowDirection: boolean;
     gravityPlaneSize: number;
     gravityYOffset: number;
     gravityParticlesVisible: boolean;
+    gravityShowContours: boolean;
+    gravityContourFreq: number;
+    gravityExcludeSun: boolean;
+    gravityShowEquilibrium: boolean;
+    gravityEquilibriumThreshold: number;
+    gravityShowEffective: boolean;
 }
 
 const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: THREE.Vector3 }> = ({ followingBody, sunPosition }) => {
@@ -99,30 +104,9 @@ const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: TH
 
     useFrame(() => {
         if (!followingBody || !lightRef.current) return;
-
-        // Position the light "towards the sun" relative to the target
-        // We want crisp shadows, so we simulate a directional light coming from the sun
-        // but positioned relatively close to the object to manage shadow map resolution
-
-        // Find the object in the scene (it might be moving)
-        const object = scene.getObjectByName(`planet-${followingBody.id}`);
-        // Alternatively, we can calculate position from physics if we had access to it here,
-        // but finding the generic object is easier if named correctly.
-        // HOWEVER, we don't name our planets yet. Let's rely on the Planet component to update a ref?
-        // OR: We can calculate it here using the same physics logic.
-        // Let's use the same logic as Scene camera follow for consistency.
-
-        // Actually, simpler: The Light Target should be the object position.
-        // The Light Position should be ObjectPos + (SunPos - ObjectPos).normalized * Offset
+        // Logic handled in parent for simpler position syncing
     });
 
-    // Changing approach:
-    // We can't easily access the exact position here without re-calculating physics.
-    // Let's rely on `Planet.tsx` to update layers.
-    // Here we just render the light.
-    // But the light needs to follow the object.
-
-    // Simplify: Put this logic inside `SceneContentInternal` where we already calc positions!
     return null;
 };
 
@@ -133,7 +117,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation,
     enableAO, aoIntensity, aoRadius, aoDistanceFalloff, aoScreenSpace,
 
-    gravityVisible, gravityOpacity, gravityMin, gravityMax, gravityIntensityPow, gravitySteps, gravityDirectionSat, gravityShowDirection, gravityPlaneSize, gravityYOffset, gravityParticlesVisible
+    gravityVisible, gravityOpacity, gravityMin, gravityMax, gravityIntensityPow, gravityDirectionSat, gravityShowDirection, gravityPlaneSize, gravityYOffset, gravityParticlesVisible,
+    gravityShowContours, gravityContourFreq, gravityExcludeSun, gravityEquilibriumThreshold, gravityShowEffective, gravityShowEquilibrium,
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
@@ -283,6 +268,39 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         }
     }, 1);
 
+    // Calculate Omega (angular velocity) if showing Effective Potential
+    const omega = useMemo(() => {
+        if (!gravityShowEffective) return 0.0;
+
+        // Find focused body
+        const focusedBody = selectedPlanet || followingBody;
+        if (!focusedBody) return 0.0;
+
+        // We need the distance of the focused body to the Sun (0,0,0)
+        // Since we don't have the realtime vector here easily without subs,
+        // We use the semi-major axis (distance in AU) from the elements.
+        // This assumes circular orbit for the "Rotating Frame" approximation.
+        const distanceAU = focusedBody.elements?.semiMajorAxis; // In AU
+        if (!distanceAU || distanceAU === 0) return 0.0;
+
+        // Calculate distance in World Units
+        const r = distanceAU * AU_SCALE;
+
+        // Calculate Mass of Sun in Simulation Units
+        // We MUST match the logic in GravitationalPotential.tsx exactly.
+        // There, M_sun_base = 0.0002959122082855911 (Gaussian Gravitational Constant squared, k^2)
+        // And MASS_SCALE = 2500.0 * AU_SCALE
+        // So M_shader = M_sun_base * MASS_SCALE
+        const k2 = 0.0002959122082855911;
+        const MASS_SCALE = 2500.0 * AU_SCALE;
+        const M_shader = k2 * MASS_SCALE;
+
+        // omega = sqrt(GM / r^3) -> Here G is folded into M_shader
+        const omegaVal = Math.sqrt(M_shader / Math.pow(r, 3));
+
+        return omegaVal;
+    }, [gravityShowEffective, selectedPlanet, followingBody]);
+
     return (
         <>
             <OrbitControls
@@ -325,7 +343,6 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 minStrength={gravityMin}
                 maxStrength={gravityMax}
                 intensityPow={gravityIntensityPow}
-                steps={gravitySteps}
                 directionSat={gravityDirectionSat}
                 showDirection={gravityShowDirection}
                 planeSize={gravityPlaneSize}
@@ -333,6 +350,13 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 timeRef={timeRef}
                 scaleFactor={scaleFactor}
                 focusBodyId={selectedPlanet?.id || followingBody?.id || null}
+                showContours={gravityShowContours}
+                contourFreq={gravityContourFreq}
+                excludeSun={gravityExcludeSun}
+                showEquilibrium={gravityShowEquilibrium}
+                equilibriumThreshold={gravityEquilibriumThreshold}
+                showEffective={gravityShowEffective}
+                omega={omega}
             />
 
             <GravityParticles visible={gravityParticlesVisible} timeRef={timeRef} speed={speed} paused={paused} />

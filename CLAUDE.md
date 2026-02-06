@@ -21,7 +21,7 @@ Optionally set `GEMINI_API_KEY` in `.env.local` (currently unused — service is
 - **Three.js r182** via `@react-three/fiber` v9.5 and `@react-three/drei` v10.7
 - **Post-processing**: `@react-three/postprocessing` v3 / `postprocessing` v6
 - **Styling**: Tailwind CSS (CDN, no build step)
-- **Data pipeline**: Python 3 with `skyfield`, `numpy` (development-time only)
+- **Data pipeline**: python3.11 with `skyfield`, `numpy` (development-time only)
 
 ## Architecture
 

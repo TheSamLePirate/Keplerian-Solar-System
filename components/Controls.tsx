@@ -108,8 +108,6 @@ interface ControlsProps {
     setGravityMax: (v: number) => void;
     gravityIntensityPow: number;
     setGravityIntensityPow: (v: number) => void;
-    gravitySteps: number;
-    setGravitySteps: (v: number) => void;
     gravityDirectionSat: number;
     setGravityDirectionSat: (v: number) => void;
     gravityShowDirection: boolean;
@@ -120,6 +118,18 @@ interface ControlsProps {
     setGravityYOffset: (v: number) => void;
     gravityParticlesVisible: boolean;
     setGravityParticlesVisible: (v: boolean) => void;
+    gravityShowContours: boolean;
+    setGravityShowContours: (v: boolean) => void;
+    gravityContourFreq: number;
+    setGravityContourFreq: (v: number) => void;
+    gravityExcludeSun: boolean;
+    setGravityExcludeSun: (v: boolean) => void;
+    gravityShowEquilibrium: boolean;
+    setGravityShowEquilibrium: (v: boolean) => void;
+    gravityEquilibriumThreshold: number;
+    setGravityEquilibriumThreshold: (v: number) => void;
+    gravityShowEffective: boolean;
+    setGravityShowEffective: (v: boolean) => void;
     // Accordion state from parent
     accordionState: Record<string, boolean>;
     toggleAccordion: (id: string) => void;
@@ -207,12 +217,17 @@ const Controls: React.FC<ControlsProps> = ({
     gravityMin, setGravityMin,
     gravityMax, setGravityMax,
     gravityIntensityPow, setGravityIntensityPow,
-    gravitySteps, setGravitySteps,
     gravityDirectionSat, setGravityDirectionSat,
     gravityShowDirection, setGravityShowDirection,
     gravityPlaneSize, setGravityPlaneSize,
     gravityYOffset, setGravityYOffset,
     gravityParticlesVisible, setGravityParticlesVisible,
+    gravityShowContours, setGravityShowContours,
+    gravityContourFreq, setGravityContourFreq,
+    gravityExcludeSun, setGravityExcludeSun,
+    gravityShowEquilibrium, setGravityShowEquilibrium,
+    gravityEquilibriumThreshold, setGravityEquilibriumThreshold,
+    gravityShowEffective, setGravityShowEffective,
     accordionState, toggleAccordion, date, onSetTime,
 }) => {
     // Date/Time Helpers
@@ -340,11 +355,16 @@ const Controls: React.FC<ControlsProps> = ({
                 {gravityVisible && (
                     <div className="flex flex-col gap-1 mt-1">
                         <Toggle label="Show Direction" checked={gravityShowDirection} onChange={setGravityShowDirection} />
+                        <Toggle label="Show Contours" checked={gravityShowContours} onChange={setGravityShowContours} />
+                        <Toggle label="Show Equilibrium" checked={gravityShowEquilibrium} onChange={setGravityShowEquilibrium} />
+                        <Toggle label="Show Eff. Potential" checked={gravityShowEffective} onChange={setGravityShowEffective} />
+                        <Toggle label="Exclude Sun" checked={gravityExcludeSun} onChange={setGravityExcludeSun} />
+                        {gravityShowEquilibrium && <Slider label="Equilibrium Thresh (Log)" value={Math.log10(gravityEquilibriumThreshold)} min={-5} max={1} step={0.1} onChange={v => setGravityEquilibriumThreshold(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />}
+                        {gravityShowContours && <Slider label="Contour Frequency" value={gravityContourFreq} min={10} max={1000} step={10} onChange={setGravityContourFreq} format={v => v.toFixed(0)} />}
                         <Slider label="Opacity" value={gravityOpacity} min={0} max={1} step={0.05} onChange={setGravityOpacity} format={v => v.toFixed(2)} />
                         <Slider label="Min Strength (Log)" value={Math.log10(gravityMin)} min={-10} max={-2} step={0.1} onChange={v => setGravityMin(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />
                         <Slider label="Max Strength (Log)" value={Math.log10(gravityMax)} min={-8} max={0} step={0.1} onChange={v => setGravityMax(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />
-                        <Slider label="Intensity Power" value={gravityIntensityPow} min={0.1} max={3} step={0.1} onChange={setGravityIntensityPow} format={v => v.toFixed(1)} />
-                        <Slider label="Raymarch Steps" value={gravitySteps} min={8} max={64} step={4} onChange={setGravitySteps} format={v => v.toFixed(0)} />
+                        <Slider label="Intensity Power" value={gravityIntensityPow} min={0.1} max={5} step={0.1} onChange={setGravityIntensityPow} format={v => v.toFixed(1)} />
                         <Slider label="Direction Saturation" value={gravityDirectionSat} min={0.0} max={2.0} step={0.1} onChange={setGravityDirectionSat} format={v => v.toFixed(1)} />
                         <Slider label="Plane Size (AU)" value={gravityPlaneSize} min={50} max={500} step={10} onChange={setGravityPlaneSize} format={v => v.toFixed(0)} />
                         <Slider label="Y Offset" value={gravityYOffset} min={-50} max={50} step={1} onChange={setGravityYOffset} format={v => v.toFixed(1)} />

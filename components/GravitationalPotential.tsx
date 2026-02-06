@@ -1,4 +1,3 @@
-
 import React, { useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -9,12 +8,10 @@ import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
 // Vertex Shader
 const vertexShader = `
 varying vec3 vWorldPosition;
-varying vec3 vRayOrigin;
 
 void main() {
-  vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vWorldPosition = worldPosition.xyz;
-    vRayOrigin = cameraPosition; // Built-in three.js uniform
     gl_Position = projectionMatrix * viewMatrix * worldPosition;
 }
 `;
@@ -29,118 +26,109 @@ uniform int uBodyCount;
 uniform float uMin;
 uniform float uMax;
 uniform float uOpacity;
-uniform int uSteps;
 uniform float uIntensityPow;
 uniform float uDirectionSat;
 uniform bool uShowDirection;
-uniform vec3 uBoundsMin;
-uniform vec3 uBoundsMax;
+uniform bool uShowContours;
+uniform float uContourFreq;
+uniform bool uExcludeSun;
+uniform bool uShowEquilibrium;
+uniform float uEquilibriumThreshold;
+uniform bool uShowEffective;
+uniform float uOmega;
 
 varying vec3 vWorldPosition;
-varying vec3 vRayOrigin;
-
-// Box intersection
-vec2 rayBoxDst(vec3 boundsMin, vec3 boundsMax, vec3 rayOrigin, vec3 invRayDir) {
-    vec3 t0 = (boundsMin - rayOrigin) * invRayDir;
-    vec3 t1 = (boundsMax - rayOrigin) * invRayDir;
-    vec3 tmin = min(t0, t1);
-    vec3 tmax = max(t0, t1);
-    float dstA = max(max(tmin.x, tmin.y), tmin.z);
-    float dstB = min(min(tmax.x, tmax.y), tmax.z);
-    float dstToBox = max(0.0, dstA);
-    float dstInsideBox = max(0.0, dstB - dstToBox);
-    return vec2(dstToBox, dstInsideBox);
-}
 
 // Gravity calc
 vec3 calculateGravity(vec3 pos) {
     vec3 g = vec3(0.0);
     for (int i = 0; i < 50; i++) {
         if (i >= uBodyCount) break;
-        vec3 r = uBodiesPos[i] - pos;
+        // Sun is index 0. If exclude sun is on, skip i=0
+        if (uExcludeSun && i == 0) continue;
+
+        // Project to Ecliptic Plane (y=0) to see L-points correctly even if plane is offset
+        vec3 projectedPos = vec3(pos.x, 0.0, pos.z);
+        vec3 r = uBodiesPos[i] - projectedPos;
         float distSq = dot(r, r);
-        float dist = sqrt(distSq);
-        if (dist < 0.1) dist = 0.1; // Smooth gravity wells
-        g += r * (uBodiesMass[i] / (distSq * dist));
+        // Match GravityParticles logic
+        // a += normalize(r) * (mass / max(distSq, 0.04))
+        g += normalize(r) * (uBodiesMass[i] / max(distSq, 0.04));
     }
+
+    // Add Centrifugal Force if Rotating Frame (Effective Potential)
+    if (uShowEffective) {
+        // F_centrifugal = omega^2 * r_from_center
+        // Direction is OUTWARDS from center (0,0,0) -> pos
+        // Magnitude is omega^2 * dist
+        // Vector = normalize(pos) * (omega^2 * length(pos)) = pos * omega^2
+        // ONLY applies to x,z components (planar rotation)
+        vec3 centrifugal = vec3(pos.x, 0.0, pos.z) * (uOmega * uOmega);
+        g += centrifugal; 
+    }
+    
     return g;
 }
 
 vec3 heatMap(float t) {
-    vec3 c1 = vec3(0.0, 0.0, 0.0); // Void is transparent/black
-    vec3 c2 = vec3(0.4, 0.1, 0.6); // Field
-    vec3 c3 = vec3(1.0, 0.8, 0.2); // Intensity
+    vec3 c1 = vec3(0.0, 0.0, 0.0); // Low
+    vec3 c2 = vec3(0.4, 0.1, 0.6); // Medium
+    vec3 c3 = vec3(1.0, 0.8, 0.2); // High
     if (t < 0.5) return mix(c1, c2, t * 2.0);
     return mix(c2, c3, (t - 0.5) * 2.0);
 }
 
-float random(vec2 st) {
-    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
-}
-
 void main() {
-  vec3 rayOrigin = vRayOrigin;
-  vec3 rayDir = normalize(vWorldPosition - rayOrigin);
-  vec3 invRayDir = 1.0 / rayDir;
-  
-  vec2 intersect = rayBoxDst(uBoundsMin, uBoundsMax, rayOrigin, invRayDir);
-  float ds = intersect.y; // distance inside box
-  float distToBox = intersect.x;
+    vec3 p = vWorldPosition;
+    
+    vec3 g = calculateGravity(p);
+    float mag = length(g);
 
-    if (ds <= 0.0) discard;
+    // Visualize
+    float normMag = (log(mag) - log(uMin)) / (log(uMax) - log(uMin));
+    normMag = clamp(normMag, 0.0, 1.0);
+    normMag = pow(normMag, uIntensityPow);
+    
+    vec3 col;
+    if (uShowDirection) {
+        // Visualize direction (Gradient)
+        // Map -1..1 to 0..1
+        vec3 dir = normalize(g);
+        col = dir * 0.5 + 0.5;
+        // Enhancing saturation slightly for better visibility
+        col = pow(col, vec3(uDirectionSat)); 
+    } else {
+        // Visualize Potential Magnitude (Heatmap)
+        col = heatMap(normMag);
+    }
+    
+    // Alpha falloff
+    // Higher magnitude = more opaque
+    float alpha = uOpacity * smoothstep(0.0, 0.2, normMag); 
 
-  // Setup Raymarching
-  // int steps = 24; // Replaced by uniform
-  float stepSize = ds / float(uSteps);
-
-  // Dithering
-  float jitter = random(gl_FragCoord.xy) * stepSize;
-  vec3 p = rayOrigin + rayDir * (distToBox + jitter);
-  
-  vec3 accumulatedColor = vec3(0.0);
-  float accumulatedAlpha = 0.0;
-
-    for (int i = 0; i < 128; i++) { // Max steps cap
-        if (i >= uSteps) break; // Dynamic loop count
-        if (accumulatedAlpha >= 0.99) break; // Stop if nearly opaque
-      
-      vec3 g = calculateGravity(p);
-      float mag = length(g);
-
-      // Visualize
-      float normMag = (log(mag) - log(uMin)) / (log(uMax) - log(uMin));
-        normMag = clamp(normMag, 0.0, 1.0);
-        normMag = pow(normMag, uIntensityPow);
-      
-      vec3 col;
-      if (uShowDirection) {
-          // Visualize direction (Gradient)
-          // Map -1..1 to 0..1
-          vec3 dir = normalize(g);
-          col = dir * 0.5 + 0.5;
-          // Enhancing saturation slightly for better visibility
-          col = pow(col, vec3(uDirectionSat)); 
-      } else {
-          // Visualize Potential Magnitude (Heatmap)
-          col = heatMap(normMag);
-      }
-      
-      // Density contribution with non-linear falloff to make low values transparent
-      // normMag is 0..1. Raising it to a power makes low values approach 0 faster.
-      float density = pow(normMag, 3.0) * uOpacity;
-
-      // Alpha Blending (Front-to-Back)
-      // alpha = density * stepContribution
-      // accumAlpha += (1 - accumAlpha) * alpha
-      float alpha = density * 0.5; // Scale factor for density per step
-
-        accumulatedColor += col * alpha * (1.0 - accumulatedAlpha);
-        accumulatedAlpha += alpha * (1.0 - accumulatedAlpha);
-
-        p += rayDir * stepSize;
+    if (uShowContours) {
+        // Contours based on magnitude log
+        // Use a sine wave pattern
+        float v = log(mag + 1e-10); // avoid log(0)
+        float contour = 0.5 + 0.5 * sin(v * uContourFreq);
+        
+        // Sharpen lines
+        contour = smoothstep(0.9, 0.95, contour);
+        
+        // Mix white lines
+        col = mix(col, vec3(1.0), contour * 0.5);
+        alpha += contour * 0.5; // Boost alpha on lines
     }
 
-    gl_FragColor = vec4(accumulatedColor, accumulatedAlpha);
+    if (uShowEquilibrium) {
+        if (mag < uEquilibriumThreshold) {
+            // Bright Cyan for equilibrium points
+            col = vec3(0.0, 1.0, 1.0);
+            alpha = 1.0;
+        }
+    }
+
+    gl_FragColor = vec4(col, alpha);
 }
 `;
 
@@ -150,9 +138,15 @@ interface GravitationalPotentialProps {
     minStrength: number;
     maxStrength: number;
     intensityPow: number;
-    steps: number;
     directionSat: number;
     showDirection: boolean;
+    showContours: boolean;
+    contourFreq: number;
+    excludeSun: boolean;
+    showEquilibrium: boolean;
+    equilibriumThreshold: number;
+    showEffective: boolean;
+    omega: number;
     planeSize: number;
     yOffset: number;
     timeRef: React.MutableRefObject<number>;
@@ -166,9 +160,15 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
     minStrength,
     maxStrength,
     intensityPow,
-    steps,
     directionSat,
     showDirection,
+    showContours,
+    contourFreq,
+    excludeSun,
+    showEquilibrium,
+    equilibriumThreshold,
+    showEffective,
+    omega,
     planeSize,
     yOffset,
     timeRef,
@@ -177,7 +177,6 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const materialRef = useRef<THREE.ShaderMaterial>(null);
-    const { camera } = useThree();
 
     const uniforms = useMemo(() => ({
         uBodiesPos: { value: new Float32Array(50 * 3) },
@@ -187,11 +186,15 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
         uMax: { value: maxStrength },
         uOpacity: { value: opacity },
         uIntensityPow: { value: intensityPow },
-        uSteps: { value: steps },
         uDirectionSat: { value: 1.0 },
         uShowDirection: { value: showDirection },
-        uBoundsMin: { value: new THREE.Vector3() },
-        uBoundsMax: { value: new THREE.Vector3() }
+        uShowContours: { value: showContours },
+        uContourFreq: { value: contourFreq },
+        uExcludeSun: { value: excludeSun },
+        uShowEquilibrium: { value: showEquilibrium },
+        uEquilibriumThreshold: { value: equilibriumThreshold },
+        uShowEffective: { value: showEffective },
+        uOmega: { value: omega },
     }), []);
 
     useFrame(() => {
@@ -201,23 +204,29 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
         materialRef.current.uniforms.uMax.value = maxStrength;
         materialRef.current.uniforms.uOpacity.value = opacity;
         materialRef.current.uniforms.uIntensityPow.value = intensityPow;
-        materialRef.current.uniforms.uSteps.value = steps;
         materialRef.current.uniforms.uDirectionSat.value = directionSat;
         materialRef.current.uniforms.uShowDirection.value = showDirection;
+        materialRef.current.uniforms.uShowContours.value = showContours;
+        materialRef.current.uniforms.uContourFreq.value = contourFreq;
+        materialRef.current.uniforms.uExcludeSun.value = excludeSun;
+        materialRef.current.uniforms.uShowEquilibrium.value = showEquilibrium;
+        materialRef.current.uniforms.uEquilibriumThreshold.value = equilibriumThreshold;
+        materialRef.current.uniforms.uShowEffective.value = showEffective;
+        materialRef.current.uniforms.uOmega.value = omega;
 
-        // Update positions
-        const positions = materialRef.current.uniforms.uBodiesPos.value;
-        const masses = materialRef.current.uniforms.uBodiesMass.value;
+        // Update positions - REALLOCATE ARRAYS to force update
+        const positions: number[] = [];
+        const masses: number[] = [];
         let count = 0;
         const t = timeRef.current;
 
         const planetPositions = new Map<string, THREE.Vector3>();
 
+        const MASS_SCALE = 2500.0 * AU_SCALE; // Match GravityParticles
+
         // Sun at index 0
-        positions[0] = 0;
-        positions[1] = 0;
-        positions[2] = 0;
-        masses[0] = 0.0002959122082855911 * 2500.0; // GM_Sun scaled by AU_SCALE^2
+        positions.push(0, 0, 0);
+        masses.push(0.0002959122082855911 * MASS_SCALE);
         planetPositions.set('sun', new THREE.Vector3(0, 0, 0));
         count++;
 
@@ -226,10 +235,8 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
             planetPositions.set(p.id, new THREE.Vector3(x, y, z));
 
             if (count < 50) {
-                positions[count * 3] = x;
-                positions[count * 3 + 1] = y;
-                positions[count * 3 + 2] = z;
-                masses[count] = p.mass * 2500.0; // Scale mass to compensate for r^2 being in scene units
+                positions.push(x, y, z);
+                masses.push(p.mass * MASS_SCALE);
                 count++;
             }
         });
@@ -246,58 +253,42 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
 
                         planetPositions.set(m.id, moonPos); // Store for focus check
 
-                        positions[count * 3] = moonPos.x;
-                        positions[count * 3 + 1] = moonPos.y;
-                        positions[count * 3 + 2] = moonPos.z;
-                        masses[count] = m.mass * 2500.0;
+                        positions.push(moonPos.x, moonPos.y, moonPos.z);
+                        masses.push(m.mass * MASS_SCALE);
                         count++;
                     }
                 });
             }
         });
 
+        // Pad arrays
+        while (positions.length < 150) positions.push(0);
+        while (masses.length < 50) masses.push(0);
+
+        materialRef.current.uniforms.uBodiesPos.value = new Float32Array(positions);
+        materialRef.current.uniforms.uBodiesMass.value = new Float32Array(masses);
         materialRef.current.uniforms.uBodyCount.value = count;
 
         // Find Focus Position
-        // Default to Sun (0,0,0) if no focus or focus not found
         let focusPos = new THREE.Vector3(0, 0, 0);
         if (focusBodyId && planetPositions.has(focusBodyId)) {
             focusPos.copy(planetPositions.get(focusBodyId)!);
         }
 
-        // Update Mesh Position
-        // Center the mesh on the focus body, applying the Y offset relative to it
+        // Move the plane to follow the focus object, but keep Y offset
+        // We only move X and Z, Y is handled by the group/offset props
+        // Actually, we want the plane to be at a fixed Y relative to the focus object?
+        // User asked for "plane that show the gravitational potential".
+        // Usually these planes are "underneath" the solar system or at Y=0.
+        // Let's stick to the previous behavior: Centered on Focus Body, at yOffset.
         meshRef.current.position.set(focusPos.x, focusPos.y + yOffset, focusPos.z);
-
-        // Update Bounds Uniforms relative to the new mesh position
-        // The shader expects World Space bounds.
-        // The mesh is at `meshPos`. The box geometry extends `size/2` from the mesh center.
-        const halfSize = planeSize / 2;
-        const thickness = planeSize * 0.5; // More volume
-
-        const minBounds = new THREE.Vector3(
-            meshRef.current.position.x - halfSize,
-            meshRef.current.position.y - thickness / 2,
-            meshRef.current.position.z - halfSize
-        );
-        const maxBounds = new THREE.Vector3(
-            meshRef.current.position.x + halfSize,
-            meshRef.current.position.y + thickness / 2,
-            meshRef.current.position.z + halfSize
-        );
-
-        materialRef.current.uniforms.uBoundsMin.value.copy(minBounds);
-        materialRef.current.uniforms.uBoundsMax.value.copy(maxBounds);
     });
 
     if (!visible) return null;
 
-    const thickness = planeSize * 0.5; // More volume
-
-    // Initial render position (will be updated by useFrame)
     return (
-        <mesh ref={meshRef} position={[0, yOffset, 0]}>
-            <boxGeometry args={[planeSize, thickness, planeSize]} />
+        <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, yOffset, 0]}>
+            <planeGeometry args={[planeSize * AU_SCALE, planeSize * AU_SCALE, 64, 64]} />
             <shaderMaterial
                 ref={materialRef}
                 vertexShader={vertexShader}
@@ -305,11 +296,10 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
                 uniforms={uniforms}
                 transparent={true}
                 depthWrite={false}
-                side={THREE.BackSide}
+                side={THREE.DoubleSide}
             />
         </mesh>
     );
 };
 
 export default GravitationalPotential;
-

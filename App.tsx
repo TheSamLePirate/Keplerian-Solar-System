@@ -88,14 +88,19 @@ const App: React.FC = () => {
     const [gravityVisible, setGravityVisible] = useState(false);
     const [gravityOpacity, setGravityOpacity] = useState(0.5);
     const [gravityMin, setGravityMin] = useState(1e-5);
-    const [gravityMax, setGravityMax] = useState(1e-2);
+    const [gravityMax, setGravityMax] = useState(0.5);
     const [gravityIntensityPow, setGravityIntensityPow] = useState(0.5);
-    const [gravitySteps, setGravitySteps] = useState(24);
     const [gravityDirectionSat, setGravityDirectionSat] = useState(0.8);
     const [gravityShowDirection, setGravityShowDirection] = useState(true);
     const [gravityPlaneSize, setGravityPlaneSize] = useState(200); // 200 AU wide
     const [gravityYOffset, setGravityYOffset] = useState(-5);
     const [gravityParticlesVisible, setGravityParticlesVisible] = useState(false); // Slightly below ecliptic to not cut planets
+    const [gravityShowContours, setGravityShowContours] = useState(true);
+    const [gravityContourFreq, setGravityContourFreq] = useState(50);
+    const [gravityExcludeSun, setGravityExcludeSun] = useState(false);
+    const [gravityShowEquilibrium, setGravityShowEquilibrium] = useState(false);
+    const [gravityEquilibriumThreshold, setGravityEquilibriumThreshold] = useState(0.001); // Default low threshold
+    const [gravityShowEffective, setGravityShowEffective] = useState(false); // Rotating frame
 
     // Panel Layout State
     const { panels, accordionState, togglePanel, setPanelVisible, toggleAccordion } = usePanelLayout();
@@ -249,12 +254,17 @@ const App: React.FC = () => {
                 gravityMin={gravityMin}
                 gravityMax={gravityMax}
                 gravityIntensityPow={gravityIntensityPow}
-                gravitySteps={gravitySteps}
                 gravityDirectionSat={gravityDirectionSat}
                 gravityShowDirection={gravityShowDirection}
                 gravityPlaneSize={gravityPlaneSize}
                 gravityYOffset={gravityYOffset}
                 gravityParticlesVisible={gravityParticlesVisible}
+                gravityShowContours={gravityShowContours}
+                gravityContourFreq={gravityContourFreq}
+                gravityExcludeSun={gravityExcludeSun}
+                gravityShowEquilibrium={gravityShowEquilibrium}
+                gravityEquilibriumThreshold={gravityEquilibriumThreshold}
+                gravityShowEffective={gravityShowEffective}
             />
 
             {/* UI Overlay */}
@@ -383,12 +393,17 @@ const App: React.FC = () => {
                                     gravityMin={gravityMin} setGravityMin={setGravityMin}
                                     gravityMax={gravityMax} setGravityMax={setGravityMax}
                                     gravityIntensityPow={gravityIntensityPow} setGravityIntensityPow={setGravityIntensityPow}
-                                    gravitySteps={gravitySteps} setGravitySteps={setGravitySteps}
                                     gravityDirectionSat={gravityDirectionSat} setGravityDirectionSat={setGravityDirectionSat}
                                     gravityShowDirection={gravityShowDirection} setGravityShowDirection={setGravityShowDirection}
                                     gravityPlaneSize={gravityPlaneSize} setGravityPlaneSize={setGravityPlaneSize}
                                     gravityYOffset={gravityYOffset} setGravityYOffset={setGravityYOffset}
                                     gravityParticlesVisible={gravityParticlesVisible} setGravityParticlesVisible={setGravityParticlesVisible}
+                                    gravityShowContours={gravityShowContours} setGravityShowContours={setGravityShowContours}
+                                    gravityContourFreq={gravityContourFreq} setGravityContourFreq={setGravityContourFreq}
+                                    gravityExcludeSun={gravityExcludeSun} setGravityExcludeSun={setGravityExcludeSun}
+                                    gravityShowEquilibrium={gravityShowEquilibrium} setGravityShowEquilibrium={setGravityShowEquilibrium}
+                                    gravityEquilibriumThreshold={gravityEquilibriumThreshold} setGravityEquilibriumThreshold={setGravityEquilibriumThreshold}
+                                    gravityShowEffective={gravityShowEffective} setGravityShowEffective={setGravityShowEffective}
                                     accordionState={accordionState}
                                     toggleAccordion={toggleAccordion}
                                     date={simTime}
