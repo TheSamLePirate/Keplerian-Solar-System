@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect, useMemo, Suspense } from 'react';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
+import RealStars from './RealStars';
 import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
@@ -40,6 +41,12 @@ interface SceneContentProps {
     resetCameraTrigger: number;
     forcedTime?: { value: number, id: number };
     issModel: 'small' | 'big';
+    // Star Settings
+    starSize: number;
+    starSizeMagShape: number;
+    starBrightness: number;
+    starBrightnessMagShape: number;
+    starSaturation: number;
     // Post-processing
     bloomThreshold: number;
     bloomIntensity: number;
@@ -112,7 +119,8 @@ const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: TH
 };
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
-    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, sunLuminosity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetCameraTrigger, forcedTime, issModel,
+    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, sunLuminosity, shadowEnabled, shadowMapSize, shadowRadius, resetCameraTrigger, forcedTime, issModel,
+    starSize, starSizeMagShape, starBrightness, starBrightnessMagShape, starSaturation,
     bloomThreshold, bloomIntensity, bloomRadius, noiseOpacity, vignetteDarkness, vignetteOffset, chromaticAberrationOffset, brightness, contrast, exposure, bloomSmoothing, hue, saturation,
     bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
     enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation,
@@ -311,7 +319,13 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 enablePan={true}
                 dampingFactor={0.05}
             />
-            <Stars radius={3000} depth={50} count={starsCount} factor={4} saturation={0} fade speed={1} />
+            <RealStars
+                starSize={starSize}
+                starSizeMagShape={starSizeMagShape}
+                starBrightness={starBrightness}
+                starBrightnessMagShape={starBrightnessMagShape}
+                starSaturation={starSaturation}
+            />
 
             <Sun
                 ref={sunRef}

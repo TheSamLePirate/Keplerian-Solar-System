@@ -34,6 +34,17 @@ interface ControlsProps {
     setRenderScale: (v: number) => void;
     starsCount: number;
     setStarsCount: (v: number) => void;
+    // Star Settings
+    starSize: number;
+    setStarSize: (v: number) => void;
+    starSizeMagShape: number;
+    setStarSizeMagShape: (v: number) => void;
+    starBrightness: number;
+    setStarBrightness: (v: number) => void;
+    starBrightnessMagShape: number;
+    setStarBrightnessMagShape: (v: number) => void;
+    starSaturation: number;
+    setStarSaturation: (v: number) => void;
     issModel: 'small' | 'big';
     setIssModel: (m: 'small' | 'big') => void;
     bloomThreshold: number;
@@ -181,6 +192,11 @@ const Controls: React.FC<ControlsProps> = ({
     shadowRadius, setShadowRadius,
     renderScale, setRenderScale,
     starsCount, setStarsCount,
+    starSize, setStarSize,
+    starSizeMagShape, setStarSizeMagShape,
+    starBrightness, setStarBrightness,
+    starBrightnessMagShape, setStarBrightnessMagShape,
+    starSaturation, setStarSaturation,
     issModel, setIssModel,
     bloomThreshold, setBloomThreshold,
     bloomIntensity, setBloomIntensity,
@@ -407,7 +423,16 @@ const Controls: React.FC<ControlsProps> = ({
                 </div>
 
                 <Slider label="Render Scale" value={renderScale} min={0.75} max={2} step={0.25} onChange={setRenderScale} format={v => `${v.toFixed(2)}x`} />
-                <Slider label="Star Density" value={starsCount} min={2000} max={20000} step={1000} onChange={v => setStarsCount(Math.round(v))} format={v => `${v}`} />
+                <Slider label="Star Count (Top ~N)" value={starsCount} min={2000} max={20000} step={1000} onChange={v => setStarsCount(Math.round(v))} format={v => `${v}`} />
+
+                <div className="pt-1 mt-1 border-t border-white/5 flex flex-col gap-1">
+                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Star Shader</span>
+                    <Slider label="Base Size" value={starSize} min={0.1} max={5.0} step={0.1} onChange={setStarSize} format={v => v.toFixed(1)} />
+                    <Slider label="Mag -> Size" value={starSizeMagShape} min={0} max={0.5} step={0.01} onChange={setStarSizeMagShape} format={v => v.toFixed(2)} />
+                    <Slider label="Base Brightness" value={starBrightness} min={0.1} max={2.0} step={0.1} onChange={setStarBrightness} format={v => v.toFixed(1)} />
+                    <Slider label="Mag -> Brightness" value={starBrightnessMagShape} min={0.05} max={1.0} step={0.05} onChange={setStarBrightnessMagShape} format={v => v.toFixed(2)} />
+                    <Slider label="Saturation" value={starSaturation} min={0} max={2.0} step={0.1} onChange={setStarSaturation} format={v => v.toFixed(1)} />
+                </div>
             </AccordionSection>
 
             {/* ISS Model */}

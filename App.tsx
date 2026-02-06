@@ -48,6 +48,15 @@ const App: React.FC = () => {
     // ISS Model Selection
     const [issModel, setIssModel] = useState<'small' | 'big'>('big');
 
+    // Star Settings
+    const [starSize, setStarSize] = useState(2.0);
+    const [starSizeMagShape, setStarSizeMagShape] = useState(0.1);
+    const [starBrightness, setStarBrightness] = useState(0.5);
+    const [starBrightnessMagShape, setStarBrightnessMagShape] = useState(0.2);
+    const [starSaturation, setStarSaturation] = useState(1.0);
+
+
+
     // Post-processing State
     const [bloomThreshold, setBloomThreshold] = useState(1.1);
     const [bloomIntensity, setBloomIntensity] = useState(1.5);
@@ -222,6 +231,11 @@ const App: React.FC = () => {
                 forcedTime={forcedTime}
                 resetCameraTrigger={resetCameraTrigger}
                 issModel={issModel}
+                starSize={starSize}
+                starSizeMagShape={starSizeMagShape}
+                starBrightness={starBrightness}
+                starBrightnessMagShape={starBrightnessMagShape}
+                starSaturation={starSaturation}
                 bloomThreshold={bloomThreshold}
                 bloomIntensity={bloomIntensity}
                 bloomRadius={bloomRadius}
@@ -361,6 +375,11 @@ const App: React.FC = () => {
                                     renderScale={renderScale} setRenderScale={setRenderScale}
                                     starsCount={starsCount} setStarsCount={setStarsCount}
                                     issModel={issModel} setIssModel={setIssModel}
+                                    starSize={starSize} setStarSize={setStarSize}
+                                    starSizeMagShape={starSizeMagShape} setStarSizeMagShape={setStarSizeMagShape}
+                                    starBrightness={starBrightness} setStarBrightness={setStarBrightness}
+                                    starBrightnessMagShape={starBrightnessMagShape} setStarBrightnessMagShape={setStarBrightnessMagShape}
+                                    starSaturation={starSaturation} setStarSaturation={setStarSaturation}
                                     bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
                                     bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
                                     bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
