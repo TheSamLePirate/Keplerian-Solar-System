@@ -21,6 +21,8 @@ interface ControlsProps {
     onResetCamera: () => void;
     ambientLight: number;
     setAmbientLight: (v: number) => void;
+    sunLuminosity: number;
+    setSunLuminosity: (v: number) => void;
     shadowEnabled: boolean;
     setShadowEnabled: (b: boolean) => void;
     shadowMapSize: number;
@@ -126,6 +128,7 @@ const Controls: React.FC<ControlsProps> = ({
     atmSamples, setAtmSamples,
     onResetCamera,
     ambientLight, setAmbientLight,
+    sunLuminosity, setSunLuminosity,
     shadowEnabled, setShadowEnabled,
     shadowMapSize, setShadowMapSize,
     shadowRadius, setShadowRadius,
@@ -208,6 +211,7 @@ const Controls: React.FC<ControlsProps> = ({
 
             {/* Lighting */}
             <AccordionSection title="Lighting" isOpen={accordionState.lighting ?? false} onToggle={() => toggleAccordion('lighting')}>
+                <Slider label="Sun Luminosity" value={sunLuminosity} min={0} max={10} step={0.1} onChange={setSunLuminosity} format={v => v.toFixed(1)} />
                 <Slider label="Ambient Light" value={ambientLight} min={0} max={1} step={0.05} onChange={setAmbientLight} format={v => `${(v * 100).toFixed(0)}%`} />
             </AccordionSection>
 

@@ -27,6 +27,7 @@ interface SceneContentProps {
     atmPow: number;
     atmSamples: number;
     ambientLightIntensity: number;
+    sunLuminosity: number;
     shadowEnabled: boolean;
     shadowMapSize: number;
     shadowRadius: number;
@@ -66,7 +67,7 @@ interface SceneContentProps {
 }
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
-    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetTimeTrigger, resetCameraTrigger, issModel,
+    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, sunLuminosity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetTimeTrigger, resetCameraTrigger, issModel,
     bloomThreshold, bloomIntensity, bloomRadius, noiseOpacity, vignetteDarkness, vignetteOffset, chromaticAberrationOffset, brightness, contrast, exposure, bloomSmoothing, hue, saturation,
     bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
     enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation
@@ -195,6 +196,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             <Sun
                 ref={sunRef}
                 scaleFactor={scaleFactor}
+                luminosity={sunLuminosity}
                 shadowEnabled={shadowEnabled}
                 shadowMapSize={shadowMapSize}
                 shadowRadius={shadowRadius}

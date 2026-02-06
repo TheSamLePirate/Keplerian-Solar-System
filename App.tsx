@@ -32,6 +32,7 @@ const App: React.FC = () => {
 
     // Light Settings
     const [ambientLight, setAmbientLight] = useState(0);
+    const [sunLuminosity, setSunLuminosity] = useState(3.0);
     const [shadowEnabled, setShadowEnabled] = useState(true);
     const [shadowMapSize, setShadowMapSize] = useState(4096);
     const [shadowRadius, setShadowRadius] = useState(2);
@@ -178,6 +179,7 @@ const App: React.FC = () => {
                 atmPow={atmPow}
                 atmSamples={atmSamples}
                 ambientLightIntensity={ambientLight}
+                sunLuminosity={sunLuminosity}
                 shadowEnabled={shadowEnabled}
                 shadowMapSize={shadowMapSize}
                 shadowRadius={shadowRadius}
@@ -296,6 +298,7 @@ const App: React.FC = () => {
                                     atmSamples={atmSamples} setAtmSamples={setAtmSamples}
                                     onResetCamera={handleResetCamera}
                                     ambientLight={ambientLight} setAmbientLight={setAmbientLight}
+                                    sunLuminosity={sunLuminosity} setSunLuminosity={setSunLuminosity}
                                     shadowEnabled={shadowEnabled} setShadowEnabled={setShadowEnabled}
                                     shadowMapSize={shadowMapSize} setShadowMapSize={setShadowMapSize}
                                     shadowRadius={shadowRadius} setShadowRadius={setShadowRadius}

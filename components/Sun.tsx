@@ -5,12 +5,13 @@ import { PLANET_SCALE } from '../constants';
 
 interface SunProps {
     scaleFactor: number;
+    luminosity: number;
     shadowEnabled: boolean;
     shadowMapSize: number;
     shadowRadius: number;
 }
 
-const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, shadowEnabled, shadowMapSize, shadowRadius }, ref) => {
+const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, luminosity, shadowEnabled, shadowMapSize, shadowRadius }, ref) => {
     const { gl } = useThree();
     const lightRef = useRef<THREE.PointLight>(null);
     const size = 5 * PLANET_SCALE * scaleFactor;
@@ -64,7 +65,7 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, shadowEnabled
             {/* Main Light Source */}
             <pointLight
                 ref={lightRef}
-                intensity={3}
+                intensity={luminosity}
                 distance={0}
                 decay={0} // 0 decay to ensure outer planets are lit, physically incorrect but necessary for viz
                 color="#fff"
@@ -74,8 +75,8 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, shadowEnabled
                 shadow-bias={-0.00005}
                 shadow-radius={shadowRadius}
             />
-            {/* Ambient fill for dark sides */}
-            <ambientLight intensity={0.05} />
+            {/* Ambient fill for dark sides - scales with luminosity */}
+            <ambientLight intensity={Math.max(0.02, luminosity * 0.02)} />
 
             {/* Sun Sphere */}
             <mesh ref={ref}>
@@ -85,7 +86,7 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, shadowEnabled
 
             {/* Corona Glow Sprite - Optional but good for static glow */}
             <sprite scale={[size * 8, size * 8, 1]}>
-                <spriteMaterial map={glowTexture} color="#FFD700" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+                <spriteMaterial map={glowTexture} color="#FFD700" transparent opacity={Math.min(1, luminosity * 0.2)} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
             </sprite>
         </group>
     );
