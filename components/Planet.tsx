@@ -215,9 +215,9 @@ const Planet: React.FC<PlanetProps> = ({
 
     // For satellites, we need a minimum orbit radius based on parent planet's visual size
     // Earth radius=1.0, PLANET_SCALE=0.5, so Earth visual size = 0.5 * scaleFactor
-    // We want ISS to orbit at ~1.5x the planet's visual radius
+    // We want ISS to orbit at ~1.15x the planet's visual radius (physically ~1.06, but keeping strictly above surface)
     const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor; // Assuming Earth as parent
-    const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.8;
+    const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.15;
 
     // Orbit Path
     const orbitPath = useMemo(() => {

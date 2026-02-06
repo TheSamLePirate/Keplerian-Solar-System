@@ -6,7 +6,7 @@ export const PLANET_SCALE = 0.5; // Base visual scale for planets
 export const MOON_ORBIT_SCALE = 30.0; // Visual exaggeration for moon orbits
 
 // Simulation Epoch (Start derived from Python export time)
-export const SIMULATION_EPOCH = new Date("2026-02-06T01:58:56Z").getTime();
+export const SIMULATION_EPOCH = new Date("2026-02-06T02:13:00Z").getTime();
 
 // Orbital elements computed from Skyfield for current epoch
 export const PLANETS: PlanetData[] = [
@@ -22,12 +22,12 @@ export const PLANETS: PlanetData[] = [
     description: "The smallest planet in the Solar System and the closest to the Sun.",
     period: 0.240847,
     elements: {
-      semiMajorAxis: 0.3870988800,
+      semiMajorAxis: 0.3870988790,
       eccentricity: 0.205633,
       inclination: 7.0054,
       ascendingNode: 48.6424,
       perihelion: 29.2232,
-      meanLongitude: 23.1798,
+      meanLongitude: 23.2198,
     },
   },
   {
@@ -43,12 +43,12 @@ export const PLANETS: PlanetData[] = [
     description: "The second planet from the Sun. It has a thick atmosphere that traps heat.",
     period: 0.615200,
     elements: {
-      semiMajorAxis: 0.7233339644,
+      semiMajorAxis: 0.7233339629,
       eccentricity: 0.006782,
       inclination: 3.3949,
       ascendingNode: 76.9166,
       perihelion: 54.9567,
-      meanLongitude: 334.7881,
+      meanLongitude: 334.8038,
     },
   },
   {
@@ -64,16 +64,16 @@ export const PLANETS: PlanetData[] = [
     rotationPeriod: 23.93,
     axialTilt: 23.44,
     poleDirection: { x: -0.002549, y: 0.397715, z: 0.917506 },
-    rotationOffset: 2.896593047105854,
+    rotationOffset: 2.9581181611174636,
     description: "Our home. The only known planet to support life.",
     period: 1.000021,
     elements: {
-      semiMajorAxis: 1.0000013827,
+      semiMajorAxis: 1.0000013799,
       eccentricity: 0.016673,
       inclination: 0.0000,
-      ascendingNode: 156.9401,
-      perihelion: 306.4144,
-      meanLongitude: 136.2299,
+      ascendingNode: 156.9346,
+      perihelion: 306.4198,
+      meanLongitude: 136.2396,
     },
     moons: [
   {
@@ -86,16 +86,16 @@ export const PLANETS: PlanetData[] = [
     normalMapUrl: "/textures/moon_normal.jpg",
     rotationPeriod: 655.7,
     axialTilt: 6.68,
-    rotationOffset: 6.322679836287676,
+    rotationOffset: 6.324939127496513,
     description: "Earth's only natural satellite.",
-    period: 0.075972,
+    period: 0.075968,
     elements: {
-      semiMajorAxis: 0.0025880541,
-      eccentricity: 0.058646,
+      semiMajorAxis: 0.0025879467,
+      eccentricity: 0.058632,
       inclination: 5.2503,
-      ascendingNode: 339.0720,
-      perihelion: 105.1510,
-      meanLongitude: 182.2629,
+      ascendingNode: 339.0723,
+      perihelion: 105.1074,
+      meanLongitude: 182.3923,
     },
   },
   {
@@ -110,12 +110,12 @@ export const PLANETS: PlanetData[] = [
     description: "The International Space Station, a modular space station in low Earth orbit.",
     period: 0.000177,
     elements: {
-      semiMajorAxis: 0.0000454923,
-      eccentricity: 0.002202,
-      inclination: 68.7176,
-      ascendingNode: 219.1497,
-      perihelion: 76.0106,
-      meanLongitude: 235.8133,
+      semiMajorAxis: 0.0000454422,
+      eccentricity: 0.001989,
+      inclination: 68.6994,
+      ascendingNode: 219.1238,
+      perihelion: 105.9419,
+      meanLongitude: 290.2773,
     },
   },
     ]
@@ -135,12 +135,12 @@ export const PLANETS: PlanetData[] = [
     description: "The Red Planet. Dusty, cold, desert world with a very thin atmosphere.",
     period: 1.880849,
     elements: {
-      semiMajorAxis: 1.5236919132,
+      semiMajorAxis: 1.5236919097,
       eccentricity: 0.093481,
       inclination: 1.8495,
       ascendingNode: 49.7629,
       perihelion: 286.7084,
-      meanLongitude: 311.2033,
+      meanLongitude: 311.2084,
     },
   },
   {
@@ -157,12 +157,12 @@ export const PLANETS: PlanetData[] = [
     description: "The largest planet in the Solar System. A gas giant with a Great Red Spot.",
     period: 11.883412,
     elements: {
-      semiMajorAxis: 5.2074124276,
+      semiMajorAxis: 5.2074124394,
       eccentricity: 0.048194,
       inclination: 1.3027,
       ascendingNode: 100.7400,
       perihelion: 274.8107,
-      meanLongitude: 106.8072,
+      meanLongitude: 106.8080,
     },
     moons: [
   {
@@ -176,12 +176,12 @@ export const PLANETS: PlanetData[] = [
     description: "The most geologically active body in the Solar System.",
     period: 0.004848,
     elements: {
-      semiMajorAxis: 0.0028206366,
-      eccentricity: 0.004191,
+      semiMajorAxis: 0.0028206391,
+      eccentricity: 0.004207,
       inclination: 2.2124,
       ascendingNode: 338.8918,
-      perihelion: 213.2717,
-      meanLongitude: 114.0134,
+      perihelion: 213.3091,
+      meanLongitude: 116.0006,
     },
   },
   {
@@ -195,12 +195,12 @@ export const PLANETS: PlanetData[] = [
     description: "An icy moon with a subsurface ocean.",
     period: 0.009724,
     elements: {
-      semiMajorAxis: 0.0044860643,
+      semiMajorAxis: 0.0044860669,
       eccentricity: 0.009592,
       inclination: 2.1447,
       ascendingNode: 326.3443,
-      perihelion: 51.8063,
-      meanLongitude: 336.1671,
+      perihelion: 51.7995,
+      meanLongitude: 337.1568,
     },
   },
   {
@@ -214,12 +214,12 @@ export const PLANETS: PlanetData[] = [
     description: "The largest moon in the Solar System.",
     period: 0.019590,
     elements: {
-      semiMajorAxis: 0.0071556586,
-      eccentricity: 0.001801,
+      semiMajorAxis: 0.0071556217,
+      eccentricity: 0.001797,
       inclination: 2.3429,
       ascendingNode: 339.6011,
-      perihelion: 342.0753,
-      meanLongitude: 357.1430,
+      perihelion: 341.9820,
+      meanLongitude: 357.6343,
     },
   },
   {
@@ -233,12 +233,12 @@ export const PLANETS: PlanetData[] = [
     description: "One of the most heavily cratered objects in the Solar System.",
     period: 0.045685,
     elements: {
-      semiMajorAxis: 0.0125838484,
-      eccentricity: 0.007311,
+      semiMajorAxis: 0.0125839061,
+      eccentricity: 0.007307,
       inclination: 1.9551,
       ascendingNode: 337.0998,
-      perihelion: 33.8538,
-      meanLongitude: 147.5737,
+      perihelion: 33.8710,
+      meanLongitude: 147.7845,
     },
   },
     ]
@@ -258,14 +258,14 @@ export const PLANETS: PlanetData[] = [
     ringInnerRadius: 1.2,
     ringOuterRadius: 2.3,
     description: "Adorned with a dazzling, complex system of icy rings.",
-    period: 29.502082,
+    period: 29.502080,
     elements: {
-      semiMajorAxis: 9.5476459580,
+      semiMajorAxis: 9.5476456576,
       eccentricity: 0.055364,
       inclination: 2.4863,
       ascendingNode: 113.9298,
       perihelion: 338.0261,
-      meanLongitude: 9.4849,
+      meanLongitude: 9.4853,
     },
   },
   {
@@ -279,14 +279,14 @@ export const PLANETS: PlanetData[] = [
     axialTilt: 97.77,
     poleDirection: { x: -0.205814, y: -0.969343, z: 0.134217 },
     description: "An ice giant with a unique tilt, rotating on its side.",
-    period: 84.669836,
+    period: 84.669832,
     elements: {
-      semiMajorAxis: 19.2817750392,
+      semiMajorAxis: 19.2817744647,
       eccentricity: 0.046917,
       inclination: 0.7735,
       ascendingNode: 74.1333,
       perihelion: 91.6911,
-      meanLongitude: 65.5437,
+      meanLongitude: 65.5438,
     },
   },
   {
@@ -300,14 +300,14 @@ export const PLANETS: PlanetData[] = [
     axialTilt: 28.32,
     poleDirection: { x: 0.360537, y: -0.312188, z: 0.878949 },
     description: "The most distant major planet. Dark, cold, and whipped by supersonic winds.",
-    period: 165.226301,
+    period: 165.226285,
     elements: {
-      semiMajorAxis: 30.1102238655,
+      semiMajorAxis: 30.1102220378,
       eccentricity: 0.010989,
       inclination: 1.7681,
       ascendingNode: 132.0918,
-      perihelion: 276.8013,
-      meanLongitude: 2.5141,
+      perihelion: 276.8015,
+      meanLongitude: 2.5142,
     },
   },
 ];

@@ -156,7 +156,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     // For satellites, apply minimum orbit radius (same logic as Planet.tsx)
                     if (followingBody.type === 'satellite') {
                         const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
-                        const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.8;
+                        const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.15;
                         const distance = childPos.length();
                         if (distance > 0) {
                             childPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
@@ -185,7 +185,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         <>
             <OrbitControls
                 ref={controlsRef}
-                minDistance={0.01}
+                minDistance={0.0001}
                 maxDistance={10000}
                 enablePan={true}
                 dampingFactor={0.05}
@@ -242,7 +242,7 @@ const Scene: React.FC<SceneContentProps> = (props) => {
     return (
         <Canvas
             shadows={props.shadowEnabled ? { type: THREE.PCFShadowMap } : false}
-            camera={{ position: [0, 50, 100], fov: 45, near: 0.001, far: 1000000 }}
+            camera={{ position: [0, 50, 100], fov: 45, near: 0.00001, far: 1000000 }}
             dpr={props.renderScale}
             gl={{
                 antialias: false,
