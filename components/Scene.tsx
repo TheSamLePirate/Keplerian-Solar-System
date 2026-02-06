@@ -8,7 +8,10 @@ import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
 import { PlanetData } from '../types';
 import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
 import Planet from './Planet';
+
 import Sun from './Sun';
+import GravitationalPotential from './GravitationalPotential';
+import GravityParticles from './GravityParticles';
 
 interface SceneContentProps {
     speed: number;
@@ -69,6 +72,19 @@ interface SceneContentProps {
     aoRadius: number;
     aoDistanceFalloff: number;
     aoScreenSpace: boolean;
+
+    // Gravitational Potential
+    gravityVisible: boolean;
+    gravityOpacity: number;
+    gravityMin: number;
+    gravityMax: number;
+    gravityIntensityPow: number;
+    gravitySteps: number;
+    gravityDirectionSat: number;
+    gravityShowDirection: boolean;
+    gravityPlaneSize: number;
+    gravityYOffset: number;
+    gravityParticlesVisible: boolean;
 }
 
 const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: THREE.Vector3 }> = ({ followingBody, sunPosition }) => {
@@ -115,7 +131,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     bloomThreshold, bloomIntensity, bloomRadius, noiseOpacity, vignetteDarkness, vignetteOffset, chromaticAberrationOffset, brightness, contrast, exposure, bloomSmoothing, hue, saturation,
     bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
     enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation,
-    enableAO, aoIntensity, aoRadius, aoDistanceFalloff, aoScreenSpace
+    enableAO, aoIntensity, aoRadius, aoDistanceFalloff, aoScreenSpace,
+
+    gravityVisible, gravityOpacity, gravityMin, gravityMax, gravityIntensityPow, gravitySteps, gravityDirectionSat, gravityShowDirection, gravityPlaneSize, gravityYOffset, gravityParticlesVisible
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
@@ -300,6 +318,24 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             )}
 
             <ambientLight intensity={ambientLightIntensity} />
+
+            <GravitationalPotential
+                visible={gravityVisible}
+                opacity={gravityOpacity}
+                minStrength={gravityMin}
+                maxStrength={gravityMax}
+                intensityPow={gravityIntensityPow}
+                steps={gravitySteps}
+                directionSat={gravityDirectionSat}
+                showDirection={gravityShowDirection}
+                planeSize={gravityPlaneSize}
+                yOffset={gravityYOffset}
+                timeRef={timeRef}
+                scaleFactor={scaleFactor}
+                focusBodyId={selectedPlanet?.id || followingBody?.id || null}
+            />
+
+            <GravityParticles visible={gravityParticlesVisible} timeRef={timeRef} speed={speed} paused={paused} />
 
             {PLANETS.map((planet) => (
                 <Planet

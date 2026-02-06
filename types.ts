@@ -27,6 +27,7 @@ export interface PlanetData {
   description: string;
   elements: OrbitalElements;
   period: number; // Orbital period in Earth years
+  mass: number; // Gravitational parameter GM (AU^3/day^2)
   rotationPeriod: number; // Sidereal rotation period in hours (Earth = 23.93)
   axialTilt: number; // Obliquity to orbit in degrees (Earth = 23.44)
   poleDirection?: { x: number, y: number, z: number }; // Ecliptic J2000 Vector of North Pole

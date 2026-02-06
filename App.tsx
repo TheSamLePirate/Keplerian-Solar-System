@@ -83,6 +83,20 @@ const App: React.FC = () => {
     const [aoDistanceFalloff, setAoDistanceFalloff] = useState(1.0);
     const [aoScreenSpace, setAoScreenSpace] = useState(false);
 
+
+    // Gravitational Potential Vis
+    const [gravityVisible, setGravityVisible] = useState(false);
+    const [gravityOpacity, setGravityOpacity] = useState(0.5);
+    const [gravityMin, setGravityMin] = useState(1e-5);
+    const [gravityMax, setGravityMax] = useState(1e-2);
+    const [gravityIntensityPow, setGravityIntensityPow] = useState(0.5);
+    const [gravitySteps, setGravitySteps] = useState(24);
+    const [gravityDirectionSat, setGravityDirectionSat] = useState(0.8);
+    const [gravityShowDirection, setGravityShowDirection] = useState(true);
+    const [gravityPlaneSize, setGravityPlaneSize] = useState(200); // 200 AU wide
+    const [gravityYOffset, setGravityYOffset] = useState(-5);
+    const [gravityParticlesVisible, setGravityParticlesVisible] = useState(false); // Slightly below ecliptic to not cut planets
+
     // Panel Layout State
     const { panels, accordionState, togglePanel, setPanelVisible, toggleAccordion } = usePanelLayout();
 
@@ -229,6 +243,18 @@ const App: React.FC = () => {
                 aoRadius={aoRadius}
                 aoDistanceFalloff={aoDistanceFalloff}
                 aoScreenSpace={aoScreenSpace}
+
+                gravityVisible={gravityVisible}
+                gravityOpacity={gravityOpacity}
+                gravityMin={gravityMin}
+                gravityMax={gravityMax}
+                gravityIntensityPow={gravityIntensityPow}
+                gravitySteps={gravitySteps}
+                gravityDirectionSat={gravityDirectionSat}
+                gravityShowDirection={gravityShowDirection}
+                gravityPlaneSize={gravityPlaneSize}
+                gravityYOffset={gravityYOffset}
+                gravityParticlesVisible={gravityParticlesVisible}
             />
 
             {/* UI Overlay */}
@@ -351,6 +377,18 @@ const App: React.FC = () => {
                                     aoRadius={aoRadius} setAoRadius={setAoRadius}
                                     aoDistanceFalloff={aoDistanceFalloff} setAoDistanceFalloff={setAoDistanceFalloff}
                                     aoScreenSpace={aoScreenSpace} setAoScreenSpace={setAoScreenSpace}
+
+                                    gravityVisible={gravityVisible} setGravityVisible={setGravityVisible}
+                                    gravityOpacity={gravityOpacity} setGravityOpacity={setGravityOpacity}
+                                    gravityMin={gravityMin} setGravityMin={setGravityMin}
+                                    gravityMax={gravityMax} setGravityMax={setGravityMax}
+                                    gravityIntensityPow={gravityIntensityPow} setGravityIntensityPow={setGravityIntensityPow}
+                                    gravitySteps={gravitySteps} setGravitySteps={setGravitySteps}
+                                    gravityDirectionSat={gravityDirectionSat} setGravityDirectionSat={setGravityDirectionSat}
+                                    gravityShowDirection={gravityShowDirection} setGravityShowDirection={setGravityShowDirection}
+                                    gravityPlaneSize={gravityPlaneSize} setGravityPlaneSize={setGravityPlaneSize}
+                                    gravityYOffset={gravityYOffset} setGravityYOffset={setGravityYOffset}
+                                    gravityParticlesVisible={gravityParticlesVisible} setGravityParticlesVisible={setGravityParticlesVisible}
                                     accordionState={accordionState}
                                     toggleAccordion={toggleAccordion}
                                     date={simTime}

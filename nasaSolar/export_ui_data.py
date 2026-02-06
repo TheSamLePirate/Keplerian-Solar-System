@@ -193,15 +193,68 @@ MOON_PARENTS = {
     "jupiter": ["io", "europa", "ganymede", "callisto"]
 }
 
-# Standard gravitational parameter in AU^3 / day^2
-# G = 6.674e-11 m^3/kg/s^2
-# 1 AU = 1.496e11 m
-# 1 day = 86400 s
-# GM_sun = 1.327e20 m^3/s^2
-# in AU^3/day^2 approx 0.0002959...
+# GM Constants (AU^3/day^2)
+# Derived from DE440 or standard ratios relative to Sun
 GM_SUN = 0.0002959122082855911
-GM_JUPITER = GM_SUN / 1047.3486
-GM_EARTH = GM_SUN / 332946.0487
+GM_VALUES = {
+    "sun": GM_SUN,
+    "mercury": GM_SUN / 6023600.0,
+    "venus": GM_SUN / 408523.71,
+    "earth": GM_SUN / 332946.0487,
+    "moon": (GM_SUN / 332946.0487) / 81.30059, # Earth/81.3
+    "mars": GM_SUN / 3098708.0,
+    "jupiter": GM_SUN / 1047.3486,
+    "saturn": GM_SUN / 3497.898,
+    "uranus": GM_SUN / 22902.98,
+    "neptune": GM_SUN / 19412.24,
+    "io": GM_SUN / 1047.3486 * 4.704e-5, # Approx ratio to Jupiter
+    "europa": GM_SUN / 1047.3486 * 2.528e-5,
+    "ganymede": GM_SUN / 1047.3486 * 7.804e-5,
+    "callisto": GM_SUN / 1047.3486 * 5.667e-5,
+    "iss": 1.0e-15 # Negligible
+}
+
+def get_gm(name):
+    # Map Skyfield names to our GM_VALUES keys
+    if name == "sun" or name == "0" or name == "10":
+        return GM_VALUES["sun"]
+    elif name == "mercury":
+        return GM_VALUES["mercury"]
+    elif name == "venus":
+        return GM_VALUES["venus"]
+    elif name == "earth" or name == "399": # 399 is Earth
+        return GM_VALUES["earth"]
+    elif name == "earth barycenter" or name == "3": # 3 is Earth Barycenter
+        # For Earth barycenter, use Earth+Moon mass
+        return GM_VALUES["earth"] + GM_VALUES["moon"]
+    elif name == "moon" or name == "301": # 301 is Moon
+        return GM_VALUES["moon"]
+    elif name == "mars" or name == "4" or name == "mars barycenter":
+        return GM_VALUES["mars"]
+    elif name == "jupiter" or name == "599": # 599 is Jupiter
+        return GM_VALUES["jupiter"]
+    elif name == "jupiter barycenter" or name == "5": # 5 is Jupiter Barycenter
+        # For Jupiter barycenter, use Jupiter + Galilean moons mass
+        return GM_VALUES["jupiter"] + GM_VALUES["io"] + GM_VALUES["europa"] + GM_VALUES["ganymede"] + GM_VALUES["callisto"]
+    elif name == "saturn" or name == "6" or name == "saturn barycenter":
+        return GM_VALUES["saturn"]
+    elif name == "uranus" or name == "7" or name == "uranus barycenter":
+        return GM_VALUES["uranus"]
+    elif name == "neptune" or name == "8" or name == "neptune barycenter":
+        return GM_VALUES["neptune"]
+    elif name == "io" or name == "501":
+        return GM_VALUES["io"]
+    elif name == "europa" or name == "502":
+        return GM_VALUES["europa"]
+    elif name == "ganymede" or name == "503":
+        return GM_VALUES["ganymede"]
+    elif name == "callisto" or name == "504":
+        return GM_VALUES["callisto"]
+    elif name == "iss":
+        return GM_VALUES["iss"]
+    else:
+        print(f"Warning: GM value not found for '{name}', returning 0.0")
+        return 0.0
 
 # ISS TLE URL from Celestrak
 ISS_TLE_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE"
@@ -304,7 +357,7 @@ def get_iss_elements(t, ts):
         v_au_ecl = np.dot(matrix, v_au_day)
 
         # Calculate orbital elements from state vectors in Ecliptic Frame
-        elements = elements_from_vectors(r_au_ecl, v_au_ecl, GM_EARTH)
+        elements = elements_from_vectors(r_au_ecl, v_au_ecl, get_gm("earth"))
         
         # DO NOT OVERRIDE semi-major axis. Use the real physics one.
         # Physics engine needs real 'a' to calculate real period.
@@ -507,20 +560,9 @@ def get_elements_for_body(kernels, body_name, center_name, t, body_id):
     # r_vec is now in Ecliptic J2000.
     
     # Determine mu
-    # center_name might be "399" now.
-    
-    if center_name == "sun" or center_name == "0" or center_name == "10":
-        mu = GM_SUN
-    elif center_name == "jupiter" or center_name == "599" or center_name == "5":
-        # Note: 5 is barycenter, 599 is Jupiter.
-        # usually we want Jupiter mass.
-        mu = GM_JUPITER
-    elif center_name == "earth" or center_name == "399":
-        mu = GM_EARTH
-    else:
-        # Fallback or lookup?
-        print(f"Warning: Unknown mass for center {center_name}, using Sun GM")
-        mu = GM_SUN
+    mu = get_gm(center_name)
+    if mu == 0.0:
+        print(f"Warning: Gravitational parameter (GM) for center '{center_name}' is 0.0. Orbital elements might be incorrect.")
         
     return elements_from_vectors(r_vec, v_vec, mu)
 
@@ -558,6 +600,7 @@ def generate_ts_object(data, elements, moons_content=None):
         s += f'{indent}ringOuterRadius: {data["ringOuterRadius"]},\n'
     s += f'{indent}description: "{data["description"]}",\n'
     s += f'{indent}period: {elements["period"]:.6f},\n'
+    s += f'{indent}mass: {get_gm(data["id"]):.16f},\n'
     s += f'{indent}elements: {{\n'
     s += f'{indent}  semiMajorAxis: {elements["semiMajorAxis"]:.10f},\n'
     s += f'{indent}  eccentricity: {elements["eccentricity"]:.6f},\n'

@@ -96,6 +96,30 @@ interface ControlsProps {
     setAoDistanceFalloff: (v: number) => void;
     aoScreenSpace: boolean;
     setAoScreenSpace: (v: boolean) => void;
+
+    // Gravitational Potential
+    gravityVisible: boolean;
+    setGravityVisible: (v: boolean) => void;
+    gravityOpacity: number;
+    setGravityOpacity: (v: number) => void;
+    gravityMin: number;
+    setGravityMin: (v: number) => void;
+    gravityMax: number;
+    setGravityMax: (v: number) => void;
+    gravityIntensityPow: number;
+    setGravityIntensityPow: (v: number) => void;
+    gravitySteps: number;
+    setGravitySteps: (v: number) => void;
+    gravityDirectionSat: number;
+    setGravityDirectionSat: (v: number) => void;
+    gravityShowDirection: boolean;
+    setGravityShowDirection: (v: boolean) => void;
+    gravityPlaneSize: number;
+    setGravityPlaneSize: (v: number) => void;
+    gravityYOffset: number;
+    setGravityYOffset: (v: number) => void;
+    gravityParticlesVisible: boolean;
+    setGravityParticlesVisible: (v: boolean) => void;
     // Accordion state from parent
     accordionState: Record<string, boolean>;
     toggleAccordion: (id: string) => void;
@@ -178,6 +202,17 @@ const Controls: React.FC<ControlsProps> = ({
     aoRadius, setAoRadius,
     aoDistanceFalloff, setAoDistanceFalloff,
     aoScreenSpace, setAoScreenSpace,
+    gravityVisible, setGravityVisible,
+    gravityOpacity, setGravityOpacity,
+    gravityMin, setGravityMin,
+    gravityMax, setGravityMax,
+    gravityIntensityPow, setGravityIntensityPow,
+    gravitySteps, setGravitySteps,
+    gravityDirectionSat, setGravityDirectionSat,
+    gravityShowDirection, setGravityShowDirection,
+    gravityPlaneSize, setGravityPlaneSize,
+    gravityYOffset, setGravityYOffset,
+    gravityParticlesVisible, setGravityParticlesVisible,
     accordionState, toggleAccordion, date, onSetTime,
 }) => {
     // Date/Time Helpers
@@ -295,6 +330,27 @@ const Controls: React.FC<ControlsProps> = ({
                 </div>
 
                 <Slider label="Planet Scale" value={scaleFactor} min={0.1} max={5} step={0.1} onChange={setScaleFactor} format={v => `${v.toFixed(1)}x`} />
+            </AccordionSection>
+
+            {/* Gravity Field */}
+            <AccordionSection title="Gravity Field" isOpen={accordionState.gravity ?? false} onToggle={() => toggleAccordion('gravity')}>
+                <div className="pb-1 border-b border-white/5 mb-1">
+                    <Toggle label="Show Potential" checked={gravityVisible} onChange={setGravityVisible} />
+                </div>
+                {gravityVisible && (
+                    <div className="flex flex-col gap-1 mt-1">
+                        <Toggle label="Show Direction" checked={gravityShowDirection} onChange={setGravityShowDirection} />
+                        <Slider label="Opacity" value={gravityOpacity} min={0} max={1} step={0.05} onChange={setGravityOpacity} format={v => v.toFixed(2)} />
+                        <Slider label="Min Strength (Log)" value={Math.log10(gravityMin)} min={-10} max={-2} step={0.1} onChange={v => setGravityMin(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />
+                        <Slider label="Max Strength (Log)" value={Math.log10(gravityMax)} min={-8} max={0} step={0.1} onChange={v => setGravityMax(Math.pow(10, v))} format={v => `1e${v.toFixed(1)}`} />
+                        <Slider label="Intensity Power" value={gravityIntensityPow} min={0.1} max={3} step={0.1} onChange={setGravityIntensityPow} format={v => v.toFixed(1)} />
+                        <Slider label="Raymarch Steps" value={gravitySteps} min={8} max={64} step={4} onChange={setGravitySteps} format={v => v.toFixed(0)} />
+                        <Slider label="Direction Saturation" value={gravityDirectionSat} min={0.0} max={2.0} step={0.1} onChange={setGravityDirectionSat} format={v => v.toFixed(1)} />
+                        <Slider label="Plane Size (AU)" value={gravityPlaneSize} min={50} max={500} step={10} onChange={setGravityPlaneSize} format={v => v.toFixed(0)} />
+                        <Slider label="Y Offset" value={gravityYOffset} min={-50} max={50} step={1} onChange={setGravityYOffset} format={v => v.toFixed(1)} />
+                        <Toggle label="Show Particles (100k)" checked={gravityParticlesVisible} onChange={setGravityParticlesVisible} />
+                    </div>
+                )}
             </AccordionSection>
 
             {/* Lighting */}
