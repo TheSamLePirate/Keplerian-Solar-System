@@ -33,8 +33,8 @@ interface SceneContentProps {
     shadowRadius: number;
     renderScale: number;
     starsCount: number;
-    resetTimeTrigger: number;
     resetCameraTrigger: number;
+    forcedTime?: { value: number, id: number };
     issModel: 'small' | 'big';
     // Post-processing
     bloomThreshold: number;
@@ -67,7 +67,7 @@ interface SceneContentProps {
 }
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
-    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, sunLuminosity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetTimeTrigger, resetCameraTrigger, issModel,
+    speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, sunLuminosity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetCameraTrigger, forcedTime, issModel,
     bloomThreshold, bloomIntensity, bloomRadius, noiseOpacity, vignetteDarkness, vignetteOffset, chromaticAberrationOffset, brightness, contrast, exposure, bloomSmoothing, hue, saturation,
     bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
     enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation
@@ -85,19 +85,21 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     const _parentPos = useRef(new THREE.Vector3());
     const _childPos = useRef(new THREE.Vector3());
     const _deltaPos = useRef(new THREE.Vector3());
-    const prevResetTime = useRef(resetTimeTrigger);
+
     const prevResetCam = useRef(resetCameraTrigger);
 
     // FPS Counters
     const frameCount = useRef(0);
     const lastFpsUpdate = useRef(0);
 
-    // Reset Time
-    if (resetTimeTrigger !== prevResetTime.current) {
-        timeRef.current = 0;
-        onTimeUpdate(0);
+    // Forced Time Update (Reset or Seek)
+    const prevForcedTimeId = useRef(0);
+
+    if (forcedTime && forcedTime.id !== prevForcedTimeId.current) {
+        timeRef.current = forcedTime.value;
+        onTimeUpdate(forcedTime.value);
         lastUiUpdateRef.current = 0;
-        prevResetTime.current = resetTimeTrigger;
+        prevForcedTimeId.current = forcedTime.id;
     }
 
     // Reset Camera

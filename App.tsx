@@ -9,6 +9,7 @@ import PanelShell from './components/ui/PanelShell';
 import ResizableSidebar from './components/ui/ResizableSidebar';
 import { usePanelLayout } from './hooks/usePanelLayout';
 import { PlanetData } from './types';
+import { SIMULATION_EPOCH } from './constants';
 
 const App: React.FC = () => {
     // Simulation State
@@ -40,7 +41,7 @@ const App: React.FC = () => {
     const [starsCount, setStarsCount] = useState(200000);
 
     // Triggers
-    const [resetTimeTrigger, setResetTimeTrigger] = useState(0);
+    const [forcedTime, setForcedTime] = useState<{ value: number, id: number } | undefined>(undefined);
     const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
 
     // ISS Model Selection
@@ -120,10 +121,15 @@ const App: React.FC = () => {
         }
     }, [selectedPlanet]);
 
-    const handleResetTime = useCallback(() => {
-        setSimTime(0);
-        setResetTimeTrigger(prev => prev + 1);
+    const handleSetTime = useCallback((timestamp: number) => {
+        const simDays = (timestamp - SIMULATION_EPOCH) / (1000 * 86400);
+        setSimTime(simDays);
+        setForcedTime({ value: simDays, id: Math.random() });
     }, []);
+
+    const handleResetTime = useCallback(() => {
+        handleSetTime(SIMULATION_EPOCH);
+    }, [handleSetTime]);
 
     const handleResetCamera = useCallback(() => {
         setFollowingBody(null);
@@ -185,7 +191,7 @@ const App: React.FC = () => {
                 shadowRadius={shadowRadius}
                 renderScale={renderScale}
                 starsCount={starsCount}
-                resetTimeTrigger={resetTimeTrigger}
+                forcedTime={forcedTime}
                 resetCameraTrigger={resetCameraTrigger}
                 issModel={issModel}
                 bloomThreshold={bloomThreshold}
@@ -332,6 +338,8 @@ const App: React.FC = () => {
                                     enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
                                     accordionState={accordionState}
                                     toggleAccordion={toggleAccordion}
+                                    date={simTime}
+                                    onSetTime={handleSetTime}
                                 />
                             </PanelShell>
                         )}

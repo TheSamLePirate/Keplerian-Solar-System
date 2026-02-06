@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import AccordionSection from './ui/AccordionSection';
+import { SIMULATION_EPOCH } from '../constants';
 
 interface ControlsProps {
     speedLog: number;
@@ -88,6 +89,8 @@ interface ControlsProps {
     // Accordion state from parent
     accordionState: Record<string, boolean>;
     toggleAccordion: (id: string) => void;
+    date: number;
+    onSetTime: (t: number) => void;
 }
 
 const Slider: React.FC<{
@@ -160,8 +163,27 @@ const Controls: React.FC<ControlsProps> = ({
     enableChromaticAberration, setEnableChromaticAberration,
     enableBrightnessContrast, setEnableBrightnessContrast,
     enableHueSaturation, setEnableHueSaturation,
-    accordionState, toggleAccordion,
+    accordionState, toggleAccordion, date, onSetTime,
 }) => {
+    // Date/Time Helpers
+    const currentTimestamp = SIMULATION_EPOCH + date * 86400 * 1000;
+    const currentDate = new Date(currentTimestamp);
+    // Format for datetime-local (YYYY-MM-DDTHH:mm) - using local time
+    const localIsoString = new Date(currentDate.getTime() - currentDate.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const d = new Date(e.target.value);
+        if (!isNaN(d.getTime())) {
+            onSetTime(d.getTime());
+        }
+    };
+
+    const handleSetToNow = () => {
+        onSetTime(Date.now());
+    };
+
     return (
         <div className="flex flex-col w-full">
             {/* Camera */}
@@ -187,6 +209,57 @@ const Controls: React.FC<ControlsProps> = ({
 
             {/* Simulation */}
             <AccordionSection title="Simulation" isOpen={accordionState.simulation ?? true} onToggle={() => toggleAccordion('simulation')}>
+                {/* Date Control */}
+                <div className="flex flex-col gap-2 mb-4 bg-black/40 p-2 rounded border border-white/5 relative group">
+                    <div className="flex justify-between items-center text-[10px] text-gray-400">
+                        <span className="uppercase tracking-widest text-[9px] font-bold">Flight Time</span>
+                        <button
+                            onClick={handleSetToNow}
+                            className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 hover:text-white px-2 py-0.5 rounded text-[9px] font-bold border border-blue-500/30 transition-all uppercase tracking-wider"
+                        >
+                            Sync Now
+                        </button>
+                    </div>
+
+                    <div className="relative">
+                        {/* Styled Display */}
+                        <div className="flex flex-col bg-black/60 border border-white/10 rounded overflow-hidden">
+                            <div className="flex items-baseline justify-between px-2 py-1.5 border-b border-white/5">
+                                <span className="font-mono text-lg text-white font-light tracking-widest">
+                                    {localIsoString.slice(0, 10)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between px-2 py-1 bg-white/5">
+                                <span className="font-mono text-xs text-blue-400 font-bold tracking-widest">
+                                    {localIsoString.slice(11, 16)}
+                                </span>
+                                <span className="text-[9px] text-gray-500 font-mono uppercase">UTC{localIsoString.slice(19)}</span>
+                            </div>
+                        </div>
+
+                        {/* Hidden Input Overlay */}
+                        <input
+                            type="datetime-local"
+                            value={localIsoString}
+                            onChange={handleDateChange}
+                            onClick={(e) => {
+                                try {
+                                    // Explicitly show picker on click for better UX
+                                    if ('showPicker' in e.currentTarget) {
+                                        (e.currentTarget as any).showPicker();
+                                    }
+                                } catch (err) {
+                                    // Ignore errors if showPicker is not supported or allowed
+                                }
+                            }}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+
+                        {/* Hover Glow Effect */}
+                        <div className="absolute inset-0 border border-blue-500/0 group-hover:border-blue-500/30 rounded pointer-events-none transition-all duration-500 shadow-[0_0_0_0_rgba(59,130,246,0)] group-hover:shadow-[0_0_15px_0_rgba(59,130,246,0.15)]" />
+                    </div>
+                </div>
+
                 <Slider label="Time Speed" value={speedLog} min={0} max={100} step={1} onChange={setSpeedLog} format={v => `${v.toFixed(0)}%`} />
 
                 <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-white/5 rounded border border-white/5">
