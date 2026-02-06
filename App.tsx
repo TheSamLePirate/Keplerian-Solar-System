@@ -54,6 +54,10 @@ const App: React.FC = () => {
     const [starBrightness, setStarBrightness] = useState(0.5);
     const [starBrightnessMagShape, setStarBrightnessMagShape] = useState(0.2);
     const [starSaturation, setStarSaturation] = useState(1.0);
+    const [showConstellations, setShowConstellations] = useState(false);
+    const [showCelestialGrid, setShowCelestialGrid] = useState(false);
+    const [gridMode, setGridMode] = useState<'equatorial' | 'ecliptic'>('equatorial');
+    const [cameraMode, setCameraMode] = useState<'equatorial' | 'ecliptic'>('equatorial');
 
 
 
@@ -283,6 +287,10 @@ const App: React.FC = () => {
                 gravityShowEquilibrium={gravityShowEquilibrium}
                 gravityEquilibriumThreshold={gravityEquilibriumThreshold}
                 gravityShowEffective={gravityShowEffective}
+                showConstellations={showConstellations}
+                showCelestialGrid={showCelestialGrid}
+                gridMode={gridMode}
+                cameraMode={cameraMode}
             />
 
             {/* UI Overlay */}
@@ -380,6 +388,10 @@ const App: React.FC = () => {
                                     starBrightness={starBrightness} setStarBrightness={setStarBrightness}
                                     starBrightnessMagShape={starBrightnessMagShape} setStarBrightnessMagShape={setStarBrightnessMagShape}
                                     starSaturation={starSaturation} setStarSaturation={setStarSaturation}
+                                    showConstellations={showConstellations} setShowConstellations={setShowConstellations}
+                                    showCelestialGrid={showCelestialGrid} setShowCelestialGrid={setShowCelestialGrid}
+                                    gridMode={gridMode} setGridMode={setGridMode}
+                                    cameraMode={cameraMode} setCameraMode={setCameraMode}
                                     bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
                                     bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
                                     bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}

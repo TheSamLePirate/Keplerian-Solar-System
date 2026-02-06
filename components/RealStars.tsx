@@ -2,7 +2,6 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import starData from '../data/stars.json';
 
 // Vertex Shader
 const vertexShader = `
@@ -44,9 +43,8 @@ vec3 colorFromBV(float bv) {
 void main() {
     vColor = colorFromBV(colorIndex);
     
-    // Position
-    vec3 pos = position * 50000.0; 
-    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+    // Position (Already scaled in useStarData)
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     
     // --- Scale Logic ---
@@ -102,12 +100,18 @@ void main() {
 `;
 
 const RealStars: React.FC<{
+    positions: Float32Array;
+    magnitudes: Float32Array;
+    colorIndices: Float32Array;
     starSize?: number;
     starSizeMagShape?: number;
     starBrightness?: number;
     starBrightnessMagShape?: number;
     starSaturation?: number;
 }> = ({
+    positions,
+    magnitudes,
+    colorIndices,
     starSize = 2.0,
     starSizeMagShape = 0.1,
     starBrightness = 0.5,
@@ -115,25 +119,6 @@ const RealStars: React.FC<{
     starSaturation = 1.0
 }) => {
         const shaderRef = useRef<THREE.ShaderMaterial>(null);
-
-        const { positions, magnitudes, colorIndices } = useMemo(() => {
-            const count = starData.length;
-            const positions = new Float32Array(count * 3);
-            const magnitudes = new Float32Array(count);
-            const colorIndices = new Float32Array(count);
-
-            starData.forEach((star, i) => {
-                // Data format: [x, y, z, mag, bv]
-                positions[i * 3] = star[0];
-                positions[i * 3 + 1] = star[1];
-                positions[i * 3 + 2] = star[2];
-
-                magnitudes[i] = star[3];
-                colorIndices[i] = star[4];
-            });
-
-            return { positions, magnitudes, colorIndices };
-        }, []);
 
         // Update uniforms when props change
         useEffect(() => {

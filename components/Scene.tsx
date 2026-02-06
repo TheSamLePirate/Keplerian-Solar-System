@@ -14,6 +14,9 @@ import Planet from './Planet';
 import Sun from './Sun';
 import GravitationalPotential from './GravitationalPotential';
 import GravityParticles from './GravityParticles';
+import { useStarData } from '../hooks/useStarData';
+import Constellations from './Constellations';
+import CelestialGrid from './CelestialGrid';
 
 interface SceneContentProps {
     speed: number;
@@ -98,6 +101,10 @@ interface SceneContentProps {
     gravityShowEquilibrium: boolean;
     gravityEquilibriumThreshold: number;
     gravityShowEffective: boolean;
+    showConstellations: boolean;
+    showCelestialGrid: boolean;
+    gridMode: 'equatorial' | 'ecliptic';
+    cameraMode: 'equatorial' | 'ecliptic';
 }
 
 const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: THREE.Vector3 }> = ({ followingBody, sunPosition }) => {
@@ -128,6 +135,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
     gravityVisible, gravityOpacity, gravityMin, gravityMax, gravityIntensityPow, gravityDirectionSat, gravityShowDirection, gravityPlaneSize, gravityYOffset, gravityParticlesVisible,
     gravityShowContours, gravityContourFreq, gravityExcludeSun, gravityEquilibriumThreshold, gravityShowEffective, gravityShowEquilibrium,
+    showConstellations, showCelestialGrid, gridMode, cameraMode
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
@@ -137,6 +145,13 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     const focusedLightRef = useRef<THREE.DirectionalLight>(null);
     const focusedLightTargetRef = useRef<THREE.Object3D>(new THREE.Object3D());
     const { camera, scene } = useThree();
+
+
+
+    // ... (imports)
+
+    // ... (inside SceneContentInternal)
+    const { positions, magnitudes, colorIndices } = useStarData();
 
     // Enable Layer 1 for camera to see focused objects
     useEffect(() => {
@@ -310,6 +325,27 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         return omegaVal;
     }, [gravityShowEffective, selectedPlanet, followingBody]);
 
+    // Handle Camera Up Alignment (Equatorial vs Ecliptic)
+    useEffect(() => {
+        if (cameraMode === 'equatorial') {
+            // Y-Up (Celestial North)
+            camera.up.set(0, 1, 0);
+        } else {
+            // Ecliptic Up (Orbital North)
+            // Pole is (0, cosE, sinE) in Equatorial Frame
+            const obliquity = 23.43928 * (Math.PI / 180);
+            const y = Math.cos(obliquity);
+            const z = Math.sin(obliquity);
+            camera.up.set(0, y, z);
+        }
+        camera.updateProjectionMatrix();
+
+        // Force update controls to respect new Up vector
+        if (controlsRef.current) {
+            controlsRef.current.update();
+        }
+    }, [cameraMode, camera]);
+
     return (
         <>
             <OrbitControls
@@ -320,11 +356,25 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 dampingFactor={0.05}
             />
             <RealStars
+                positions={positions}
+                magnitudes={magnitudes}
+                colorIndices={colorIndices}
                 starSize={starSize}
                 starSizeMagShape={starSizeMagShape}
                 starBrightness={starBrightness}
                 starBrightnessMagShape={starBrightnessMagShape}
                 starSaturation={starSaturation}
+            />
+            <Constellations
+                positions={positions}
+                visible={showConstellations}
+                opacity={0.3}
+            />
+            <CelestialGrid
+                visible={showCelestialGrid}
+                mode={gridMode}
+                opacity={0.15}
+                radius={50000} // Match star scale
             />
 
             <Sun

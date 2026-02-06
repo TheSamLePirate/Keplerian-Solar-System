@@ -45,6 +45,14 @@ interface ControlsProps {
     setStarBrightnessMagShape: (v: number) => void;
     starSaturation: number;
     setStarSaturation: (v: number) => void;
+    showConstellations: boolean;
+    setShowConstellations: (v: boolean) => void;
+    showCelestialGrid: boolean;
+    setShowCelestialGrid: (v: boolean) => void;
+    gridMode: 'equatorial' | 'ecliptic';
+    setGridMode: (m: 'equatorial' | 'ecliptic') => void;
+    cameraMode: 'equatorial' | 'ecliptic';
+    setCameraMode: (m: 'equatorial' | 'ecliptic') => void;
     issModel: 'small' | 'big';
     setIssModel: (m: 'small' | 'big') => void;
     bloomThreshold: number;
@@ -197,6 +205,10 @@ const Controls: React.FC<ControlsProps> = ({
     starBrightness, setStarBrightness,
     starBrightnessMagShape, setStarBrightnessMagShape,
     starSaturation, setStarSaturation,
+    showConstellations, setShowConstellations,
+    showCelestialGrid, setShowCelestialGrid,
+    gridMode, setGridMode,
+    cameraMode, setCameraMode,
     issModel, setIssModel,
     bloomThreshold, setBloomThreshold,
     bloomIntensity, setBloomIntensity,
@@ -285,6 +297,24 @@ const Controls: React.FC<ControlsProps> = ({
                     >
                         Reset
                     </button>
+                </div>
+
+                <div className="mt-2 text-[10px] text-gray-400">
+                    <span className="mb-1 block">Alignment (Up)</span>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setCameraMode('equatorial')}
+                            className={`flex-1 py-1 rounded border transition-colors ${cameraMode === 'equatorial' ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400 hover:border-white'}`}
+                        >
+                            Equatorial
+                        </button>
+                        <button
+                            onClick={() => setCameraMode('ecliptic')}
+                            className={`flex-1 py-1 rounded border transition-colors ${cameraMode === 'ecliptic' ? 'bg-orange-600 border-orange-500 text-white' : 'border-gray-600 text-gray-400 hover:border-white'}`}
+                        >
+                            Ecliptic
+                        </button>
+                    </div>
                 </div>
             </AccordionSection>
 
@@ -432,6 +462,26 @@ const Controls: React.FC<ControlsProps> = ({
                     <Slider label="Base Brightness" value={starBrightness} min={0.1} max={2.0} step={0.1} onChange={setStarBrightness} format={v => v.toFixed(1)} />
                     <Slider label="Mag -> Brightness" value={starBrightnessMagShape} min={0.05} max={1.0} step={0.05} onChange={setStarBrightnessMagShape} format={v => v.toFixed(2)} />
                     <Slider label="Saturation" value={starSaturation} min={0} max={2.0} step={0.1} onChange={setStarSaturation} format={v => v.toFixed(1)} />
+                    <div className="pt-1 mt-1 border-t border-white/5">
+                        <Toggle label="Show Constellations" checked={showConstellations} onChange={setShowConstellations} />
+                        <Toggle label="Show Celestial Grid" checked={showCelestialGrid} onChange={setShowCelestialGrid} />
+                        {showCelestialGrid && (
+                            <div className="flex gap-1 mt-1">
+                                <button
+                                    onClick={() => setGridMode('equatorial')}
+                                    className={`flex-1 text-[9px] font-bold uppercase py-0.5 rounded border ${gridMode === 'equatorial' ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400'}`}
+                                >
+                                    Equatorial
+                                </button>
+                                <button
+                                    onClick={() => setGridMode('ecliptic')}
+                                    className={`flex-1 text-[9px] font-bold uppercase py-0.5 rounded border ${gridMode === 'ecliptic' ? 'bg-orange-600 border-orange-500 text-white' : 'border-gray-600 text-gray-400'}`}
+                                >
+                                    Ecliptic (Az)
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </AccordionSection>
 

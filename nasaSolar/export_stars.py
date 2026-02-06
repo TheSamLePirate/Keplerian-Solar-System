@@ -131,29 +131,14 @@ def main():
     
     v_icrs = np.stack((x_icrs, y_icrs, z_icrs)) # Shape (3, N)
     
-    # Rotate to Ecliptic J2000
-    ts = load.timescale()
-    t = ts.now() # Use current epoch for generic background or J2000? 
-    # Use J2000 standard epoch (t=0?) or current? 
-    # Stars move (proper motion), but for a background map without proper motion correction (simpler),
-    # using J2000 coordinates relative to J2000 Ecliptic is standard.
-    # But planets are rendered at Current Time Ecliptic?
-    # Actually the simulation frame is "Ecliptic J2000" technically.
-    # Skyfield `ecliptic_frame` is dynamic? 
-    # Let's use the rotation matrix for J2000 ICRS -> Ecliptic J2000.
-    # Matrix at J2000 epoch.
-    
-    t_j2000 = ts.J2000
-    matrix = ecliptic_frame.rotation_at(t_j2000)
-    
-    print("Rotating to Ecliptic J2000...")
-    v_ecl = np.dot(matrix, v_icrs) # (3, 3) @ (3, N) -> (3, N)
+    print("Using ICRS (Equatorial) J2000...")
+    v_eq = v_icrs # No rotation needed for Equatorial
     
     # Prepare export list
     # [x, y, z, mag, bv]
     
     # Transpose to (N, 3)
-    positions = v_ecl.T
+    positions = v_eq.T
     
     export_data = []
     
@@ -167,17 +152,106 @@ def main():
             bv = 0.65
             
         export_data.append([
-            round(pos[0], 5),
-            round(pos[1], 5),
-            round(pos[2], 5),
+            round(pos[0], 5),           # x -> x
+            round(pos[2], 5),           # z -> y (Up/Pole)
+            round(-pos[1], 5),          # y -> -z (Plane)
             round(row['vmag'], 2),
             round(bv, 2)
         ])
         
-    print(f"Exporting {len(export_data)} stars to {OUTPUT_FILE}...")
+    print("Exporting stars to JSON...")
     
     with open(OUTPUT_FILE, 'w') as f:
         json.dump(export_data, f)
+        
+    print(f"Exported {len(export_data)} stars.")
+    
+    # --- Constellations ---
+    print("\nProcessing Constellations...")
+    from skyfield.data import stellarium
+    
+    # Map HIP -> Index in our exported array
+    # We need to trust that export_data ordering is preserved (it is relative to bright_stars iteration)
+    hip_to_index = {}
+    for idx, row in enumerate(bright_stars.itertuples()):
+        # row structure from itertuples on dataframe with specific columns:
+        # Index=index, hip=..., vmag=...
+        # We need to access by name or index. 
+        # bright_stars has columns: hip, vmag, ra_deg, dec_deg, bv
+        # itertuples names attributes by column name
+        hip_id = int(row.hip)
+        hip_to_index[hip_id] = idx
+        
+    url = 'https://raw.githubusercontent.com/Stellarium/stellarium/master/skycultures/western/constellationship.fab'
+    
+    export_lines = []
+    
+    try:
+        print(f"Loading constellation data from {url}...")
+        with load.open(url) as f:
+            constellations = stellarium.parse_constellations(f)
+            
+        for name, edges in constellations:
+            for hip1, hip2 in edges:
+                if hip1 in hip_to_index and hip2 in hip_to_index:
+                    idx1 = hip_to_index[hip1]
+                    idx2 = hip_to_index[hip2]
+                    export_lines.append([idx1, idx2])
+    except Exception as e:
+        print(f"Failed to download constellation data: {e}")
+        print("Using comprehensive fallback constellation set...")
+        
+        # Hardcoded pairs (HIP IDs) for major constellations
+        fallback_pairs = [
+            # Ursa Major (Big Dipper)
+            (54061, 53910), (53910, 58001), (58001, 59774), (59774, 62956),
+            (62956, 65378), (65378, 67301),
+            # Ursa Minor (Little Dipper)
+            (11767, 86111), (86111, 82080), (82080, 77055), (77055, 79822),
+            (79822, 75097), (75097, 72607), (72607, 11767),
+            # Orion
+            (27989, 26207), (26207, 25336), (25336, 25930), (25930, 26311), 
+            (26311, 26727), (26727, 27366), (25930, 24436), (27989, 26207),
+            # Cassiopeia
+            (21421, 22449), (24608, 22449), (4427, 6686), (6686, 8886), (8886, 21421),
+            # Scorpius (approximate)
+            (80763, 78820), (78820, 78401), (80763, 86228), (86228, 85927),
+            # Cygnus (Northern Cross)
+            (102098, 98298), (98298, 95947), (98298, 100453), (98298, 96441),
+            # Leo
+            (49669, 50583), (50583, 54872), (54872, 57632), (49669, 48455),
+            # Crux (Southern Cross)
+            (60718, 62434), (62434, 59747), (59747, 61084), (61084, 60718),
+            # Gemini
+            (37826, 36850), (37826, 35550), (36850, 35550),
+            # Taurus
+            (21421, 25428), (21421, 20205),
+            # Canis Major
+            (32349, 33579), (33579, 34444),
+            # Lyra
+            (91262, 93017), (93017, 93429), (91262, 93429),
+            # Aquila
+            (97649, 97278), (97649, 98036),
+            # Pegasus (Great Square)
+            (113963, 113881), (113881, 3179), (3179, 1067), (1067, 113963),
+            # Andromeda
+            (3179, 5447), (5447, 9640),
+            # Bootes (Kite)
+            (69673, 72105), (72105, 71075), (69673, 67927),
+             # Sagittarius (Teapot) - Kaus Australis, Nunki, Ascella, etc.
+             (90185, 92855), (92855, 94141), (94141, 90496), (90496, 90185), # Body
+             (90496, 89962), (89962, 89931), (90185, 88635) # Spout/Lid approximation
+        ]
+        
+        for hip1, hip2 in fallback_pairs:
+            if hip1 in hip_to_index and hip2 in hip_to_index:
+                export_lines.append([hip_to_index[hip1], hip_to_index[hip2]])
+
+    CONST_FILE = "../data/constellations.json"
+    print(f"Exporting {len(export_lines)} constellation lines to {CONST_FILE}...")
+    
+    with open(CONST_FILE, 'w') as f:
+        json.dump(export_lines, f)
         
     print("Done.")
 
