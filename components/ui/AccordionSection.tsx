@@ -23,7 +23,7 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({ title, isOpen, onTo
         </svg>
       </button>
       <div
-        className="accordion-body"
+        className="accordion-body overflow-hidden transition-all duration-300 ease-in-out"
         style={{ maxHeight: isOpen ? '800px' : '0px', opacity: isOpen ? 1 : 0 }}
       >
         <div className="px-2 pb-2 flex flex-col gap-1.5">
