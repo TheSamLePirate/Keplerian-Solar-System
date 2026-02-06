@@ -107,6 +107,22 @@ The planets feature a sophisticated volumetric atmosphere shader (`components/Pl
 - **Lighting**: Calculates optical depth towards the camera and towards the Sun for each sample point along the view ray.
 - **Occlusion**: Handles planet self-shadowing (sunset/terminator line) mathematically within the shader.
 
+### Rendering & Scale Solutions
+Simulating a 100 AU solar system while rendering sub-meter details (like the ISS) presents unique "Z-fighting" and Shadow Map resolution challenges. We employ a **Layer-based Focused Shadow System** to solve this:
+
+1.  **The Scale Problem**: A single shadow map covering the Planet (Radius 1.0) cannot resolve details on the ISS (Radius 0.008) without massive aliasing, even at 4k resolution.
+2.  **Layer Isolation**: 
+    -   When a body is **followed**, it and its children are moved to **Render Layer 1**.
+    -   The rest of the universe remains on **Layer 0**.
+3.  **Dual Lighting**:
+    -   **Global Sun (Layer 0)**: A `PointLight` at $(0,0,0)$ lights the entire solar system.
+    -   **Focused Sun (Layer 1)**: A `DirectionalLight` tracks the focused body. It is positioned relative to the body but calculates its direction from the true sun position.
+4.  **Dynamic Shadow Bounds**:
+    -   The `FocusedLight`'s shadow camera uses an `OrthographicCamera` with bounds tightened to the object's specific scale.
+    -   **Planets**: Bounds $\approx$ Planet Radius.
+    -   **ISS**: Bounds $\approx$ `0.05` units.
+    -   This allows the **4096px** shadow map to capture millimeter-level details on the ISS, which would otherwise be invisible.
+
 ---
 
 ## Summary of Accuracy

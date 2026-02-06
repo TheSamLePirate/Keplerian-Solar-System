@@ -14,6 +14,8 @@ Keplerian Solar System is a React + Vite app that renders a real-time orbital si
    - Maintains local `time` state and advances it in `useFrame` when not paused.
    - Calls `onTimeUpdate` and `onFpsUpdate` back into `App`.
    - Renders all bodies from `PLANETS` and applies camera-follow logic.
+   - Manages **Render Layers** to isolate focused bodies for high-quality shadowing.
+   - Applies Post-Processing effects (Bloom, Ambient Occlusion, Tone Mapping).
 3. `components/Planet.tsx`:
    - Computes positions and orbit lines via `calculateOrbitalPositionWithPeriod`.
    - Renders planet meshes, atmospheres, rings, labels, and recursively renders moons.
@@ -42,6 +44,10 @@ To ensure physical accuracy in the 3D visualization, the project enforces specif
 
 - **Axial Tilt**: Applied as `rotation.x = -axialTilt`. This negative rotation aligns the North Pole towards the Sun at Summer Solstice (Longitude $\approx 270^\circ$).
 - **ISS Integration**: ISS TLE data (Equatorial) is transformed to the Ecliptic frame in `export_ui_data.py` to match the planetary system.
+- **Rendering Pipeline**: The project uses a **Layer-based approach** to solve lighting scale issues:
+  - **Layer 0**: Global scene, lit by the main Sun (Point Light).
+  - **Layer 1**: Focused body (e.g., ISS), lit by a dedicated `FocusedLight` (Directional) with tight shadow bounds for crisp details.
+  - **Post-Processing**: Uses `N8AO` (Ambient Occlusion) for depth perception, with Screen Space radius options.
 
 ## Assets and Tooling
 - `public/textures/` stores planet textures referenced by `Planet`.

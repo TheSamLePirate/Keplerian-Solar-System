@@ -1,19 +1,26 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 interface ISSModelProps {
     scale?: number;
     modelType?: 'small' | 'big';
+    layer?: number;
 }
 
 /**
  * ISS (International Space Station) 3D model
  * Loads either ISS.glb (small) or ISS2.glb (big) from the public/models folder
  */
-const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small' }) => {
+const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small', layer = 0 }) => {
     const modelPath = modelType === 'big' ? "/models/ISS2.glb" : "/models/ISS.glb";
     const { scene } = useGLTF(modelPath);
+
+    useEffect(() => {
+        scene.traverse((child) => {
+            child.layers.set(layer);
+        });
+    }, [scene, layer]);
 
     // Clone the scene to avoid issues with multiple instances
     const clonedScene = React.useMemo(() => {

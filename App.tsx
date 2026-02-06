@@ -77,6 +77,11 @@ const App: React.FC = () => {
     const [enableChromaticAberration, setEnableChromaticAberration] = useState(false);
     const [enableBrightnessContrast, setEnableBrightnessContrast] = useState(true);
     const [enableHueSaturation, setEnableHueSaturation] = useState(true);
+    const [enableAO, setEnableAO] = useState(true);
+    const [aoIntensity, setAoIntensity] = useState(5.0);
+    const [aoRadius, setAoRadius] = useState(0.05);
+    const [aoDistanceFalloff, setAoDistanceFalloff] = useState(1.0);
+    const [aoScreenSpace, setAoScreenSpace] = useState(false);
 
     // Panel Layout State
     const { panels, accordionState, togglePanel, setPanelVisible, toggleAccordion } = usePanelLayout();
@@ -219,6 +224,11 @@ const App: React.FC = () => {
                 enableChromaticAberration={enableChromaticAberration}
                 enableBrightnessContrast={enableBrightnessContrast}
                 enableHueSaturation={enableHueSaturation}
+                enableAO={enableAO}
+                aoIntensity={aoIntensity}
+                aoRadius={aoRadius}
+                aoDistanceFalloff={aoDistanceFalloff}
+                aoScreenSpace={aoScreenSpace}
             />
 
             {/* UI Overlay */}
@@ -336,6 +346,11 @@ const App: React.FC = () => {
                                     enableChromaticAberration={enableChromaticAberration} setEnableChromaticAberration={setEnableChromaticAberration}
                                     enableBrightnessContrast={enableBrightnessContrast} setEnableBrightnessContrast={setEnableBrightnessContrast}
                                     enableHueSaturation={enableHueSaturation} setEnableHueSaturation={setEnableHueSaturation}
+                                    enableAO={enableAO} setEnableAO={setEnableAO}
+                                    aoIntensity={aoIntensity} setAoIntensity={setAoIntensity}
+                                    aoRadius={aoRadius} setAoRadius={setAoRadius}
+                                    aoDistanceFalloff={aoDistanceFalloff} setAoDistanceFalloff={setAoDistanceFalloff}
+                                    aoScreenSpace={aoScreenSpace} setAoScreenSpace={setAoScreenSpace}
                                     accordionState={accordionState}
                                     toggleAccordion={toggleAccordion}
                                     date={simTime}

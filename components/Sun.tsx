@@ -72,7 +72,7 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({ scaleFactor, luminosity, s
                 castShadow={shadowEnabled}
                 shadow-mapSize-width={cappedShadowSize}
                 shadow-mapSize-height={cappedShadowSize}
-                shadow-bias={-0.00005}
+                shadow-bias={-0.000001}
                 shadow-radius={shadowRadius}
             />
             {/* Ambient fill for dark sides - scales with luminosity */}

@@ -26,6 +26,7 @@ interface PlanetProps {
     atmPow?: number;
     atmSamples?: number;
     issModel?: 'small' | 'big';
+    focusedBodyId?: string | null;
 }
 
 // ... (AtmosphereMaterial definition remains unchanged - strict overwrite not needed if outside chunk but this is replace_file_content so I need to target specific chunks)
@@ -195,7 +196,8 @@ const Planet: React.FC<PlanetProps> = ({
     atmOpacity = 2.5,
     atmPow = 4.0,
     atmSamples = 32,
-    issModel = 'small'
+    issModel = 'small',
+    focusedBodyId = null
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
@@ -203,6 +205,27 @@ const Planet: React.FC<PlanetProps> = ({
     const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
     const atmMeshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
+
+    const isFocused = data.id === focusedBodyId;
+
+    // Layer Management
+    React.useEffect(() => {
+        if (!groupRef.current) return;
+
+        const targetLayer = isFocused ? 1 : 0;
+
+        groupRef.current.traverse((child) => {
+            child.layers.set(targetLayer);
+        });
+
+        return () => {
+            if (groupRef.current) {
+                groupRef.current.traverse((child) => {
+                    child.layers.set(0);
+                });
+            }
+        };
+    }, [isFocused]);
 
     // Constants
     const isMoon = data.type === 'moon';
@@ -589,7 +612,7 @@ const Planet: React.FC<PlanetProps> = ({
                             onPointerOver={() => setHover(true)}
                             onPointerOut={() => setHover(false)}
                         >
-                            <ISSModel scale={size * 0.5} modelType={issModel} />
+                            <ISSModel scale={size * 0.5} modelType={issModel} layer={isFocused ? 1 : 0} />
                             {(showLabel || hovered || isSelected) && (
                                 <Html position={[0, size * 3, 0]}>
                                     <div
@@ -703,6 +726,7 @@ const Planet: React.FC<PlanetProps> = ({
                         atmPow={atmPow}
                         atmSamples={atmSamples}
                         issModel={issModel}
+                        focusedBodyId={focusedBodyId}
                     />
                 ))}
             </group>

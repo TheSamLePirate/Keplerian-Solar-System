@@ -86,6 +86,16 @@ interface ControlsProps {
     setEnableBrightnessContrast: (v: boolean) => void;
     enableHueSaturation: boolean;
     setEnableHueSaturation: (v: boolean) => void;
+    enableAO: boolean;
+    setEnableAO: (v: boolean) => void;
+    aoIntensity: number;
+    setAoIntensity: (v: number) => void;
+    aoRadius: number;
+    setAoRadius: (v: number) => void;
+    aoDistanceFalloff: number;
+    setAoDistanceFalloff: (v: number) => void;
+    aoScreenSpace: boolean;
+    setAoScreenSpace: (v: boolean) => void;
     // Accordion state from parent
     accordionState: Record<string, boolean>;
     toggleAccordion: (id: string) => void;
@@ -163,6 +173,11 @@ const Controls: React.FC<ControlsProps> = ({
     enableChromaticAberration, setEnableChromaticAberration,
     enableBrightnessContrast, setEnableBrightnessContrast,
     enableHueSaturation, setEnableHueSaturation,
+    enableAO, setEnableAO,
+    aoIntensity, setAoIntensity,
+    aoRadius, setAoRadius,
+    aoDistanceFalloff, setAoDistanceFalloff,
+    aoScreenSpace, setAoScreenSpace,
     accordionState, toggleAccordion, date, onSetTime,
 }) => {
     // Date/Time Helpers
@@ -352,6 +367,19 @@ const Controls: React.FC<ControlsProps> = ({
 
             {/* Post-Processing */}
             <AccordionSection title="Post-Processing" isOpen={accordionState.postprocess ?? false} onToggle={() => toggleAccordion('postprocess')}>
+                {/* Ambient Occlusion */}
+                <div className="pb-1 border-b border-white/5 mb-1">
+                    <Toggle label="Ambient Occlusion" checked={enableAO} onChange={setEnableAO} />
+                    {enableAO && (
+                        <div className="flex flex-col gap-1 mt-1">
+                            <Toggle label="Screen Space Radius" checked={aoScreenSpace} onChange={setAoScreenSpace} />
+                            <Slider label="Intensity" value={aoIntensity} min={0} max={20} step={0.5} onChange={setAoIntensity} format={v => v.toFixed(1)} />
+                            <Slider label="Radius" value={aoRadius} min={0} max={10} step={0.01} onChange={setAoRadius} format={v => v.toFixed(2)} />
+                            <Slider label="Distance Falloff" value={aoDistanceFalloff} min={0} max={5} step={0.1} onChange={setAoDistanceFalloff} format={v => v.toFixed(1)} />
+                        </div>
+                    )}
+                </div>
+
                 <Slider label="Exposure" value={exposure} min={0} max={4} step={0.1} onChange={setExposure} />
                 <Toggle label="Adaptive Tone Mapping" checked={toneMappingAdaptive} onChange={setToneMappingAdaptive} />
 

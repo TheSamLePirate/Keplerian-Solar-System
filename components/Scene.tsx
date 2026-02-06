@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
@@ -64,20 +64,78 @@ interface SceneContentProps {
     enableChromaticAberration: boolean;
     enableBrightnessContrast: boolean;
     enableHueSaturation: boolean;
+    enableAO: boolean;
+    aoIntensity: number;
+    aoRadius: number;
+    aoDistanceFalloff: number;
+    aoScreenSpace: boolean;
 }
+
+const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: THREE.Vector3 }> = ({ followingBody, sunPosition }) => {
+    const lightRef = useRef<THREE.DirectionalLight>(null);
+    const targetRef = useRef<THREE.Object3D>(new THREE.Object3D());
+    const { scene } = useThree();
+
+    useEffect(() => {
+        scene.add(targetRef.current);
+        return () => { scene.remove(targetRef.current); };
+    }, [scene]);
+
+    useFrame(() => {
+        if (!followingBody || !lightRef.current) return;
+
+        // Position the light "towards the sun" relative to the target
+        // We want crisp shadows, so we simulate a directional light coming from the sun
+        // but positioned relatively close to the object to manage shadow map resolution
+
+        // Find the object in the scene (it might be moving)
+        const object = scene.getObjectByName(`planet-${followingBody.id}`);
+        // Alternatively, we can calculate position from physics if we had access to it here,
+        // but finding the generic object is easier if named correctly.
+        // HOWEVER, we don't name our planets yet. Let's rely on the Planet component to update a ref?
+        // OR: We can calculate it here using the same physics logic.
+        // Let's use the same logic as Scene camera follow for consistency.
+
+        // Actually, simpler: The Light Target should be the object position.
+        // The Light Position should be ObjectPos + (SunPos - ObjectPos).normalized * Offset
+    });
+
+    // Changing approach:
+    // We can't easily access the exact position here without re-calculating physics.
+    // Let's rely on `Planet.tsx` to update layers.
+    // Here we just render the light.
+    // But the light needs to follow the object.
+
+    // Simplify: Put this logic inside `SceneContentInternal` where we already calc positions!
+    return null;
+};
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
     speed, paused, scaleFactor, showOrbits, showLabels, selectedPlanet, followingBody, isFollowing, onPlanetClick, onBackgroundClick, onTimeUpdate, onFpsUpdate, atmOpacity, atmPow, atmSamples, ambientLightIntensity, sunLuminosity, shadowEnabled, shadowMapSize, shadowRadius, starsCount, resetCameraTrigger, forcedTime, issModel,
     bloomThreshold, bloomIntensity, bloomRadius, noiseOpacity, vignetteDarkness, vignetteOffset, chromaticAberrationOffset, brightness, contrast, exposure, bloomSmoothing, hue, saturation,
     bloomMipmapBlur, toneMappingAdaptive, vignetteEskil, noisePremultiply, chromaticRadial, chromaticModulation,
-    enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation
+    enableBloom, enableNoise, enableVignette, enableChromaticAberration, enableBrightnessContrast, enableHueSaturation,
+    enableAO, aoIntensity, aoRadius, aoDistanceFalloff, aoScreenSpace
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
     const lastUiUpdateRef = useRef(0);
     const controlsRef = useRef<any>(null);
     const sunRef = useRef<THREE.Mesh>(null);
-    const { camera } = useThree();
+    const focusedLightRef = useRef<THREE.DirectionalLight>(null);
+    const focusedLightTargetRef = useRef<THREE.Object3D>(new THREE.Object3D());
+    const { camera, scene } = useThree();
+
+    // Enable Layer 1 for camera to see focused objects
+    useEffect(() => {
+        camera.layers.enable(1);
+    }, [camera]);
+
+    // Add focused light target to scene
+    useEffect(() => {
+        scene.add(focusedLightTargetRef.current);
+        return () => { scene.remove(focusedLightTargetRef.current); };
+    }, [scene]);
 
     const prevTargetPos = useRef(new THREE.Vector3(0, 0, 0));
     // Pre-allocated vectors for camera follow loop (avoid GC pressure from per-frame allocations)
@@ -183,6 +241,23 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             const deltaPos = _deltaPos.current.copy(targetPos).sub(prevTargetPos.current);
             camera.position.add(deltaPos);
             prevTargetPos.current.copy(targetPos);
+
+            // Update Focused Light
+            if (focusedLightRef.current) {
+                // Target is the object being followed
+                focusedLightTargetRef.current.position.copy(targetPos);
+                focusedLightRef.current.target = focusedLightTargetRef.current;
+
+                // Light position: Toward the Sun (0,0,0)
+                // Direction from Object to Sun = (0,0,0) - targetPos = -targetPos
+                // We place the light some distance away in that direction
+                const toSun = _deltaPos.current.copy(targetPos).negate().normalize();
+                // Distance: Enough to clear the object radius but close enough for precision
+                // ISS Radius is ~0.008 -> distance should be small
+                const distance = 5 * PLANET_SCALE * scaleFactor;
+                focusedLightRef.current.position.copy(targetPos).add(toSun.multiplyScalar(distance));
+                focusedLightRef.current.updateMatrixWorld();
+            }
         } else {
             if (controlsRef.current) {
                 prevTargetPos.current.copy(controlsRef.current.target);
@@ -209,6 +284,21 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 shadowMapSize={shadowMapSize}
                 shadowRadius={shadowRadius}
             />
+
+            {/* Focused Light for crisp shadows on followed object */}
+            {isFollowing && followingBody && (
+                <directionalLight
+                    ref={focusedLightRef}
+                    intensity={sunLuminosity * 2} // Boost intensity slightly as it replaces the point light
+                    castShadow
+                    layers={[1]} // Only affect Layer 1
+                    shadow-bias={-0.00001} // Tuned bias for directional light (smaller for smaller scale)
+                    shadow-mapSize={[4096, 4096]} // Increase resolution
+                >
+                    <orthographicCamera attach="shadow-camera" args={[-0.05, 0.05, 0.05, -0.05, 0.01, 10]} />
+                </directionalLight>
+            )}
+
             <ambientLight intensity={ambientLightIntensity} />
 
             {PLANETS.map((planet) => (
@@ -225,10 +315,21 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     atmPow={atmPow}
                     atmSamples={atmSamples}
                     issModel={issModel}
+                    focusedBodyId={isFollowing && followingBody ? followingBody.id : null}
                 />
             ))}
 
             <EffectComposer depthBuffer={true}>
+                {enableAO && (
+                    <N8AO
+                        aoRadius={aoRadius}
+                        distanceFalloff={aoDistanceFalloff}
+                        intensity={aoIntensity}
+                        screenSpaceRadius={aoScreenSpace}
+                        quality="performance"
+                        halfRes
+                    />
+                )}
                 <SMAA />
                 {enableBloom && <Bloom luminanceThreshold={bloomThreshold} mipmapBlur={bloomMipmapBlur} intensity={bloomIntensity} radius={bloomRadius} luminanceSmoothing={bloomSmoothing} />}
                 <ToneMapping adaptive={toneMappingAdaptive} />
