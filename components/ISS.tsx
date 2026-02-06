@@ -30,6 +30,12 @@ const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small' }) =
                         if (material instanceof THREE.MeshStandardMaterial) {
                             material.metalness = 0.5;
                             material.roughness = 0.5;
+                            // Fix for ISS model transparency/holes
+                            material.transparent = false;
+                            material.alphaTest = 0; // Disable alpha discard
+                            material.depthWrite = true; // Force depth writing
+                            material.opacity = 1.0;
+                            material.side = THREE.FrontSide; // Ensure standard culling
                             material.needsUpdate = true;
                         }
                     });
