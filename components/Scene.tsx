@@ -242,10 +242,11 @@ const Scene: React.FC<SceneContentProps> = (props) => {
     return (
         <Canvas
             shadows={props.shadowEnabled ? { type: THREE.PCFShadowMap } : false}
-            camera={{ position: [0, 50, 100], fov: 45, near: 0.00001, far: 30000 }}
+            camera={{ position: [0, 50, 100], fov: 45, near: 0.001, far: 1000000 }}
             dpr={props.renderScale}
             gl={{
                 antialias: false,
+                logarithmicDepthBuffer: true,
                 toneMapping: THREE.ACESFilmicToneMapping,
                 toneMappingExposure: props.exposure,
                 powerPreference: 'high-performance'
