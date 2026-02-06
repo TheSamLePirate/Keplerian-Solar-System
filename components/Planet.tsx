@@ -2,11 +2,17 @@ import React, { useRef, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
-import { TextureLoader } from "three";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 import { PLANET_SCALE, MOON_ORBIT_SCALE } from "../constants";
 import ISSModel from "./ISS";
+
+// Module-level LOD store: written by Planet useFrame, read by InfoPanel
+export interface PlanetLodInfo {
+    samples: number;
+    apparentSize: number; // fraction of screen height
+}
+export const planetLodStore = new Map<string, PlanetLodInfo>();
 
 interface PlanetProps {
     data: PlanetData;
@@ -55,8 +61,9 @@ const AtmosphereMaterial = {
     uniform vec3 localCameraPos;
     uniform float planetRadius;
     uniform float atmosphereRadius;
-    uniform float densityFalloff; 
-    uniform float intensity;      
+    uniform float densityFalloff;
+    uniform float intensity;
+    uniform int numSamples;
 
     #define PI 3.14159265359
 
@@ -80,11 +87,12 @@ const AtmosphereMaterial = {
 
     // Optical depth integration along a ray
     float opticalDepth(vec3 origin, vec3 dir, float rayLength, float pRadius, float aRadius) {
-        float stepSize = rayLength / float(SAMPLES);
+        float stepSize = rayLength / float(numSamples);
         float depth = 0.0;
         vec3 currentPos = origin;
-        
-        for(int i = 0; i < SAMPLES; i++) {
+
+        for(int i = 0; i < MAX_SAMPLES; i++) {
+            if(i >= numSamples) break;
             vec3 samplePoint = currentPos + dir * (stepSize * 0.5);
             depth += densityAtPoint(samplePoint, pRadius, aRadius) * stepSize;
             currentPos += dir * stepSize;
@@ -118,11 +126,11 @@ const AtmosphereMaterial = {
         float rayLength = endDist - startDist;
         if (rayLength <= 0.0) discard;
         
-        float stepSize = rayLength / float(SAMPLES);
-        
+        float stepSize = rayLength / float(numSamples);
+
         vec3 lightDir = normalize(localSunPos); // Sun direction in local space
         vec3 currentPos = rayOrigin + rayDir * startDist;
-        
+
         vec3 totalScattering = vec3(0.0);
         float viewOpticalDepth = 0.0;
 
@@ -133,8 +141,9 @@ const AtmosphereMaterial = {
 
         float cosTheta = dot(rayDir, lightDir);
         float phase = 0.75 * (1.0 + cosTheta * cosTheta);
-        
-        for(int i = 0; i < SAMPLES; i++) {
+
+        for(int i = 0; i < MAX_SAMPLES; i++) {
+            if(i >= numSamples) break;
             vec3 samplePoint = currentPos + rayDir * (stepSize * 0.5);
             
             float localDensity = densityAtPoint(samplePoint, planetRadius, atmosphereRadius);
@@ -264,7 +273,8 @@ const Planet: React.FC<PlanetProps> = ({
         planetRadius: { value: size },
         atmosphereRadius: { value: atmRadius },
         densityFalloff: { value: atmPow },
-        intensity: { value: atmOpacity }
+        intensity: { value: atmOpacity },
+        numSamples: { value: atmSamples }
     }), []); // Empty dependency array ensures referential stability of the uniforms object
 
     // Pre-allocate vectors to avoid GC in loop
@@ -334,42 +344,56 @@ const Planet: React.FC<PlanetProps> = ({
 
 
     // Texture Loading
-    // Force shader recompilation when sample count changes to apply new #define
-    React.useEffect(() => {
-        if (atmMaterialRef.current) {
-            atmMaterialRef.current.needsUpdate = true;
-        }
-    }, [atmSamples]);
-
     const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null, ring: THREE.Texture | null }>({ map: null, normal: null, specular: null, ring: null });
 
     React.useEffect(() => {
+        let cancelled = false;
+        const loadedTextures: THREE.Texture[] = [];
+        const loader = new THREE.TextureLoader();
+
         if (data.textureUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.textureUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
                 tex.colorSpace = THREE.SRGBColorSpace;
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, map: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load texture: ${data.textureUrl}`, err);
             });
         }
         if (data.normalMapUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.normalMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, normal: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load normal map: ${data.normalMapUrl}`, err);
             });
         }
         if (data.specularMapUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.specularMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, specular: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load specular map: ${data.specularMapUrl}`, err);
             });
         }
         if (data.ringMapUrl) {
-            const loader = new THREE.TextureLoader();
             loader.load(data.ringMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
                 tex.colorSpace = THREE.SRGBColorSpace;
+                loadedTextures.push(tex);
                 setTextures(prev => ({ ...prev, ring: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load ring texture: ${data.ringMapUrl}`, err);
             });
         }
+
+        return () => {
+            cancelled = true;
+            loadedTextures.forEach(tex => tex.dispose());
+        };
     }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl, data.ringMapUrl]);
 
     useFrame((state) => {
@@ -472,6 +496,21 @@ const Planet: React.FC<PlanetProps> = ({
             u.densityFalloff.value = atmPow;
             u.intensity.value = atmOpacity;
             u.color.value.set(data.atmosphereColor);
+
+            // LOD: adjust sample count based on screen-space apparent size
+            atmMeshRef.current.getWorldPosition(tempVec);
+            const distance = state.camera.position.distanceTo(tempVec);
+            const fov = (state.camera as THREE.PerspectiveCamera).fov;
+            const screenHeight = 2 * Math.tan((fov * Math.PI) / 360) * distance;
+            const apparentSize = (atmRadius * 2) / screenHeight; // fraction of screen height
+            const MIN_SAMPLES = 4;
+            const maxSamples = atmSamples;
+            const t = Math.min(Math.max(apparentSize * 4, 0), 1); // 0 at far, 1 when planet fills ~25% of screen
+            const lodSamples = Math.round(MIN_SAMPLES + t * (maxSamples - MIN_SAMPLES));
+            u.numSamples.value = lodSamples;
+
+            // Write LOD info to module-level store for UI display
+            planetLodStore.set(data.id, { samples: lodSamples, apparentSize });
         }
     });
 
@@ -507,7 +546,7 @@ const Planet: React.FC<PlanetProps> = ({
                             <sphereGeometry args={[atmRadius, 64, 64]} />
                             <shaderMaterial
                                 ref={atmMaterialRef}
-                                defines={{ SAMPLES: atmSamples }}
+                                defines={{ MAX_SAMPLES: 64 }}
                                 vertexShader={AtmosphereMaterial.vertexShader}
                                 fragmentShader={AtmosphereMaterial.fragmentShader}
                                 uniforms={uniforms}
@@ -642,6 +681,7 @@ const Planet: React.FC<PlanetProps> = ({
                         scaleFactor={scaleFactor}
                         atmOpacity={atmOpacity}
                         atmPow={atmPow}
+                        atmSamples={atmSamples}
                         issModel={issModel}
                     />
                 ))}
