@@ -111,7 +111,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         prevResetCam.current = resetCameraTrigger;
     }
 
-    // Animation Loop
+    // Priority -1: Update Time (Before everything else)
     useFrame((state, delta) => {
         // FPS Calculation
         frameCount.current++;
@@ -134,11 +134,14 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 lastUiUpdateRef.current = nowSeconds;
             }
         }
+    }, -1);
 
+    // Priority 1: Update Camera Follow (After planets have updated)
+    useFrame(() => {
         // Follow Logic - Uses followingBody instead of selectedPlanet
         if (isFollowing && followingBody && controlsRef.current) {
             const targetPos = _targetPos.current.set(0, 0, 0);
-            const currentTime = timeRef.current;
+            const currentTime = timeRef.current; // Read the updated time
 
             if (followingBody.type === 'moon' || followingBody.type === 'satellite') {
                 // Find parent planet for moons and satellites
@@ -171,7 +174,10 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 targetPos.set(posArray[0], posArray[1], posArray[2]);
             }
 
+            // Sync controls target to calculated position
             controlsRef.current.target.copy(targetPos);
+
+            // Move camera to maintain relative position to target (no damping on this part)
             const deltaPos = _deltaPos.current.copy(targetPos).sub(prevTargetPos.current);
             camera.position.add(deltaPos);
             prevTargetPos.current.copy(targetPos);
@@ -180,7 +186,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                 prevTargetPos.current.copy(controlsRef.current.target);
             }
         }
-    });
+    }, 1);
 
     return (
         <>
@@ -240,7 +246,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     );
 };
 
-const Scene: React.FC<SceneContentProps> = (props) => {
+const Scene: React.FC<SceneContentProps> = React.memo((props) => {
     return (
         <Canvas
             shadows={props.shadowEnabled ? { type: THREE.PCFShadowMap } : false}
@@ -258,6 +264,6 @@ const Scene: React.FC<SceneContentProps> = (props) => {
             <SceneContentInternal {...props} />
         </Canvas>
     );
-};
+});
 
 export default Scene;

@@ -710,4 +710,4 @@ const Planet: React.FC<PlanetProps> = ({
     );
 };
 
-export default Planet;
+export default React.memo(Planet);
