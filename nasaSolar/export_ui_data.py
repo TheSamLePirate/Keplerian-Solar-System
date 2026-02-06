@@ -14,6 +14,7 @@ BSP_PLANETS = "de440s.bsp"
 BSP_JUPITER = "jup365.bsp"
 OUTPUT_FILE = "../constants.ts"
 
+
 # Simulation Scales
 AU_SCALE = 50.0          # 1 AU = 50 3D units
 PLANET_SCALE = 0.5       # Base visual scale for planets
@@ -205,6 +206,49 @@ GM_EARTH = GM_SUN / 332946.0487
 # ISS TLE URL from Celestrak
 ISS_TLE_URL = "https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE"
 
+# IAU North Pole Data (RA, Dec in degrees)
+# Source: Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements (2015)
+POLE_DATA = {
+    "mercury": {"ra": 281.01, "dec": 61.41},
+    "venus":   {"ra": 272.76, "dec": 67.16}, # Positive pole (north) points "down" relative to orbit plane sometimes called 177 tilt
+    "earth":   {"ra": 0.0,    "dec": 90.0},  # Geometric North Pole (ICRS)
+    "moon":    {"ra": 266.86, "dec": 65.64},
+    "mars":    {"ra": 317.68, "dec": 52.89},
+    "jupiter": {"ra": 268.05, "dec": 64.49},
+    "saturn":  {"ra": 40.58,  "dec": 83.54},
+    "uranus":  {"ra": 257.31, "dec": -15.18}, # 98 degree tilt
+    "neptune": {"ra": 299.33, "dec": 42.95}
+}
+
+def get_pole_vector(name, t):
+    """
+    Returns the North Pole direction vector [x, y, z] in ECLIPTIC J2000 frame.
+    """
+    if name not in POLE_DATA:
+        return None
+        
+    data = POLE_DATA[name]
+    ra_rad = math.radians(data["ra"])
+    dec_rad = math.radians(data["dec"])
+    
+    # Convert Spherical (RA, Dec) to Cartesian ICRS (x, y, z)
+    # x = cos(dec) * cos(ra)
+    # y = cos(dec) * sin(ra)
+    # z = sin(dec)
+    
+    x_icrs = math.cos(dec_rad) * math.cos(ra_rad)
+    y_icrs = math.cos(dec_rad) * math.sin(ra_rad)
+    z_icrs = math.sin(dec_rad)
+    
+    v_icrs = np.array([x_icrs, y_icrs, z_icrs])
+    
+    # Transform ICRS -> Ecliptic
+    # Using Skyfield's matrix, same as for positions.
+    matrix = ecliptic_frame.rotation_at(t)
+    v_ecl = np.dot(matrix, v_icrs)
+    
+    return [float(v_ecl[0]), float(v_ecl[1]), float(v_ecl[2])]
+
 def get_iss_elements(t, ts):
     """
     Get ISS orbital elements from real TLE data using Skyfield.
@@ -262,13 +306,15 @@ def get_iss_elements(t, ts):
         # Calculate orbital elements from state vectors in Ecliptic Frame
         elements = elements_from_vectors(r_au_ecl, v_au_ecl, GM_EARTH)
         
-        # Override semi-major axis for visual display (keep orbit visible)
-        elements["semiMajorAxis"] = 0.0003  # Visual scale
+        # DO NOT OVERRIDE semi-major axis. Use the real physics one.
+        # Physics engine needs real 'a' to calculate real period.
+        # elements["semiMajorAxis"] = 0.0003  # REMOVED
         
         print(f"    ISS inclination: {elements['inclination']:.2f} deg")
         print(f"    ISS ascending node: {elements['ascendingNode']:.2f} deg")
         print(f"    ISS mean longitude: {elements['meanLongitude']:.2f} deg")
         print(f"    ISS eccentricity: {elements['eccentricity']:.6f}")
+        print(f"    ISS period (min): {elements['period'] * 365.25 * 24 * 60:.2f}")
         
         return elements
         
@@ -278,13 +324,13 @@ def get_iss_elements(t, ts):
         
         # Fallback to approximate values
         return {
-            "semiMajorAxis": 0.0003,
+            "semiMajorAxis": 4.5e-5, # Approx 6700km / 1.5e8 km
             "eccentricity": 0.0002,
             "inclination": 51.64,
             "ascendingNode": 0.0,
             "perihelion": 0.0,
             "meanLongitude": 0.0,
-            "period": 1.77e-4
+            "period": 1.77e-4 # ~92 mins
         }
 
 def find_body(kernels, name):
@@ -501,6 +547,9 @@ def generate_ts_object(data, elements, moons_content=None):
         s += f'{indent}modelUrl: "{data["modelUrl"]}",\n'
     s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
     s += f'{indent}axialTilt: {data["axialTilt"]},\n'
+    if "poleDirection" in data:
+        pd = data["poleDirection"]
+        s += f'{indent}poleDirection: {{ x: {pd[0]:.6f}, y: {pd[1]:.6f}, z: {pd[2]:.6f} }},\n'
     if "rotationOffset" in data:
         s += f'{indent}rotationOffset: {data["rotationOffset"]},\n'
     if "ringMapUrl" in data:
@@ -598,6 +647,12 @@ export const PLANETS: PlanetData[] = [
         if not elements:
             print(f"Skipping {pid} due to error.")
             continue
+        
+        # Calculate Pole Vector
+        pole_vec = get_pole_vector(pid, t)
+        if pole_vec:
+             p_data["poleDirection"] = pole_vec
+             print(f"    Pole Direction ({pid}): {pole_vec}")
             
         # Process Moons
         moons_content = []

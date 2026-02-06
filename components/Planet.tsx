@@ -514,16 +514,36 @@ const Planet: React.FC<PlanetProps> = ({
         }
     });
 
-    // Axial Tilt Quaternion (Static)
-    // Tilt around X axis seems appropriate for standard Y-up geometry in XZ orbit plane.
-    const tiltRotation = useMemo(() => {
-        // Negative tilt to align North Pole towards Sun at Summer Solstice (Longitude 270)
-        // Standard Three.js: X-rotation 23.5 moves +Y (Up) towards +Z (Back).
-        // Physics Mapping: +Z (Three) = -Y (Physics).
-        // Physics +Y is Sun direction at Solstice (Earth at -Y).
-        // Be lean towards +Y (Sun) => Lean towards -Z (Three) => Negative X-rotation.
-        return new THREE.Euler(THREE.MathUtils.degToRad(-(data.axialTilt || 0)), 0, 0);
-    }, [data.axialTilt]);
+    // Axial Tilt Quaternion
+    // If poleDirection is available (from IAU data), align visual Up (Y) to that pole.
+    // Otherwise fall back to simple axialTilt X-rotation.
+    const tiltQuaternion = useMemo(() => {
+        if (data.poleDirection) {
+            const pd = data.poleDirection;
+            // Ecliptic coordinates (x, y, z) map to Scene coordinates (x, z, -y)
+            // Physics Z (Up) maps to Scene Y (Up).
+            // Wait, let's verify mapping in "Physic and coordinates.md":
+            // "Z (Angular Momentum) | Y | Up"
+            // "Y (Orbital Plane) | -Z | Depth"
+            // "X (Perihelion) | X | Right"
+
+            // Our get_pole_vector returns Ecliptic J2000 (x, y, z).
+            // We need to map this to Scene vector.
+            // v_scene.x = v_ecl.x
+            // v_scene.y = v_ecl.z  <-- Z is Up in Physics? No, Z is Angular Momentum (Normal to Ecliptic).
+            //                         Wait, "Ecliptic J2000" usually has Z pointing to Ecliptic North Pole.
+            //                         So (0,0,1) Ecliptic is Normal.
+            //                         In Scene, Y is Up. So (0,1,0) should act as Normal.
+            //                         So v_ecl.z -> v_scene.y.
+            // v_scene.z = -v_ecl.y <-- Y in Ecliptic is in plane. Maps to Scene -Z.
+
+            const target = new THREE.Vector3(pd.x, pd.z, -pd.y).normalize();
+            return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), target);
+        }
+
+        // Legacy fallback
+        return new THREE.Quaternion().setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(-(data.axialTilt || 0)), 0, 0));
+    }, [data.axialTilt, data.poleDirection]);
 
     return (
         <>
@@ -538,7 +558,7 @@ const Planet: React.FC<PlanetProps> = ({
             )}
 
             <group ref={groupRef}>
-                <group rotation={tiltRotation}>
+                <group quaternion={tiltQuaternion}>
                     {/* Atmosphere Mesh (Outer Shell) */}
                     {hasAtmosphere && !isMoon && (
                         <mesh ref={atmMeshRef}>

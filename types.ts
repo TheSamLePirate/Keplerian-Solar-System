@@ -29,6 +29,7 @@ export interface PlanetData {
   period: number; // Orbital period in Earth years
   rotationPeriod: number; // Sidereal rotation period in hours (Earth = 23.93)
   axialTilt: number; // Obliquity to orbit in degrees (Earth = 23.44)
+  poleDirection?: { x: number, y: number, z: number }; // Ecliptic J2000 Vector of North Pole
   rotationOffset?: number; // Initial rotation angle in radians (e.g. GMST for Earth)
   type: BodyType;
   moons?: PlanetData[];

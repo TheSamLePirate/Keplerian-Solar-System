@@ -43,6 +43,7 @@ const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small' }) =
         <primitive
             object={clonedScene}
             scale={[scale, scale, scale]}
+            rotation={modelType === 'big' ? [Math.PI / 2, 0, 0] : [0, 0, 0]}
         />
     );
 };
