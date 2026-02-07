@@ -35,6 +35,14 @@ The simulation maps standard orbital physics coordinates to Three.js 3D space:
 **Axial Tilt Correction**:
 Standard planetary tilt values (e.g., Earth's 23.44°) are defined relative to the Ecliptic North Pole. In the 3D scene, to align the seasons correctly (where the North Pole leans towards the Sun at Summer Solstice), the tilt rotation is applied as a **negative** rotation around the X-axis: `rotation.x = -axialTilt`. This ensures that at Longitude $\approx 270^\circ$ (Solstice), the Northern Hemisphere is illuminated.
 
+**Mapping Ecliptic Pole to Scene Frame**:
+The Ecliptic North Pole vector from Skyfield (in J2000 frame) is mapped to the Scene frame as follows:
+- **Ecliptic X** $\rightarrow$ **Scene X (Right)**
+- **Ecliptic Z** $\rightarrow$ **Scene Y (Up)**
+- **Ecliptic Y** $\rightarrow$ **Scene Z (Depth)**
+
+*Note on Sign Convention*: Previously, the Z-component was inverted (`-Ecliptic Y`), which caused the planet's axis to tilt *away* from the camera's up vector (which is also tilted by $\approx 23^\circ$ relative to the Ecliptic Normal). This resulted in a "double tilt" effect. The correct mapping maintains the sign (`+Ecliptic Y` $\rightarrow$ `Scene Z`) so that the planet's axis aligns with the camera's orientation.
+
 ### Relative Positioning (Scene Graph)
 The system uses a hierarchical Scene Graph (parent-child relationships):
 1. **Universe Center**: $(0,0,0)$ (The Sun).

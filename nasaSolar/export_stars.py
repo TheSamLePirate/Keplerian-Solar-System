@@ -8,7 +8,7 @@ import pandas as pd
 import math
 
 OUTPUT_FILE = "../data/stars.json"
-MAGNITUDE_LIMIT = 10.0
+MAGNITUDE_LIMIT = 12.0
 
 def main():
     print("Loading Hipparcos catalog...")

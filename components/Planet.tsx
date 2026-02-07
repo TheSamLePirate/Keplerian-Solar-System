@@ -575,7 +575,7 @@ const Planet: React.FC<PlanetProps> = ({
             //                         So v_ecl.z -> v_scene.y.
             // v_scene.z = -v_ecl.y <-- Y in Ecliptic is in plane. Maps to Scene -Z.
 
-            const target = new THREE.Vector3(pd.x, pd.z, -pd.y).normalize();
+            const target = new THREE.Vector3(pd.x, pd.z, pd.y).normalize();
             return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), target);
         }
 
