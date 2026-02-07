@@ -57,12 +57,19 @@ vec3 calculateGravity(vec3 pos) {
 
     // Add Centrifugal Force if Rotating Frame (Effective Potential)
     if (uShowEffective) {
-        // F_centrifugal = omega^2 * r_from_center
-        // Direction is OUTWARDS from center (0,0,0) -> pos
-        // Magnitude is omega^2 * dist
-        // Vector = normalize(pos) * (omega^2 * length(pos)) = pos * omega^2
-        // ONLY applies to x,z components (planar rotation)
-        vec3 centrifugal = vec3(pos.x, 0.0, pos.z) * (uOmega * uOmega);
+        // F_centrifugal = omega^2 * r_from_axis
+        // Ecliptic Axis (Up) in World Space: (0, cos(eps), sin(eps))
+        float eps = 23.43928 * 3.14159265359 / 180.0;
+        vec3 axis = normalize(vec3(0.0, cos(eps), sin(eps)));
+        
+        // Vector from pos to nearest point on axis
+        // r_vec = pos - axis * dot(pos, axis)
+        float projection = dot(pos, axis);
+        vec3 r_vec = pos - axis * projection;
+        
+        // Direction is OUTWARDS from axis
+        // Force = r_vec * omega^2
+        vec3 centrifugal = r_vec * (uOmega * uOmega);
         g += centrifugal; 
     }
     
@@ -285,9 +292,17 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
 
     if (!visible) return null;
 
+    // Ecliptic Tilt (Obliquity)
+    const EPSILON = 23.43928 * (Math.PI / 180);
+    // Align Ecliptic Plane: Standard plane is XY. Rx(-90) makes it XZ (Equatorial).
+    // To align with Ecliptic, we rotate it 'up' by Epsilon.
+    // Ecliptic Pole is (0, cos(eps), sin(eps)).
+    // Rotation: -90 + 23.44 degrees.
+    const rotationX = -Math.PI / 2 + EPSILON;
+
     return (
-        <mesh ref={meshRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, yOffset, 0]}>
-            <planeGeometry args={[planeSize * AU_SCALE, planeSize * AU_SCALE, 64, 64]} />
+        <mesh ref={meshRef} rotation={[rotationX, 0, 0]} position={[0, yOffset, 0]}>
+            <planeGeometry args={[planeSize * AU_SCALE, planeSize * AU_SCALE, 128, 128]} />
             <shaderMaterial
                 ref={materialRef}
                 vertexShader={vertexShader}

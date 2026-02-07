@@ -429,25 +429,35 @@ const GravityParticles: React.FC<GravityParticlesProps> = ({ visible, timeRef, s
             }
 
             const phi = (Math.random() - 0.5) * 0.1; // Small inclination
+            //const r = (beltType < 0.5 && beltType >= 0) ? (1.0 + Math.random() * 4.2) * AU_SCALE // Inner System logic was upstream, let's just assume r/theta are set correctly by loops above.
+            //    : r; // Wait, r is defined in the block above.
 
-            // Relative Position
+            // Re-calculate x, y, z based on r, theta, phi derived above
             const x = r * Math.cos(theta);
             const y = r * Math.sin(phi);
             const z = r * Math.sin(theta);
 
+            // Apply Ecliptic Tilt to Relative Position (Simulated in Ecliptic, Transformed to Equatorial)
+            const eps = 23.43928 * (Math.PI / 180);
+            const cosE = Math.cos(eps);
+            const sinE = Math.sin(eps);
+
+            // Rotate (x, y, z) to Equatorial
+            const y_eq = y * cosE - z * sinE;
+            const z_eq = y * sinE + z * cosE;
+
             posArray[k + 0] = centerPos.x + x;
-            posArray[k + 1] = centerPos.y + y;
-            posArray[k + 2] = centerPos.z + z;
+            posArray[k + 1] = centerPos.y + y_eq;
+            posArray[k + 2] = centerPos.z + z_eq;
             posArray[k + 3] = Math.random() * 10; // Life
 
             // Keplerian Velocity
-            // v = sqrt(GM / r)
             const dist = Math.sqrt(x * x + y * y + z * z);
             const v = Math.sqrt(mass / dist);
 
-            // Tangent Vector (cross product with up vector)
-            const relPos = new THREE.Vector3(x, y, z);
-            const up = new THREE.Vector3(0, 1, 0);
+            // Tangent Vector
+            const relPos = new THREE.Vector3(x, y_eq, z_eq); // This is in Equatorial
+            const up = new THREE.Vector3(0, cosE, sinE).normalize();
             const tangent = new THREE.Vector3().crossVectors(up, relPos).normalize();
 
             // Apply Velocity
