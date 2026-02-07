@@ -205,6 +205,7 @@ const Planet: React.FC<PlanetProps> = ({
     const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
     const atmMeshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
+    const isInsideAtmosphereRef = useRef(false);
 
     const isFocused = data.id === focusedBodyId;
 
@@ -534,6 +535,20 @@ const Planet: React.FC<PlanetProps> = ({
 
             // Write LOD info to module-level store for UI display
             planetLodStore.set(data.id, { samples: lodSamples, apparentSize });
+
+            // Check if camera is inside atmosphere
+            // We can use the already calculated distance (camera to center of planet [approx if atm center is same])
+            const isInside = distance < atmRadius;
+
+            // Update material props synchronously to avoid frame lag/flicker
+            if (isInside !== isInsideAtmosphereRef.current) {
+                isInsideAtmosphereRef.current = isInside;
+                // side is always DoubleSide now
+                // Disable depthTest when inside so we see the atmosphere "fog" over the planet surface
+                // regardless of Z-buffer (since atmosphere is behind planet surface when rendering BackSide)
+                atmMaterialRef.current.depthTest = !isInside;
+                atmMaterialRef.current.needsUpdate = true;
+            }
         }
     });
 
@@ -594,7 +609,7 @@ const Planet: React.FC<PlanetProps> = ({
                                 fragmentShader={AtmosphereMaterial.fragmentShader}
                                 uniforms={uniforms}
                                 blending={THREE.AdditiveBlending}
-                                side={THREE.FrontSide}
+                                side={THREE.DoubleSide}
                                 transparent
                                 depthWrite={false}
                             />
