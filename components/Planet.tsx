@@ -558,24 +558,28 @@ const Planet: React.FC<PlanetProps> = ({
     const tiltQuaternion = useMemo(() => {
         if (data.poleDirection) {
             const pd = data.poleDirection;
-            // Ecliptic coordinates (x, y, z) map to Scene coordinates (x, z, -y)
-            // Physics Z (Up) maps to Scene Y (Up).
-            // Wait, let's verify mapping in "Physic and coordinates.md":
-            // "Z (Angular Momentum) | Y | Up"
-            // "Y (Orbital Plane) | -Z | Depth"
-            // "X (Perihelion) | X | Right"
 
-            // Our get_pole_vector returns Ecliptic J2000 (x, y, z).
-            // We need to map this to Scene vector.
-            // v_scene.x = v_ecl.x
-            // v_scene.y = v_ecl.z  <-- Z is Up in Physics? No, Z is Angular Momentum (Normal to Ecliptic).
-            //                         Wait, "Ecliptic J2000" usually has Z pointing to Ecliptic North Pole.
-            //                         So (0,0,1) Ecliptic is Normal.
-            //                         In Scene, Y is Up. So (0,1,0) should act as Normal.
-            //                         So v_ecl.z -> v_scene.y.
-            // v_scene.z = -v_ecl.y <-- Y in Ecliptic is in plane. Maps to Scene -Z.
+            // Coordinate Transformation: Ecliptic -> Scene (Equatorial)
+            // The physics engine outputs positions rotated to the Equatorial Frame (where Y is Cel. North).
+            // 'poleDirection' is given in J2000 Ecliptic coordinates.
+            // We must apply the same rotation to the pole vector to align it with the Scene axes.
 
-            const target = new THREE.Vector3(pd.x, pd.z, pd.y).normalize();
+            const obliquity = 23.43928 * (Math.PI / 180); // Earth's obliquity
+            const cosE = Math.cos(obliquity);
+            const sinE = Math.sin(obliquity);
+
+            // Map Ecliptic (x, y, z_pole) to Physics Vector input
+            // Physics: z_ecl_phys = -y_data; y_ecl_phys = z_data (Pole)
+            const y_ecl = pd.z;
+            const z_ecl = -pd.y;
+
+            // Rotate around X (Equinox) to Equatorial
+            const y_eq = y_ecl * cosE - z_ecl * sinE;
+            const z_eq = y_ecl * sinE + z_ecl * cosE;
+
+            // Construct target vector in Scene Space (X, Y=Up, Z=Depth)
+            const target = new THREE.Vector3(pd.x, y_eq, z_eq).normalize();
+
             return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), target);
         }
 
