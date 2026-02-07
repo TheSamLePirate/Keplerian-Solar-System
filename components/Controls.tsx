@@ -49,6 +49,8 @@ interface ControlsProps {
     setShowConstellations: (v: boolean) => void;
     showCelestialGrid: boolean;
     setShowCelestialGrid: (v: boolean) => void;
+    showEarthGrid: boolean;
+    setShowEarthGrid: (v: boolean) => void;
     gridMode: 'equatorial' | 'ecliptic';
     setGridMode: (m: 'equatorial' | 'ecliptic') => void;
     cameraMode: 'equatorial' | 'ecliptic';
@@ -207,6 +209,7 @@ const Controls: React.FC<ControlsProps> = ({
     starSaturation, setStarSaturation,
     showConstellations, setShowConstellations,
     showCelestialGrid, setShowCelestialGrid,
+    showEarthGrid, setShowEarthGrid,
     gridMode, setGridMode,
     cameraMode, setCameraMode,
     issModel, setIssModel,
@@ -465,6 +468,7 @@ const Controls: React.FC<ControlsProps> = ({
                     <div className="pt-1 mt-1 border-t border-white/5">
                         <Toggle label="Show Constellations" checked={showConstellations} onChange={setShowConstellations} />
                         <Toggle label="Show Celestial Grid" checked={showCelestialGrid} onChange={setShowCelestialGrid} />
+                        <Toggle label="Show Earth Grid" checked={showEarthGrid} onChange={setShowEarthGrid} />
                         {showCelestialGrid && (
                             <div className="flex gap-1 mt-1">
                                 <button

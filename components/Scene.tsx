@@ -103,6 +103,7 @@ interface SceneContentProps {
     gravityShowEffective: boolean;
     showConstellations: boolean;
     showCelestialGrid: boolean;
+    showEarthGrid: boolean;
     gridMode: 'equatorial' | 'ecliptic';
     cameraMode: 'equatorial' | 'ecliptic';
 }
@@ -135,7 +136,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
     gravityVisible, gravityOpacity, gravityMin, gravityMax, gravityIntensityPow, gravityDirectionSat, gravityShowDirection, gravityPlaneSize, gravityYOffset, gravityParticlesVisible,
     gravityShowContours, gravityContourFreq, gravityExcludeSun, gravityEquilibriumThreshold, gravityShowEffective, gravityShowEquilibrium,
-    showConstellations, showCelestialGrid, gridMode, cameraMode
+    showConstellations, showCelestialGrid, showEarthGrid, gridMode, cameraMode
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
@@ -441,6 +442,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     atmSamples={atmSamples}
                     issModel={issModel}
                     focusedBodyId={isFollowing && followingBody ? followingBody.id : null}
+                    showEarthGrid={showEarthGrid}
                 />
             ))}
 

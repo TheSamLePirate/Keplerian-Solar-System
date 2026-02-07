@@ -27,6 +27,7 @@ interface PlanetProps {
     atmSamples?: number;
     issModel?: 'small' | 'big';
     focusedBodyId?: string | null;
+    showEarthGrid?: boolean;
 }
 
 // ... (AtmosphereMaterial definition remains unchanged - strict overwrite not needed if outside chunk but this is replace_file_content so I need to target specific chunks)
@@ -197,7 +198,8 @@ const Planet: React.FC<PlanetProps> = ({
     atmPow = 4.0,
     atmSamples = 32,
     issModel = 'small',
-    focusedBodyId = null
+    focusedBodyId = null,
+    showEarthGrid = false
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
@@ -312,58 +314,75 @@ const Planet: React.FC<PlanetProps> = ({
 
     // Grid Texture Generation
     const gridTexture = useMemo(() => {
-        if (data.id !== 'earth') return null;
+        if (data.id !== 'earth' || !showEarthGrid) return null;
 
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
+        canvas.width = 2048; // Increased resolution for finer grid
+        canvas.height = 1024;
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
 
         // Transparent background
         ctx.fillStyle = 'rgba(0,0,0,0)';
-        ctx.fillRect(0, 0, 1024, 512);
+        ctx.fillRect(0, 0, 2048, 1024);
 
         // Grid lines
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2;
 
-        // Longitude lines (every 30 degrees)
-        for (let i = 0; i <= 12; i++) {
-            const x = (i / 12) * 1024;
+        const w = 2048;
+        const h = 1024;
+
+        // Longitude lines (every 15 degrees)
+        // 360 / 15 = 24 segments
+        for (let i = 0; i <= 24; i++) {
+            const x = (i / 24) * w;
             ctx.beginPath();
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, 512);
+            ctx.lineTo(x, h);
             ctx.stroke();
 
             // Labels
-            if (i < 12) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.font = '12px Arial';
-                ctx.fillText(`${i * 30}°`, x + 5, 256);
+            if (i <= 24) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '24px Arial';
+                let lon = (i * 15) - 180;
+                // Normalize 180 to -180 if needed, or keep as 180. Actually -180 and 180 are same line.
+                // Let's keep it simple: -180 to 180.
+
+                // Add text shadow for better visibility
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`${lon}°`, x + 5, h / 2); // Equator
+                ctx.shadowBlur = 0;
             }
         }
 
-        // Latitude lines (every 30 degrees)
-        for (let i = 0; i <= 6; i++) {
-            const y = (i / 6) * 512;
+        // Latitude lines (every 15 degrees)
+        // 180 / 15 = 12 segments
+        for (let i = 0; i <= 12; i++) {
+            const y = (i / 12) * h;
             ctx.beginPath();
             ctx.moveTo(0, y);
-            ctx.lineTo(1024, y);
+            ctx.lineTo(w, y);
             ctx.stroke();
 
             // Labels
-            if (i > 0 && i < 6) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                ctx.font = '12px Arial';
-                const lat = 90 - (i * 30);
-                ctx.fillText(`${lat}°`, 512, y - 5);
+            if (i > 0 && i < 12) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '24px Arial';
+                const lat = 90 - (i * 15);
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`${lat}°`, w / 2, y - 5); // Prime Meridian
+                ctx.shadowBlur = 0;
             }
         }
 
         const texture = new THREE.CanvasTexture(canvas);
+        texture.anisotropy = 16;
         return texture;
-    }, [data.id]);
+    }, [data.id, showEarthGrid]);
 
 
 
@@ -660,7 +679,7 @@ const Planet: React.FC<PlanetProps> = ({
                             {loadedTextures.map ? (
                                 <meshPhongMaterial
                                     color="white"
-                                    map={loadedTextures.map || gridTexture || undefined}
+                                    map={loadedTextures.map || undefined}
                                     normalMap={loadedTextures.normal || undefined}
                                     normalScale={new THREE.Vector2(1, 1)}
                                     specularMap={loadedTextures.specular || undefined}
@@ -673,6 +692,20 @@ const Planet: React.FC<PlanetProps> = ({
                                     map={undefined}
                                     normalMap={undefined}
                                 />
+                            )}
+
+                            {/* Grid Overlay */}
+                            {gridTexture && (
+                                <mesh>
+                                    <sphereGeometry args={[size * 1.002, 64, 64]} />
+                                    <meshBasicMaterial
+                                        map={gridTexture}
+                                        transparent
+                                        opacity={0.8}
+                                        side={THREE.FrontSide}
+                                        depthWrite={false} // Prevent Z-fighting with atmosphere
+                                    />
+                                </mesh>
                             )}
 
                             {/* Ring System */}

@@ -57,6 +57,7 @@ const App: React.FC = () => {
     const [showConstellations, setShowConstellations] = useState(false);
     const [showCelestialGrid, setShowCelestialGrid] = useState(false);
     const [gridMode, setGridMode] = useState<'equatorial' | 'ecliptic'>('equatorial');
+    const [showEarthGrid, setShowEarthGrid] = useState(false);
     const [cameraMode, setCameraMode] = useState<'equatorial' | 'ecliptic'>('equatorial');
 
 
@@ -289,6 +290,7 @@ const App: React.FC = () => {
                 gravityShowEffective={gravityShowEffective}
                 showConstellations={showConstellations}
                 showCelestialGrid={showCelestialGrid}
+                showEarthGrid={showEarthGrid}
                 gridMode={gridMode}
                 cameraMode={cameraMode}
             />
@@ -439,6 +441,7 @@ const App: React.FC = () => {
                                     gravityShowEquilibrium={gravityShowEquilibrium} setGravityShowEquilibrium={setGravityShowEquilibrium}
                                     gravityEquilibriumThreshold={gravityEquilibriumThreshold} setGravityEquilibriumThreshold={setGravityEquilibriumThreshold}
                                     gravityShowEffective={gravityShowEffective} setGravityShowEffective={setGravityShowEffective}
+                                    showEarthGrid={showEarthGrid} setShowEarthGrid={setShowEarthGrid}
                                     accordionState={accordionState}
                                     toggleAccordion={toggleAccordion}
                                     date={simTime}
