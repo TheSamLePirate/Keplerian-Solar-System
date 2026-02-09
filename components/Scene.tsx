@@ -302,6 +302,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   const transitionStartCamPos = useRef(new THREE.Vector3());
   const transitionStartTarget = useRef(new THREE.Vector3());
   const prevFollowId = useRef<string | null>(null);
+  const prevFollowRadius = useRef(1); // radius of the previously followed body
 
   const prevResetCam = useRef(resetCameraTrigger);
 
@@ -374,6 +375,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         transitionStartCamPos.current.copy(camera.position);
         transitionStartTarget.current.copy(controlsRef.current.target);
         prevFollowId.current = currentFollowId;
+        // Store previous body radius so we can scale offset for the new body
+        prevFollowRadius.current = Math.max(prevFollowRadius.current, 0.01);
       }
 
       const targetPos = _targetPos.current.set(0, 0, 0);
@@ -441,15 +444,19 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           1,
           transitionProgress.current + delta * cameraTransitionSpeed,
         );
-        // Smooth easing (ease-out cubic)
+        // Smooth easing (ease-in-out cubic: smooth start + smooth end)
         const t = transitionProgress.current;
-        const ease = 1 - Math.pow(1 - t, 3);
+        const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-        // Desired camera offset from body (maintain same relative view distance)
+        // Scale camera offset by ratio of new body radius to old body radius
+        // so we don't end up inside a larger body
+        const radiusRatio =
+          Math.max(followingBody.radius, 0.01) / prevFollowRadius.current;
         const desiredCamOffset = _deltaPos.current
           .copy(transitionStartCamPos.current)
-          .sub(transitionStartTarget.current);
-        const desiredCamPos = _parentPos.current
+          .sub(transitionStartTarget.current)
+          .multiplyScalar(radiusRatio);
+        const desiredCamPos = _childPos.current
           .copy(targetPos)
           .add(desiredCamOffset);
 
@@ -466,7 +473,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         );
         prevTargetPos.current.copy(controlsRef.current.target);
       } else {
-        // Arrived — normal follow: maintain relative offset
+        // Arrived — update stored radius for next transition
+        prevFollowRadius.current = followingBody.radius;
+        // Normal follow: maintain relative offset
         controlsRef.current.target.copy(targetPos);
 
         const deltaPos = _deltaPos.current

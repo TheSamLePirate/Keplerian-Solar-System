@@ -125,11 +125,11 @@ const Controls: React.FC<ControlsProps> = ({
           <Slider
             label="Transition Speed"
             value={s.cameraTransitionSpeed}
-            min={0.5}
-            max={10}
-            step={0.5}
+            min={0.01}
+            max={2}
+            step={0.01}
             onChange={(v) => set("cameraTransitionSpeed", v)}
-            format={(v) => v.toFixed(1)}
+            format={(v) => v.toFixed(2)}
           />
         </div>
 

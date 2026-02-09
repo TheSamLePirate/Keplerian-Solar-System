@@ -88,7 +88,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aoScreenSpace: false,
 
   // Camera
-  cameraTransitionSpeed: 2.0,
+  cameraTransitionSpeed: 1.0,
 
   // Gravity Field
   gravityVisible: false,
