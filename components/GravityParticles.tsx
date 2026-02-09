@@ -1,10 +1,9 @@
-
-import React, { useMemo, useRef, useEffect } from 'react';
-import { useFrame, useThree, extend, createPortal } from '@react-three/fiber';
-import * as THREE from 'three';
-import { GPUComputationRenderer } from 'three/examples/jsm/misc/GPUComputationRenderer.js';
-import { PLANETS, MOON_ORBIT_SCALE, AU_SCALE } from '../constants';
-import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
+import React, { useMemo, useRef, useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
+import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRenderer.js";
+import { PLANETS, AU_SCALE } from "../constants";
+import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 
 // --- Simulation Shaders (Position & Velocity) ---
 
@@ -273,313 +272,415 @@ uniform sampler2D texturePosition;
 uniform sampler2D textureVelocity;
 varying vec3 vVelocity;
 varying float vLife;
+varying vec3 vWorldPos;
+varying float vSeed;
 
 void main() {
-    vec4 posTex = texture2D(texturePosition, position.xy); // Access texture using UV coords stored in position.xy (buffer geometry)
+    vec4 posTex = texture2D(texturePosition, position.xy);
     vec4 velTex = texture2D(textureVelocity, position.xy);
-    
+
     vec3 pos = posTex.xyz;
     vVelocity = velTex.xyz;
     vLife = posTex.w;
+    vWorldPos = pos;
+    // Unique seed per particle for shape variation
+    vSeed = fract(sin(dot(position.xy, vec2(12.9898, 78.233))) * 43758.5453);
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    
+
     // Size attenuation
     gl_PointSize = (2.0 / -mvPosition.z) * 100.0;
-    gl_PointSize = clamp(gl_PointSize, 1.0, 5.0);
+    gl_PointSize = clamp(gl_PointSize, 0.5, 50.0);
 }
 `;
 
 const renderFragmentShader = `
 varying vec3 vVelocity;
 varying float vLife;
+varying vec3 vWorldPos;
+varying float vSeed;
+
+// Cheap hash-based noise
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f); // smoothstep
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
 
 void main() {
-    // Circle shape
     vec2 coord = gl_PointCoord - vec2(0.5);
-    if(length(coord) > 0.5) discard;
-    
-    // Color based on velocity speed
-    float speed = length(vVelocity);
-    vec3 color = mix(vec3(0.2, 0.5, 1.0), vec3(1.0, 0.8, 0.5), smoothstep(0.0, 0.5, speed));
-    
-    // Fade out
-    float alpha = smoothstep(0.0, 1.0, vLife);
-    
-    gl_FragColor = vec4(color, alpha * 0.8);
+    float dist = length(coord);
+
+    // Per-particle seed offsets the noise so each rock looks unique
+    float seed = vSeed * 100.0;
+    float angle = atan(coord.y, coord.x);
+
+    // Irregular rocky silhouette: distort the edge radius with layered noise
+    float rough = noise(vec2(angle * 2.5 + seed, seed)) * 0.18
+                + noise(vec2(angle * 5.0 + seed * 2.0, seed + 7.0)) * 0.09;
+    float edgeRadius = 0.38 + rough; // varies ~0.38 to 0.65
+
+    if(dist > edgeRadius) discard;
+
+    // Fake sphere normal, then perturb it for rocky surface bumps
+    float r2 = dist / edgeRadius; // normalized radius 0..1
+    float z = sqrt(max(0.0, 1.0 - r2 * r2));
+    vec3 normal = normalize(vec3(coord / edgeRadius, z));
+
+    // Bump the normal with noise for craggy surface detail
+    float bumpScale = 0.4;
+    float n1 = noise(vec2(coord * 12.0 + seed));
+    float n2 = noise(vec2(coord * 12.0 + seed) + vec2(0.1, 0.0));
+    float n3 = noise(vec2(coord * 12.0 + seed) + vec2(0.0, 0.1));
+    vec3 bumpNormal = normalize(normal + vec3((n2 - n1), (n3 - n1), 0.0) * bumpScale);
+
+    // Light direction: toward Sun (origin)
+    vec3 lightDir = normalize(-vWorldPos);
+
+    // Diffuse + ambient
+    float diffuse = max(dot(bumpNormal, lightDir), 0.0);
+    float lighting = 0.15 + 0.85 * diffuse;
+
+    // Rocky grey-brown base color, varied per particle
+    vec3 baseColor = mix(
+        vec3(0.35, 0.30, 0.25), // dark rock
+        vec3(0.55, 0.50, 0.42), // lighter rock
+        vSeed
+    );
+    // Subtle surface color variation from noise
+    float colorNoise = noise(vec2(coord * 8.0 + seed + 50.0));
+    baseColor *= 0.85 + 0.3 * colorNoise;
+
+    vec3 color = baseColor * lighting;
+
+    // Warm sun tint on lit side
+    color += vec3(0.12, 0.06, 0.01) * diffuse;
+
+    // Soft edge darkening (limb darkening)
+    float limb = 1.0 - smoothstep(0.6, 1.0, r2);
+    color *= 0.7 + 0.3 * limb;
+
+    gl_FragColor = vec4(color, 1.0);
 }
 `;
 
-
 interface GravityParticlesProps {
-    visible: boolean;
-    timeRef: React.MutableRefObject<number>;
-    speed: number;
-    paused: boolean;
+  visible: boolean;
+  timeRef: React.MutableRefObject<number>;
+  speed: number;
+  paused: boolean;
 }
 
-const GravityParticles: React.FC<GravityParticlesProps> = ({ visible, timeRef, speed, paused }) => {
-    const { gl, size } = useThree();
-    const gpuCompute = useRef<any>(null);
-    const velocityVariable = useRef<any>(null);
-    const positionVariable = useRef<any>(null);
-    const pointsRef = useRef<THREE.Points>(null);
-    const materialRef = useRef<THREE.ShaderMaterial>(null);
+const GravityParticles: React.FC<GravityParticlesProps> = ({
+  visible,
+  timeRef,
+  speed,
+  paused,
+}) => {
+  const { gl } = useThree();
+  const gpuCompute = useRef<any>(null);
+  const velocityVariable = useRef<any>(null);
+  const positionVariable = useRef<any>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
 
-    const WIDTH = 450; // Sqrt(202,500) approx -> 200k+ particles
+  const WIDTH = 450; // Sqrt(202,500) approx -> 200k+ particles
 
-    useEffect(() => {
-        // Initialize GPU Compute
-        const gpu = new GPUComputationRenderer(WIDTH, WIDTH, gl);
+  useEffect(() => {
+    // Initialize GPU Compute
+    const gpu = new GPUComputationRenderer(WIDTH, WIDTH, gl);
 
-        // Force High Precision Floats to prevent overflow/underflow in scaled physics
-        gpu.setDataType(THREE.FloatType);
+    // Force High Precision Floats to prevent overflow/underflow in scaled physics
+    gpu.setDataType(THREE.FloatType);
 
-        const dtPosition = gpu.createTexture();
-        const dtVelocity = gpu.createTexture();
+    const dtPosition = gpu.createTexture();
+    const dtVelocity = gpu.createTexture();
 
-        // Fill initial data
-        fillTextures(dtPosition, dtVelocity);
+    // Fill initial data
+    fillTextures(dtPosition, dtVelocity);
 
-        velocityVariable.current = gpu.addVariable("textureVelocity", velocityShader, dtVelocity);
-        positionVariable.current = gpu.addVariable("texturePosition", positionShader, dtPosition);
+    velocityVariable.current = gpu.addVariable(
+      "textureVelocity",
+      velocityShader,
+      dtVelocity,
+    );
+    positionVariable.current = gpu.addVariable(
+      "texturePosition",
+      positionShader,
+      dtPosition,
+    );
 
-        gpu.setVariableDependencies(velocityVariable.current, [positionVariable.current, velocityVariable.current]);
-        gpu.setVariableDependencies(positionVariable.current, [positionVariable.current, velocityVariable.current]);
+    gpu.setVariableDependencies(velocityVariable.current, [
+      positionVariable.current,
+      velocityVariable.current,
+    ]);
+    gpu.setVariableDependencies(positionVariable.current, [
+      positionVariable.current,
+      velocityVariable.current,
+    ]);
 
-        // Initialize Custom Uniforms
-        const velUniforms = velocityVariable.current.material.uniforms;
-        const posUniforms = positionVariable.current.material.uniforms;
+    // Initialize Custom Uniforms
+    const velUniforms = velocityVariable.current.material.uniforms;
+    const posUniforms = positionVariable.current.material.uniforms;
 
-        velUniforms['uTime'] = { value: 0.0 };
-        velUniforms['uDelta'] = { value: 0.0 };
-        velUniforms['uBodiesPos'] = { value: new Float32Array(150) };
-        velUniforms['uBodiesMass'] = { value: new Float32Array(50) };
-        velUniforms['uBodyCount'] = { value: 50 };
+    velUniforms["uTime"] = { value: 0.0 };
+    velUniforms["uDelta"] = { value: 0.0 };
+    velUniforms["uBodiesPos"] = { value: new Float32Array(150) };
+    velUniforms["uBodiesMass"] = { value: new Float32Array(50) };
+    velUniforms["uBodyCount"] = { value: 50 };
 
-        posUniforms['uTime'] = { value: 0.0 };
-        posUniforms['uDelta'] = { value: 0.0 };
-        posUniforms['uBodiesPos'] = { value: new Float32Array(150) };
-        posUniforms['uBodiesMass'] = { value: new Float32Array(50) };
-        posUniforms['uBodyCount'] = { value: 0 };
+    posUniforms["uTime"] = { value: 0.0 };
+    posUniforms["uDelta"] = { value: 0.0 };
+    posUniforms["uBodiesPos"] = { value: new Float32Array(150) };
+    posUniforms["uBodiesMass"] = { value: new Float32Array(50) };
+    posUniforms["uBodyCount"] = { value: 0 };
 
-        const error = gpu.init();
-        if (error !== null) {
-            console.error(error);
-        }
-
-        gpuCompute.current = gpu;
-
-    }, [gl]);
-
-    function fillTextures(texturePosition: THREE.DataTexture, textureVelocity: THREE.DataTexture) {
-        const posArray = texturePosition.image.data;
-        const velArray = textureVelocity.image.data;
-
-        // Pre-calculate body positions at t=0 (or current time) for initialization
-        const time = timeRef.current;
-        const bodyPositions: THREE.Vector3[] = [];
-        const bodyMasses: number[] = [];
-
-        // Sun
-        bodyPositions.push(new THREE.Vector3(0, 0, 0));
-        bodyMasses.push(0.0002959122082855911 * 2500.0 * AU_SCALE);
-
-        PLANETS.forEach(p => {
-            const [x, y, z] = calculateOrbitalPositionWithPeriod(p.elements, time, p.period);
-            bodyPositions.push(new THREE.Vector3(x, y, z));
-            bodyMasses.push(p.mass * 2500.0 * AU_SCALE);
-        });
-
-        for (let k = 0, kl = posArray.length; k < kl; k += 4) {
-            // Force Sun Orbit
-            const bodyIdx = 0;
-            const centerPos = bodyPositions[bodyIdx];
-            const mass = bodyMasses[bodyIdx];
-
-            // Random Radius & Angle: Real Asteroid Belts + Trojans
-            let r, theta;
-            const rand = Math.random();
-
-            if (rand < 0.5) {
-                // NEW: Inner System Swarm (50%) - Earth (1.0) to Jupiter (5.2)
-                r = (1.0 + Math.random() * 4.2) * AU_SCALE;
-                theta = Math.random() * Math.PI * 2;
-            } else if (rand < 0.75) {
-                // Trojans (25%)
-                const jupPos = bodyPositions[5]; // Already scaled
-                const jupTheta = Math.atan2(jupPos.z, jupPos.x);
-
-                // Use Jupiter's actual distance + random offset (0.5 AU visual spread)
-                const jupDist = new THREE.Vector3(jupPos.x, jupPos.y, jupPos.z).length();
-                r = jupDist + (Math.random() - 0.5) * 1.0 * AU_SCALE;
-
-                const offset = (Math.random() < 0.5 ? 1.047 : -1.047);
-                const spread = (Math.random() - 0.5) * 0.5;
-                theta = jupTheta + offset + spread;
-            } else if (rand < 0.95) {
-                // Main Belt (20%): 2.1 - 3.3 AU
-                r = (2.1 + Math.random() * 1.2) * AU_SCALE;
-                theta = Math.random() * Math.PI * 2;
-            } else {
-                // Kuiper Belt (5%): 30.0 - 50.0 AU
-                r = (30.0 + Math.random() * 20.0) * AU_SCALE;
-                theta = Math.random() * Math.PI * 2;
-            }
-
-            const phi = (Math.random() - 0.5) * 0.1; // Small inclination
-            //const r = (beltType < 0.5 && beltType >= 0) ? (1.0 + Math.random() * 4.2) * AU_SCALE // Inner System logic was upstream, let's just assume r/theta are set correctly by loops above.
-            //    : r; // Wait, r is defined in the block above.
-
-            // Re-calculate x, y, z based on r, theta, phi derived above
-            const x = r * Math.cos(theta);
-            const y = r * Math.sin(phi);
-            const z = r * Math.sin(theta);
-
-            // Apply Ecliptic Tilt to Relative Position (Simulated in Ecliptic, Transformed to Equatorial)
-            const eps = 23.43928 * (Math.PI / 180);
-            const cosE = Math.cos(eps);
-            const sinE = Math.sin(eps);
-
-            // Rotate (x, y, z) to Equatorial
-            const y_eq = y * cosE - z * sinE;
-            const z_eq = y * sinE + z * cosE;
-
-            posArray[k + 0] = centerPos.x + x;
-            posArray[k + 1] = centerPos.y + y_eq;
-            posArray[k + 2] = centerPos.z + z_eq;
-            posArray[k + 3] = Math.random() * 10; // Life
-
-            // Keplerian Velocity
-            const dist = Math.sqrt(x * x + y * y + z * z);
-            const v = Math.sqrt(mass / dist);
-
-            // Tangent Vector
-            const relPos = new THREE.Vector3(x, y_eq, z_eq); // This is in Equatorial
-            const up = new THREE.Vector3(0, cosE, sinE).normalize();
-            const tangent = new THREE.Vector3().crossVectors(up, relPos).normalize();
-
-            // Apply Velocity
-            velArray[k + 0] = tangent.x * v;
-            velArray[k + 1] = tangent.y * v;
-            velArray[k + 2] = tangent.z * v;
-            velArray[k + 3] = 1;
-        }
+    const error = gpu.init();
+    if (error !== null) {
+      console.error(error);
     }
 
-    // Geometry for Points
-    const geometry = useMemo(() => {
-        const geom = new THREE.BufferGeometry();
-        const positions = new Float32Array(WIDTH * WIDTH * 3);
-        const uvs = new Float32Array(WIDTH * WIDTH * 2);
+    gpuCompute.current = gpu;
+  }, [gl]);
 
-        let p = 0;
-        for (let j = 0; j < WIDTH; j++) {
-            for (let i = 0; i < WIDTH; i++) {
-                uvs[p++] = i / (WIDTH - 1);
-                uvs[p++] = j / (WIDTH - 1);
-            }
-        }
+  function fillTextures(
+    texturePosition: THREE.DataTexture,
+    textureVelocity: THREE.DataTexture,
+  ) {
+    const posArray = texturePosition.image.data;
+    const velArray = textureVelocity.image.data;
 
-        // We use the "position" attribute to store UV references for lookup in vertex shader
-        // Standard geom.setAttribute('position', ...) usually expects 3D coords.
-        // But for GPGPU render, we just need the UVs to look up the texture.
-        // Let's store UVs in 'position' attribute (x, y, 0)
-        for (let k = 0; k < positions.length; k += 3) {
-            positions[k] = uvs[(k / 3) * 2];
-            positions[k + 1] = uvs[(k / 3) * 2 + 1];
-            positions[k + 2] = 0;
-        }
+    // Pre-calculate body positions at t=0 (or current time) for initialization
+    const time = timeRef.current;
+    const bodyPositions: THREE.Vector3[] = [];
+    const bodyMasses: number[] = [];
 
-        geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        return geom;
-    }, []);
+    // Sun
+    bodyPositions.push(new THREE.Vector3(0, 0, 0));
+    bodyMasses.push(0.0002959122082855911 * 2500.0 * AU_SCALE);
 
-    // Physics Update Loop
-    useFrame((state, delta) => {
-        if (!gpuCompute.current || !visible) return;
-
-        // 1. Update Uniforms (Bodies)
-        const time = timeRef.current;
-        const positions: number[] = [];
-        const masses: number[] = [];
-        let count = 0;
-
-        // Mass Scaling:
-        // Scaling Factor: 50 * 2500 = 125,000 (Correct theoretical value)
-        const MASS_SCALE = 2500.0 * AU_SCALE;
-
-        // Sun
-        positions.push(0, 0, 0);
-        masses.push(0.0002959122082855911 * MASS_SCALE);
-        count++;
-
-        PLANETS.forEach(p => {
-            const [x, y, z] = calculateOrbitalPositionWithPeriod(p.elements, time, p.period);
-            if (count < 50) {
-                positions.push(x, y, z);
-                masses.push(p.mass * MASS_SCALE);
-                count++;
-            }
-        });
-
-        // Pad to 50
-        while (positions.length < 150) positions.push(0);
-        while (masses.length < 50) masses.push(0);
-
-        const uBodiesPos = new Float32Array(positions);
-        const uBodiesMass = new Float32Array(masses);
-
-        // Set Uniforms for both shaders
-        const velUniforms = velocityVariable.current.material.uniforms;
-        const posUniforms = positionVariable.current.material.uniforms;
-
-        // Calculate simulation delta
-        // Remove 0.1 scaling. Use raw Delta * Speed for correct physical speed.
-        let simDelta = delta * speed;
-        if (paused) simDelta = 0;
-
-        velUniforms['uTime'].value = time;
-        velUniforms['uDelta'].value = simDelta;
-        velUniforms['uBodiesPos'].value = uBodiesPos;
-        velUniforms['uBodiesMass'].value = uBodiesMass;
-        velUniforms['uBodyCount'].value = count;
-
-        posUniforms['uTime'].value = time;
-        posUniforms['uDelta'].value = simDelta;
-        posUniforms['uBodiesPos'].value = uBodiesPos;
-        posUniforms['uBodiesMass'].value = uBodiesMass;
-        posUniforms['uBodyCount'].value = count;
-
-        // 2. Compute
-        gpuCompute.current.compute();
-
-        // 3. Update Render Material
-        if (materialRef.current) {
-            materialRef.current.uniforms.texturePosition.value = gpuCompute.current.getCurrentRenderTarget(positionVariable.current).texture;
-            materialRef.current.uniforms.textureVelocity.value = gpuCompute.current.getCurrentRenderTarget(velocityVariable.current).texture;
-        }
+    PLANETS.forEach((p) => {
+      const [x, y, z] = calculateOrbitalPositionWithPeriod(
+        p.elements,
+        time,
+        p.period,
+      );
+      bodyPositions.push(new THREE.Vector3(x, y, z));
+      bodyMasses.push(p.mass * 2500.0 * AU_SCALE);
     });
 
-    if (!visible) return null;
+    for (let k = 0, kl = posArray.length; k < kl; k += 4) {
+      // Force Sun Orbit
+      const bodyIdx = 0;
+      const centerPos = bodyPositions[bodyIdx];
+      const mass = bodyMasses[bodyIdx];
 
-    return (
-        <points geometry={geometry}>
-            <shaderMaterial
-                ref={materialRef}
-                vertexShader={renderVertexShader}
-                fragmentShader={renderFragmentShader}
-                uniforms={{
-                    texturePosition: { value: null },
-                    textureVelocity: { value: null }
-                }}
-                transparent={true}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-            />
-        </points>
-    );
+      // Random Radius & Angle: Real Asteroid Belts + Trojans
+      let r, theta;
+      const rand = Math.random();
+
+      if (rand < 0.5) {
+        // NEW: Inner System Swarm (50%) - Earth (1.0) to Jupiter (5.2)
+        r = (1.0 + Math.random() * 4.2) * AU_SCALE;
+        theta = Math.random() * Math.PI * 2;
+      } else if (rand < 0.75) {
+        // Trojans (25%)
+        const jupPos = bodyPositions[5]; // Already scaled
+        const jupTheta = Math.atan2(jupPos.z, jupPos.x);
+
+        // Use Jupiter's actual distance + random offset (0.5 AU visual spread)
+        const jupDist = new THREE.Vector3(
+          jupPos.x,
+          jupPos.y,
+          jupPos.z,
+        ).length();
+        r = jupDist + (Math.random() - 0.5) * 1.0 * AU_SCALE;
+
+        const offset = Math.random() < 0.5 ? 1.047 : -1.047;
+        const spread = (Math.random() - 0.5) * 0.5;
+        theta = jupTheta + offset + spread;
+      } else if (rand < 0.95) {
+        // Main Belt (20%): 2.1 - 3.3 AU
+        r = (2.1 + Math.random() * 1.2) * AU_SCALE;
+        theta = Math.random() * Math.PI * 2;
+      } else {
+        // Kuiper Belt (5%): 30.0 - 50.0 AU
+        r = (30.0 + Math.random() * 20.0) * AU_SCALE;
+        theta = Math.random() * Math.PI * 2;
+      }
+
+      const phi = (Math.random() - 0.5) * 0.1; // Small inclination
+      //const r = (beltType < 0.5 && beltType >= 0) ? (1.0 + Math.random() * 4.2) * AU_SCALE // Inner System logic was upstream, let's just assume r/theta are set correctly by loops above.
+      //    : r; // Wait, r is defined in the block above.
+
+      // Re-calculate x, y, z based on r, theta, phi derived above
+      const x = r * Math.cos(theta);
+      const y = r * Math.sin(phi);
+      const z = r * Math.sin(theta);
+
+      // Apply Ecliptic Tilt to Relative Position (Simulated in Ecliptic, Transformed to Equatorial)
+      const eps = 23.43928 * (Math.PI / 180);
+      const cosE = Math.cos(eps);
+      const sinE = Math.sin(eps);
+
+      // Rotate (x, y, z) to Equatorial
+      const y_eq = y * cosE - z * sinE;
+      const z_eq = y * sinE + z * cosE;
+
+      posArray[k + 0] = centerPos.x + x;
+      posArray[k + 1] = centerPos.y + y_eq;
+      posArray[k + 2] = centerPos.z + z_eq;
+      posArray[k + 3] = Math.random() * 10; // Life
+
+      // Keplerian Velocity
+      const dist = Math.sqrt(x * x + y * y + z * z);
+      const v = Math.sqrt(mass / dist);
+
+      // Tangent Vector
+      const relPos = new THREE.Vector3(x, y_eq, z_eq); // This is in Equatorial
+      const up = new THREE.Vector3(0, cosE, sinE).normalize();
+      const tangent = new THREE.Vector3().crossVectors(up, relPos).normalize();
+
+      // Apply Velocity
+      velArray[k + 0] = tangent.x * v;
+      velArray[k + 1] = tangent.y * v;
+      velArray[k + 2] = tangent.z * v;
+      velArray[k + 3] = 1;
+    }
+  }
+
+  // Geometry for Points
+  const geometry = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array(WIDTH * WIDTH * 3);
+    const uvs = new Float32Array(WIDTH * WIDTH * 2);
+
+    let p = 0;
+    for (let j = 0; j < WIDTH; j++) {
+      for (let i = 0; i < WIDTH; i++) {
+        uvs[p++] = i / (WIDTH - 1);
+        uvs[p++] = j / (WIDTH - 1);
+      }
+    }
+
+    // We use the "position" attribute to store UV references for lookup in vertex shader
+    // Standard geom.setAttribute('position', ...) usually expects 3D coords.
+    // But for GPGPU render, we just need the UVs to look up the texture.
+    // Let's store UVs in 'position' attribute (x, y, 0)
+    for (let k = 0; k < positions.length; k += 3) {
+      positions[k] = uvs[(k / 3) * 2];
+      positions[k + 1] = uvs[(k / 3) * 2 + 1];
+      positions[k + 2] = 0;
+    }
+
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    return geom;
+  }, []);
+
+  // Physics Update Loop
+  useFrame((state, delta) => {
+    if (!gpuCompute.current || !visible) return;
+
+    // 1. Update Uniforms (Bodies)
+    const time = timeRef.current;
+    const positions: number[] = [];
+    const masses: number[] = [];
+    let count = 0;
+
+    // Mass Scaling:
+    // Scaling Factor: 50 * 2500 = 125,000 (Correct theoretical value)
+    const MASS_SCALE = 2500.0 * AU_SCALE;
+
+    // Sun
+    positions.push(0, 0, 0);
+    masses.push(0.0002959122082855911 * MASS_SCALE);
+    count++;
+
+    PLANETS.forEach((p) => {
+      const [x, y, z] = calculateOrbitalPositionWithPeriod(
+        p.elements,
+        time,
+        p.period,
+      );
+      if (count < 50) {
+        positions.push(x, y, z);
+        masses.push(p.mass * MASS_SCALE);
+        count++;
+      }
+    });
+
+    // Pad to 50
+    while (positions.length < 150) positions.push(0);
+    while (masses.length < 50) masses.push(0);
+
+    const uBodiesPos = new Float32Array(positions);
+    const uBodiesMass = new Float32Array(masses);
+
+    // Set Uniforms for both shaders
+    const velUniforms = velocityVariable.current.material.uniforms;
+    const posUniforms = positionVariable.current.material.uniforms;
+
+    // Calculate simulation delta
+    // Remove 0.1 scaling. Use raw Delta * Speed for correct physical speed.
+    let simDelta = delta * speed;
+    if (paused) simDelta = 0;
+
+    velUniforms["uTime"].value = time;
+    velUniforms["uDelta"].value = simDelta;
+    velUniforms["uBodiesPos"].value = uBodiesPos;
+    velUniforms["uBodiesMass"].value = uBodiesMass;
+    velUniforms["uBodyCount"].value = count;
+
+    posUniforms["uTime"].value = time;
+    posUniforms["uDelta"].value = simDelta;
+    posUniforms["uBodiesPos"].value = uBodiesPos;
+    posUniforms["uBodiesMass"].value = uBodiesMass;
+    posUniforms["uBodyCount"].value = count;
+
+    // 2. Compute
+    gpuCompute.current.compute();
+
+    // 3. Update Render Material
+    if (materialRef.current) {
+      materialRef.current.uniforms.texturePosition.value =
+        gpuCompute.current.getCurrentRenderTarget(
+          positionVariable.current,
+        ).texture;
+      materialRef.current.uniforms.textureVelocity.value =
+        gpuCompute.current.getCurrentRenderTarget(
+          velocityVariable.current,
+        ).texture;
+    }
+  });
+
+  if (!visible) return null;
+
+  return (
+    <points geometry={geometry} frustumCulled={false} renderOrder={999}>
+      <shaderMaterial
+        ref={materialRef}
+        vertexShader={renderVertexShader}
+        fragmentShader={renderFragmentShader}
+        uniforms={{
+          texturePosition: { value: null },
+          textureVelocity: { value: null },
+        }}
+        transparent={false}
+        depthWrite={true}
+        depthTest={true}
+        blending={THREE.NormalBlending}
+      />
+    </points>
+  );
 };
 
 export default GravityParticles;

@@ -45,7 +45,7 @@ const Constellations: React.FC<ConstellationsProps> = ({
     }, [positions]);
 
     // Debug logging
-    console.log('Constellations rendering:', { visible, lineCount: constellationLines.length, hasPositions: positions?.length > 0 });
+    //console.log('Constellations rendering:', { visible, lineCount: constellationLines.length, hasPositions: positions?.length > 0 });
 
     if (!visible || !geometry) return null;
 
