@@ -1,5 +1,5 @@
-import React, { useRef, useMemo, useState } from "react";
-import { useFrame } from "@react-three/fiber";
+import React, { useRef, useMemo, useState, useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { PlanetData } from "../types";
@@ -28,22 +28,19 @@ interface PlanetProps {
     issModel?: 'small' | 'big';
     focusedBodyId?: string | null;
     showEarthGrid?: boolean;
+    // Earth Graphics
+    earthTextureLOD?: 'low' | 'med' | 'high' | 'ultra';
+    showClouds?: boolean;
+    cloudSpeed?: number;
+    cloudOpacity?: number;
+    showNightLights?: boolean;
+    bumpScale?: number;
+    specularStrength?: number;
+    nightLightIntensity?: number;
+    dayIntensity?: number;
+    earthRotationOffset?: number;
+    earthTextureOffset?: number;
 }
-
-// ... (AtmosphereMaterial definition remains unchanged - strict overwrite not needed if outside chunk but this is replace_file_content so I need to target specific chunks)
-
-// I will target the component definition start to fix props, and the end to fix JSX.
-
-// FIRST CHUNK: Interface and Component Start
-// SECOND CHUNK: JSX for ISS group
-// THIRD CHUNK: Recursive Planet call
-
-// Can I do this in one go with multi_replace? NO, I am using replace_file_content.
-// I should use multi_replace for non-contiguous edits.
-// But wait, the file is small enough? No, 650 lines.
-
-// Let's use multi_replace.
-
 
 // Volumetric Rayleigh Scattering Shader (Local Space)
 const AtmosphereMaterial = {
@@ -183,7 +180,140 @@ const AtmosphereMaterial = {
         float edgeFade = smoothstep(0.0, 1.0, thickness);
         gl_FragColor = vec4(totalScattering * edgeFade, 1.0);
     }
-  `
+    `
+};
+
+const EarthMaterial = {
+    vertexShader: `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    varying vec3 vLocalPosition;
+    varying vec3 vSunDirection;
+    
+    // We need view position in Local Space for correct specular
+    // But standard three.js viewMatrix transforms to Camera Space
+    // So we'll pass the camera's local position uniform
+    
+    void main() {
+        vUv = uv;
+        vLocalPosition = position;
+        vNormal = normal; // Local normal
+        
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+    }
+    `,
+    fragmentShader: `
+    uniform samplerCube dayMap;
+    uniform samplerCube nightMap;
+    uniform samplerCube cloudMap;
+    uniform sampler2D normalMap;
+    uniform sampler2D specularMap;
+
+    uniform vec3 sunDirection; // Local space
+    uniform vec3 localCameraPos; // Local space
+    uniform float cloudTime;
+    uniform float cloudOpacity;
+    uniform bool showClouds;
+    uniform bool showNightLights;
+    uniform float bumpScale;
+    uniform float specularStrength;
+    uniform float nightLightIntensity;
+    uniform float dayIntensity;
+    uniform float earthTextureOffset; // New uniform for manual alignment reference
+
+    varying vec2 vUv;
+    varying vec3 vLocalPosition;
+    varying vec3 vNormal;
+
+    // Easy normal mapping for sphere
+    vec3 getNormal() {
+        vec3 objectNormal = normalize(vNormal);
+        vec3 normalSample = texture2D(normalMap, vUv).rgb * 2.0 - 1.0;
+        
+        // TBN Matrix
+        vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), objectNormal));
+        if (length(tangent) < 0.001) tangent = vec3(1.0, 0.0, 0.0);
+        vec3 bitangent = normalize(cross(objectNormal, tangent));
+        
+        mat3 tbn = mat3(tangent, bitangent, objectNormal);
+        
+        // Use normalStrength for XY (slope) and keeping Z (up) relative
+        vec3 perturbed = tbn * normalize(vec3(normalSample.xy * bumpScale, normalSample.z)); 
+        return normalize(perturbed);
+    }
+
+    void main() {
+        vec3 normal = getNormal();
+        vec3 lightDir = normalize(sunDirection);
+        vec3 viewDir = normalize(localCameraPos - vLocalPosition);
+
+        // Diffuse factor
+        float NdotL = dot(normal, lightDir);
+        float diffuse = max(0.0, NdotL);
+
+        // Day/Night Mix Factor (Start mixing at terminator)
+        float mixFactor = smoothstep(-0.2, 0.2, NdotL);
+
+        // Sample Cubemaps
+        // Apply Texture Layer Offset for alignment
+        vec3 sampleDir = normalize(vLocalPosition);
+        
+        float theta = earthTextureOffset;
+        float c = cos(theta);
+        float s = sin(theta);
+        mat3 rot = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
+        
+        vec3 rotatedSampleDir = rot * sampleDir;
+        
+        vec4 dayColor = textureCube(dayMap, rotatedSampleDir);
+        vec4 nightColor = textureCube(nightMap, rotatedSampleDir);
+
+        // Specular (Ocean only)
+        float specularMask = texture2D(specularMap, vUv).r;
+        float specular = 0.0;
+        if (NdotL > 0.0) {
+            vec3 halfVector = normalize(lightDir + viewDir);
+            float NdotH = max(0.0, dot(normal, halfVector));
+            specular = pow(NdotH, 60.0) * specularMask * specularStrength;
+        }
+
+        // Base Color Mixing
+        vec3 finalColor = dayColor.rgb * diffuse * dayIntensity + specular;
+
+        if (showNightLights) {
+             finalColor += nightColor.rgb * (1.0 - mixFactor) * nightLightIntensity;
+        } else {
+             // Just ambient dark for night side if lights off
+             finalColor += dayColor.rgb * (1.0 - mixFactor) * 0.05;
+        }
+
+        // Clouds
+        if (showClouds) {
+            float c = cos(cloudTime);
+            float s = sin(cloudTime);
+            mat3 rotation = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
+            
+            // Apply both cloud rotation AND the layer alignment rotation
+            vec3 cloudDir = rotation * rotatedSampleDir;
+            vec4 cloudSample = textureCube(cloudMap, cloudDir);
+            
+            // Cloud Shadow (offset towards light)
+            vec3 shadowDir = rotation * normalize(rotatedSampleDir + lightDir * 0.02);
+            float cloudShadow = textureCube(cloudMap, shadowDir).r;
+            
+            finalColor *= (1.0 - cloudShadow * cloudOpacity * 0.5 * diffuse);
+
+            float cloudDiffuse = max(0.0, dot(normalize(cloudDir), lightDir));
+            float cloudLight = max(cloudDiffuse, 0.1); 
+            
+            vec3 cloudColor = vec3(1.0) * cloudLight;
+            finalColor = mix(finalColor, cloudColor, cloudSample.r * cloudOpacity);
+        }
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+    }
+    `
 };
 
 const Planet: React.FC<PlanetProps> = ({
@@ -199,12 +329,26 @@ const Planet: React.FC<PlanetProps> = ({
     atmSamples = 32,
     issModel = 'small',
     focusedBodyId = null,
-    showEarthGrid = false
+    showEarthGrid = false,
+    earthTextureLOD = 'high',
+    showClouds = true,
+    cloudSpeed = 0.05,
+    cloudOpacity = 1.0,
+    showNightLights = true,
+    bumpScale = 0.02,
+    specularStrength = 1.0,
+    nightLightIntensity = 2.0,
+    dayIntensity = 1.0,
+    earthRotationOffset = 0.0,
+    earthTextureOffset = 0.0
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
+    const { camera } = useThree(); // Added to fix lint error
+    const earthMeshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
     const issGroupRef = useRef<THREE.Group>(null);
     const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
+    const earthMaterialRef = useRef<THREE.ShaderMaterial>(null);
     const atmMeshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
     const isInsideAtmosphereRef = useRef(false);
@@ -238,6 +382,7 @@ const Planet: React.FC<PlanetProps> = ({
     // Use atmosphereColor if available
     const hasAtmosphere = !!data.atmosphereColor;
     const isGasGiant = ['jupiter', 'saturn', 'uranus', 'neptune'].includes(data.id);
+    const isEarth = data.id === 'earth';
 
     // For satellites, we need a minimum orbit radius based on parent planet's visual size
     // Earth radius=1.0, PLANET_SCALE=0.5, so Earth visual size = 0.5 * scaleFactor
@@ -290,8 +435,7 @@ const Planet: React.FC<PlanetProps> = ({
         emissiveIntensity: isSelected || hovered ? 0.1 : 0,
     };
 
-    // Initialize Uniforms ONCE. Do not add dependencies that change frequently (like atmOpacity, size).
-    // We will update their values in useFrame.
+    // Initialize Uniforms ONCE
     const uniforms = useMemo(() => ({
         color: { value: new THREE.Color(data.atmosphereColor) },
         localSunPos: { value: new THREE.Vector3() },
@@ -301,9 +445,29 @@ const Planet: React.FC<PlanetProps> = ({
         densityFalloff: { value: atmPow },
         intensity: { value: atmOpacity },
         numSamples: { value: atmSamples }
-    }), []); // Empty dependency array ensures referential stability of the uniforms object
+    }), []);
 
-    // Pre-allocate vectors to avoid GC in loop
+    // Earth Uniforms
+    const earthUniforms = useMemo(() => ({
+        dayMap: { value: null },
+        nightMap: { value: null },
+        cloudMap: { value: null },
+        normalMap: { value: null },
+        specularMap: { value: null },
+        sunDirection: { value: new THREE.Vector3() },
+        localCameraPos: { value: new THREE.Vector3() }, // Added
+        cloudTime: { value: 0 },
+        cloudOpacity: { value: cloudOpacity },
+        showClouds: { value: showClouds },
+        showNightLights: { value: showNightLights },
+        bumpScale: { value: bumpScale },
+        specularStrength: { value: specularStrength },
+        nightLightIntensity: { value: nightLightIntensity },
+        dayIntensity: { value: dayIntensity },
+        earthTextureOffset: { value: earthTextureOffset }
+    }), []);
+
+    // Pre-allocate vectors
     const tempVec = useMemo(() => new THREE.Vector3(), []);
     const tempSun = useMemo(() => new THREE.Vector3(), []);
     const tempMatrix = useMemo(() => new THREE.Matrix4(), []);
@@ -317,64 +481,49 @@ const Planet: React.FC<PlanetProps> = ({
         if (data.id !== 'earth' || !showEarthGrid) return null;
 
         const canvas = document.createElement('canvas');
-        canvas.width = 2048; // Increased resolution for finer grid
+        canvas.width = 2048;
         canvas.height = 1024;
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
 
-        // Transparent background
         ctx.fillStyle = 'rgba(0,0,0,0)';
         ctx.fillRect(0, 0, 2048, 1024);
-
-        // Grid lines
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.lineWidth = 2;
 
         const w = 2048;
         const h = 1024;
 
-        // Longitude lines (every 15 degrees)
-        // 360 / 15 = 24 segments
         for (let i = 0; i <= 24; i++) {
             const x = (i / 24) * w;
             ctx.beginPath();
             ctx.moveTo(x, 0);
             ctx.lineTo(x, h);
             ctx.stroke();
-
-            // Labels
             if (i <= 24) {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 ctx.font = '24px Arial';
                 let lon = (i * 15) - 180;
-                // Normalize 180 to -180 if needed, or keep as 180. Actually -180 and 180 are same line.
-                // Let's keep it simple: -180 to 180.
-
-                // Add text shadow for better visibility
                 ctx.shadowColor = 'black';
                 ctx.shadowBlur = 4;
-                ctx.fillText(`${lon}°`, x + 5, h / 2); // Equator
+                ctx.fillText(`${lon}°`, x + 5, h / 2);
                 ctx.shadowBlur = 0;
             }
         }
 
-        // Latitude lines (every 15 degrees)
-        // 180 / 15 = 12 segments
         for (let i = 0; i <= 12; i++) {
             const y = (i / 12) * h;
             ctx.beginPath();
             ctx.moveTo(0, y);
             ctx.lineTo(w, y);
             ctx.stroke();
-
-            // Labels
             if (i > 0 && i < 12) {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 ctx.font = '24px Arial';
                 const lat = 90 - (i * 15);
                 ctx.shadowColor = 'black';
                 ctx.shadowBlur = 4;
-                ctx.fillText(`${lat}°`, w / 2, y - 5); // Prime Meridian
+                ctx.fillText(`${lat}°`, w / 2, y - 5);
                 ctx.shadowBlur = 0;
             }
         }
@@ -384,21 +533,99 @@ const Planet: React.FC<PlanetProps> = ({
         return texture;
     }, [data.id, showEarthGrid]);
 
-
-
-    // Texture Loading
+    // Texture Loading (Standard 2D)
     const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null, ring: THREE.Texture | null }>({ map: null, normal: null, specular: null, ring: null });
+
+    // Earth Texture Loading (Cubemaps + 2D)
+    const [earthTextures, setEarthTextures] = useState<{
+        day: THREE.CubeTexture | null;
+        night: THREE.CubeTexture | null;
+        clouds: THREE.CubeTexture | null;
+        normal: THREE.Texture | null;
+        specular: THREE.Texture | null;
+        loadedLOD: string | null;
+    }>({ day: null, night: null, clouds: null, normal: null, specular: null, loadedLOD: null });
 
     React.useEffect(() => {
         let cancelled = false;
-        const loadedTextures: THREE.Texture[] = [];
+
+        // Earth Specific Loader
+        if (data.id === 'earth') {
+            const loader = new THREE.TextureLoader();
+            const cubeLoader = new THREE.CubeTextureLoader();
+            const lod = earthTextureLOD || 'high';
+
+            // Only reload if LOD changed
+            if (earthTextures.loadedLOD === lod) return;
+
+            const path = '/tex';
+            // Construct paths
+            // Construct paths
+            // Fallback for ULTRA textures (if they don't exist yet, use HIGH)
+            const mapLod = lod;
+            const fallbackLod = lod === 'ultra' ? 'high' : lod;
+
+            const dayPath = `${path}/cubemap/earth-day-${lod}/`; // Check if Ultra exists
+            const nightPath = `${path}/cubemap/earth-night-${lod}/`;
+            // For clouds, normal, specular, use fallback if ultra
+            const cloudPath = `${path}/cubemap/earth-cloud-${fallbackLod}/`;
+
+            const normalPath = `${path}/base/earth-normal-${fallbackLod}.jpg`;
+            const specularPath = `${path}/base/earth-specular-${fallbackLod}.jpg`;
+
+            const loadCubemap = (p: string, prefix: string) => new Promise<THREE.CubeTexture>((resolve, reject) => {
+                const suffixes = ['_rt.jpg', '_lf.jpg', '_up.jpg', '_dn.jpg', '_ft.jpg', '_bk.jpg'];
+                const files = suffixes.map(s => `${prefix}${s}`);
+
+                cubeLoader.setPath(p).load(files, (tex) => {
+                    tex.colorSpace = THREE.SRGBColorSpace;
+                    resolve(tex);
+                }, undefined, reject);
+            });
+
+            const load2D = (p: string, isSRGB = true) => new Promise<THREE.Texture>((resolve, reject) => {
+                loader.load(p, (tex) => {
+                    tex.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+                    resolve(tex);
+                }, undefined, reject);
+            });
+
+            Promise.all([
+                loadCubemap(dayPath, 'earth-day'),
+                loadCubemap(nightPath, 'earth-night'),
+                loadCubemap(cloudPath, 'earth-cloud'),
+                load2D(normalPath, false),
+                load2D(specularPath, true)
+            ]).then(([day, night, clouds, normal, specular]) => {
+                if (cancelled) return;
+                setEarthTextures({ day, night, clouds, normal, specular, loadedLOD: lod });
+
+                // Update Uniforms
+                if (earthUniforms) {
+                    earthUniforms.dayMap.value = day;
+                    earthUniforms.nightMap.value = night;
+                    earthUniforms.cloudMap.value = clouds;
+                    earthUniforms.normalMap.value = normal;
+                    earthUniforms.specularMap.value = specular;
+                }
+            }).catch(err => {
+                console.error("Failed to load earth textures for LOD " + lod, err);
+            });
+
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        // Standard Loader for other planets
+        const loadedTexturesList: THREE.Texture[] = [];
         const loader = new THREE.TextureLoader();
 
         if (data.textureUrl) {
             loader.load(data.textureUrl, (tex) => {
                 if (cancelled) { tex.dispose(); return; }
                 tex.colorSpace = THREE.SRGBColorSpace;
-                loadedTextures.push(tex);
+                loadedTexturesList.push(tex);
                 setTextures(prev => ({ ...prev, map: tex }));
             }, undefined, (err) => {
                 console.warn(`Failed to load texture: ${data.textureUrl}`, err);
@@ -407,7 +634,7 @@ const Planet: React.FC<PlanetProps> = ({
         if (data.normalMapUrl) {
             loader.load(data.normalMapUrl, (tex) => {
                 if (cancelled) { tex.dispose(); return; }
-                loadedTextures.push(tex);
+                loadedTexturesList.push(tex);
                 setTextures(prev => ({ ...prev, normal: tex }));
             }, undefined, (err) => {
                 console.warn(`Failed to load normal map: ${data.normalMapUrl}`, err);
@@ -416,7 +643,7 @@ const Planet: React.FC<PlanetProps> = ({
         if (data.specularMapUrl) {
             loader.load(data.specularMapUrl, (tex) => {
                 if (cancelled) { tex.dispose(); return; }
-                loadedTextures.push(tex);
+                loadedTexturesList.push(tex);
                 setTextures(prev => ({ ...prev, specular: tex }));
             }, undefined, (err) => {
                 console.warn(`Failed to load specular map: ${data.specularMapUrl}`, err);
@@ -426,7 +653,7 @@ const Planet: React.FC<PlanetProps> = ({
             loader.load(data.ringMapUrl, (tex) => {
                 if (cancelled) { tex.dispose(); return; }
                 tex.colorSpace = THREE.SRGBColorSpace;
-                loadedTextures.push(tex);
+                loadedTexturesList.push(tex);
                 setTextures(prev => ({ ...prev, ring: tex }));
             }, undefined, (err) => {
                 console.warn(`Failed to load ring texture: ${data.ringMapUrl}`, err);
@@ -435,9 +662,9 @@ const Planet: React.FC<PlanetProps> = ({
 
         return () => {
             cancelled = true;
-            loadedTextures.forEach(tex => tex.dispose());
+            loadedTexturesList.forEach(tex => tex.dispose());
         };
-    }, [data.textureUrl, data.normalMapUrl, data.specularMapUrl, data.ringMapUrl]);
+    }, [data.id, data.textureUrl, data.normalMapUrl, data.specularMapUrl, data.ringMapUrl, earthTextureLOD]);
 
     useFrame((state) => {
         const time = timeRef.current;
@@ -461,8 +688,7 @@ const Planet: React.FC<PlanetProps> = ({
         if (groupRef.current) {
             // Update Planet Position
             groupRef.current.position.copy(currentPos);
-
-            // Update Matrix World immediately for accurate worldToLocal lookups
+            // Update Matrix World immediately
             groupRef.current.updateMatrixWorld(true);
         }
 
@@ -476,11 +702,20 @@ const Planet: React.FC<PlanetProps> = ({
                 meshRef.current.rotation.y += 0.01 / (data.period > 0.1 ? data.period : 1);
             }
         }
+        if (earthMeshRef.current) {
+            if (data.rotationPeriod && data.rotationPeriod !== 0) {
+                const initialOffset = data.rotationOffset || 0;
+                const rotationAngle = (time * 24 / data.rotationPeriod) * Math.PI * 2 + initialOffset;
+                // Add manual calibration offset
+                earthMeshRef.current.rotation.y = rotationAngle + earthRotationOffset;
+            } else {
+                earthMeshRef.current.rotation.y += 0.01 / (data.period > 0.1 ? data.period : 1);
+            }
+        }
 
         // 3. Update ISS Orientation
         if (isSatellite && issGroupRef.current) {
-            // Get position slightly in the future to calculate velocity direction
-            const dt = 0.0001; // Small time step in days
+            const dt = 0.0001;
             const futurePosArr = calculateOrbitalPositionWithPeriod(data.elements, time + dt, data.period);
             const futureVec = tempVec.set(
                 futurePosArr[0] * visualOrbitScale,
@@ -488,32 +723,19 @@ const Planet: React.FC<PlanetProps> = ({
                 futurePosArr[2] * visualOrbitScale
             );
 
-            // Normalize future pos if needed (same logic as currentPos)
             const futureDist = futureVec.length();
             if (futureDist > 0) {
                 futureVec.normalize().multiplyScalar(Math.max(futureDist, satelliteMinOrbitRadius));
             }
 
-            // Velocity direction (prograde) - this will be the ISS +X axis
             const velocity = futureVec.sub(currentPos).normalize();
-
-            // Nadir direction (toward Earth/parent center) - this will be the ISS -Z axis
-            // Since ISS orbits relative to parent, nadir points to origin (0,0,0)
             const nadir = currentPos.clone().normalize().negate();
 
-            // Calculate the orientation matrix
-            // X = velocity (prograde)
-            // Z = -nadir (away from Earth, so +Z is zenith, -Z is nadir)
-            // Y = Z cross X (perpendicular to orbital plane)
-
             tempXAxis.copy(velocity);
-            tempZAxis.copy(nadir).negate(); // +Z points away from Earth (zenith)
+            tempZAxis.copy(nadir).negate();
             tempYAxis.crossVectors(tempZAxis, tempXAxis).normalize();
-
-            // Recompute X to ensure orthogonality
             tempXAxis.crossVectors(tempYAxis, tempZAxis).normalize();
 
-            // Create rotation matrix from axes
             tempMatrix.makeBasis(tempXAxis, tempYAxis, tempZAxis);
             tempQuaternion.setFromRotationMatrix(tempMatrix);
 
@@ -528,81 +750,98 @@ const Planet: React.FC<PlanetProps> = ({
             atmMeshRef.current.worldToLocal(tempVec);
             u.localCameraPos.value.copy(tempVec);
 
-            // Transform Sun Position (0,0,0 World) to Local Space
             tempSun.set(0, 0, 0);
             atmMeshRef.current.worldToLocal(tempSun);
             u.localSunPos.value.copy(tempSun);
 
-            // Update dynamic values every frame to catch prop changes
             u.planetRadius.value = size;
             u.atmosphereRadius.value = atmRadius;
             u.densityFalloff.value = atmPow;
             u.intensity.value = atmOpacity;
             u.color.value.set(data.atmosphereColor);
 
-            // LOD: adjust sample count based on screen-space apparent size
             atmMeshRef.current.getWorldPosition(tempVec);
             const distance = state.camera.position.distanceTo(tempVec);
             const fov = (state.camera as THREE.PerspectiveCamera).fov;
             const screenHeight = 2 * Math.tan((fov * Math.PI) / 360) * distance;
-            const apparentSize = (atmRadius * 2) / screenHeight; // fraction of screen height
+            const apparentSize = (atmRadius * 2) / screenHeight;
             const MIN_SAMPLES = 4;
             const maxSamples = atmSamples;
-            const t = Math.min(Math.max(apparentSize * 4, 0), 1); // 0 at far, 1 when planet fills ~25% of screen
+            const t = Math.min(Math.max(apparentSize * 4, 0), 1);
             const lodSamples = Math.round(MIN_SAMPLES + t * (maxSamples - MIN_SAMPLES));
             u.numSamples.value = lodSamples;
 
-            // Write LOD info to module-level store for UI display
             planetLodStore.set(data.id, { samples: lodSamples, apparentSize });
 
-            // Check if camera is inside atmosphere
-            // We can use the already calculated distance (camera to center of planet [approx if atm center is same])
             const isInside = distance < atmRadius;
 
-            // Update material props synchronously to avoid frame lag/flicker
             if (isInside !== isInsideAtmosphereRef.current) {
                 isInsideAtmosphereRef.current = isInside;
-                // side is always DoubleSide now
-                // Disable depthTest when inside so we see the atmosphere "fog" over the planet surface
-                // regardless of Z-buffer (since atmosphere is behind planet surface when rendering BackSide)
                 atmMaterialRef.current.depthTest = !isInside;
                 atmMaterialRef.current.needsUpdate = true;
             }
         }
+
+        // 5. Update Earth Shader Uniforms
+        if (isEarth && earthMaterialRef.current && earthMeshRef.current) {
+            const u = earthMaterialRef.current.uniforms;
+
+            // Sun Position in Local Space
+            // We can reuse the calculation from Atmosphere or redo it.
+            // Local Sun is (0,0,0) transformed to local space
+            // BUT, for texturing, we want the Sun direction relative to the rotating earth.
+
+            // The Sun is at World (0,0,0).
+            // The Planet is at World P.
+            // The Planet is rotated by R.
+            // We want Vector S (Sun) in Local Frame.
+            // LocalS = Inverse(ModelMatrix) * WorldS
+
+            // We can use worldToLocal to transform (0,0,0).
+            tempSun.set(0, 0, 0);
+            earthMeshRef.current.worldToLocal(tempSun);
+
+            // Note: worldToLocal transforms the point. For a direction, we normalize.
+            // Since sun is at 0,0,0 and planet is at P, the direction from planet to sun in world space is -P.
+            // In local space, it's normalized(tempSun).
+            // However, calculateOrbitalPosition returns (0,0,0) is the sun.
+            // worldToLocal(0,0,0) gives the local coordinate of the sun.
+            u.sunDirection.value.copy(tempSun).normalize();
+
+            // Update dynamic uniforms
+            u.cloudTime.value = time * cloudSpeed * 100.0; // scale up speed
+            earthUniforms.cloudOpacity.value = cloudOpacity;
+            earthUniforms.showClouds.value = showClouds;
+            earthUniforms.showNightLights.value = showNightLights;
+            earthUniforms.bumpScale.value = bumpScale;
+            earthUniforms.specularStrength.value = specularStrength;
+            earthUniforms.specularStrength.value = specularStrength;
+            earthUniforms.nightLightIntensity.value = nightLightIntensity;
+            earthUniforms.dayIntensity.value = dayIntensity;
+            earthUniforms.earthTextureOffset.value = earthTextureOffset;
+
+            if (earthMeshRef.current) {
+                // Get Local Camera Position
+                tempVec.copy(camera.position);
+                earthMeshRef.current.worldToLocal(tempVec);
+                u.localCameraPos.value.copy(tempVec);
+            }
+        }
     });
 
-    // Axial Tilt Quaternion
-    // If poleDirection is available (from IAU data), align visual Up (Y) to that pole.
-    // Otherwise fall back to simple axialTilt X-rotation.
     const tiltQuaternion = useMemo(() => {
         if (data.poleDirection) {
             const pd = data.poleDirection;
-
-            // Coordinate Transformation: Ecliptic -> Scene (Equatorial)
-            // The physics engine outputs positions rotated to the Equatorial Frame (where Y is Cel. North).
-            // 'poleDirection' is given in J2000 Ecliptic coordinates.
-            // We must apply the same rotation to the pole vector to align it with the Scene axes.
-
-            const obliquity = 23.43928 * (Math.PI / 180); // Earth's obliquity
+            const obliquity = 23.43928 * (Math.PI / 180);
             const cosE = Math.cos(obliquity);
             const sinE = Math.sin(obliquity);
-
-            // Map Ecliptic (x, y, z_pole) to Physics Vector input
-            // Physics: z_ecl_phys = -y_data; y_ecl_phys = z_data (Pole)
             const y_ecl = pd.z;
             const z_ecl = -pd.y;
-
-            // Rotate around X (Equinox) to Equatorial
             const y_eq = y_ecl * cosE - z_ecl * sinE;
             const z_eq = y_ecl * sinE + z_ecl * cosE;
-
-            // Construct target vector in Scene Space (X, Y=Up, Z=Depth)
             const target = new THREE.Vector3(pd.x, y_eq, z_eq).normalize();
-
             return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), target);
         }
-
-        // Legacy fallback
         return new THREE.Quaternion().setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(-(data.axialTilt || 0)), 0, 0));
     }, [data.axialTilt, data.poleDirection]);
 
@@ -623,7 +862,6 @@ const Planet: React.FC<PlanetProps> = ({
                     {/* Atmosphere Mesh (Outer Shell) */}
                     {hasAtmosphere && !isMoon && (
                         <mesh ref={atmMeshRef}>
-                            {/* Geometry matches atmRadius exactly */}
                             <sphereGeometry args={[atmRadius, 64, 64]} />
                             <shaderMaterial
                                 ref={atmMaterialRef}
@@ -639,8 +877,53 @@ const Planet: React.FC<PlanetProps> = ({
                         </mesh>
                     )}
 
-                    {/* Render ISS 3D model for satellites, sphere for other bodies */}
-                    {isSatellite ? (
+                    {isEarth ? (
+                        <mesh
+                            ref={earthMeshRef}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(data);
+                            }}
+                            onPointerOver={() => setHover(true)}
+                            onPointerOut={() => setHover(false)}
+                            castShadow
+                            receiveShadow
+                        >
+                            <sphereGeometry args={[size, 64, 64]} />
+                            <shaderMaterial
+                                ref={earthMaterialRef}
+                                vertexShader={EarthMaterial.vertexShader}
+                                fragmentShader={EarthMaterial.fragmentShader}
+                                uniforms={earthUniforms}
+                            />
+                            {/* Grid Overlay for Earth */}
+                            {gridTexture && (
+                                <mesh>
+                                    <sphereGeometry args={[size * 1.002, 64, 64]} />
+                                    <meshBasicMaterial
+                                        map={gridTexture}
+                                        transparent
+                                        opacity={0.8}
+                                        side={THREE.FrontSide}
+                                        depthWrite={false}
+                                    />
+                                </mesh>
+                            )}
+
+                            {(showLabel || hovered || isSelected) && (
+                                <Html position={[0, size * 1.5, 0]}>
+                                    <div
+                                        className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                                ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' : 'bg-black/50 text-white border border-white/20'}
+                                `}
+                                    >
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                        {data.name}
+                                    </div>
+                                </Html>
+                            )}
+                        </mesh>
+                    ) : isSatellite ? (
                         <group
                             ref={issGroupRef}
                             onClick={(e) => {
@@ -694,30 +977,15 @@ const Planet: React.FC<PlanetProps> = ({
                                 />
                             )}
 
-                            {/* Grid Overlay */}
-                            {gridTexture && (
-                                <mesh>
-                                    <sphereGeometry args={[size * 1.002, 64, 64]} />
-                                    <meshBasicMaterial
-                                        map={gridTexture}
-                                        transparent
-                                        opacity={0.8}
-                                        side={THREE.FrontSide}
-                                        depthWrite={false} // Prevent Z-fighting with atmosphere
-                                    />
-                                </mesh>
-                            )}
-
                             {/* Ring System */}
                             {loadedTextures.ring && data.ringInnerRadius && data.ringOuterRadius && (
                                 <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow castShadow>
                                     <ringGeometry
                                         args={[size * data.ringInnerRadius, size * data.ringOuterRadius, 64]}
                                         onUpdate={(geom) => {
-                                            // Fix UVs for radial texture strip (1D radial gradient)
-                                            // Map Radius (inner->outer) to U (0->1)
                                             const pos = geom.attributes.position;
                                             const uv = geom.attributes.uv;
+                                            // Correctly handle UVs for ring
                                             const v3 = new THREE.Vector3();
                                             const inner = size * (data.ringInnerRadius || 1.2);
                                             const outer = size * (data.ringOuterRadius || 2.5);
@@ -726,7 +994,6 @@ const Planet: React.FC<PlanetProps> = ({
                                                 v3.fromBufferAttribute(pos, i);
                                                 const len = v3.length();
                                                 const u = (len - inner) / (outer - inner);
-                                                // V is irrelevant for 1D strip, mostly
                                                 uv.setXY(i, u, 0.5);
                                             }
                                             uv.needsUpdate = true;
@@ -737,7 +1004,7 @@ const Planet: React.FC<PlanetProps> = ({
                                         side={THREE.DoubleSide}
                                         transparent
                                         alphaTest={0.12}
-                                        color={0xffffff} // Ensure no tinting
+                                        color={0xffffff}
                                         opacity={1.0}
                                         roughness={0.85}
                                         metalness={0.05}
@@ -779,6 +1046,14 @@ const Planet: React.FC<PlanetProps> = ({
                         atmSamples={atmSamples}
                         issModel={issModel}
                         focusedBodyId={focusedBodyId}
+                        // Pass Earth Graphics props safely even for moons (ignored but valid prop)
+                        earthTextureLOD={earthTextureLOD}
+                        showClouds={showClouds}
+                        cloudSpeed={cloudSpeed}
+                        cloudOpacity={cloudOpacity}
+                        showNightLights={showNightLights}
+                        bumpScale={bumpScale}
+                        specularStrength={specularStrength}
                     />
                 ))}
             </group>

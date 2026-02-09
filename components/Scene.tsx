@@ -6,7 +6,7 @@ import RealStars from './RealStars';
 import { EffectComposer, Bloom, Vignette, Noise, ToneMapping, ChromaticAberration, BrightnessContrast, SMAA, HueSaturation, N8AO } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE, AU_SCALE, SUN_MASS } from '../constants';
+import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE, AU_SCALE } from '../constants';
 import { PlanetData } from '../types';
 import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
 import Planet from './Planet';
@@ -106,6 +106,19 @@ interface SceneContentProps {
     showEarthGrid: boolean;
     gridMode: 'equatorial' | 'ecliptic';
     cameraMode: 'equatorial' | 'ecliptic';
+
+    // Earth Graphics props
+    earthTextureLOD: 'low' | 'med' | 'high' | 'ultra';
+    showClouds: boolean;
+    cloudSpeed: number;
+    cloudOpacity: number;
+    showNightLights: boolean;
+    bumpScale: number;
+    specularStrength: number;
+    nightLightIntensity: number;
+    dayIntensity: number;
+    earthRotationOffset: number;
+    earthTextureOffset: number;
 }
 
 const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: THREE.Vector3 }> = ({ followingBody, sunPosition }) => {
@@ -136,7 +149,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
     gravityVisible, gravityOpacity, gravityMin, gravityMax, gravityIntensityPow, gravityDirectionSat, gravityShowDirection, gravityPlaneSize, gravityYOffset, gravityParticlesVisible,
     gravityShowContours, gravityContourFreq, gravityExcludeSun, gravityEquilibriumThreshold, gravityShowEffective, gravityShowEquilibrium,
-    showConstellations, showCelestialGrid, showEarthGrid, gridMode, cameraMode
+    showConstellations, showCelestialGrid, showEarthGrid, gridMode, cameraMode,
+    earthTextureLOD, showClouds, cloudSpeed, cloudOpacity, showNightLights, bumpScale, specularStrength, nightLightIntensity, dayIntensity,
+    earthRotationOffset, earthTextureOffset
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
@@ -443,6 +458,19 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     issModel={issModel}
                     focusedBodyId={isFollowing && followingBody ? followingBody.id : null}
                     showEarthGrid={showEarthGrid}
+
+                    // Earth Graphics
+                    earthTextureLOD={earthTextureLOD}
+                    showClouds={showClouds}
+                    cloudSpeed={cloudSpeed}
+                    cloudOpacity={cloudOpacity}
+                    showNightLights={showNightLights}
+                    bumpScale={bumpScale}
+                    specularStrength={specularStrength}
+                    nightLightIntensity={nightLightIntensity}
+                    dayIntensity={dayIntensity}
+                    earthRotationOffset={earthRotationOffset}
+                    earthTextureOffset={earthTextureOffset}
                 />
             ))}
 

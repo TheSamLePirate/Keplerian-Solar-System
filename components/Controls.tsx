@@ -156,6 +156,30 @@ interface ControlsProps {
     toggleAccordion: (id: string) => void;
     date: number;
     onSetTime: (t: number) => void;
+
+    // Earth Graphics
+    earthTextureLOD: 'low' | 'med' | 'high' | 'ultra';
+    setEarthTextureLOD: (v: 'low' | 'med' | 'high' | 'ultra') => void;
+    showClouds: boolean;
+    setShowClouds: (v: boolean) => void;
+    cloudSpeed: number;
+    setCloudSpeed: (v: number) => void;
+    cloudOpacity: number;
+    setCloudOpacity: (v: number) => void;
+    showNightLights: boolean;
+    setShowNightLights: (v: boolean) => void;
+    bumpScale: number;
+    setBumpScale: (v: number) => void;
+    specularStrength: number;
+    setSpecularStrength: (v: number) => void;
+    nightLightIntensity: number;
+    setNightLightIntensity: (v: number) => void;
+    dayIntensity: number;
+    setDayIntensity: (v: number) => void;
+    earthRotationOffset: number;
+    setEarthRotationOffset: (v: number) => void;
+    earthTextureOffset: number;
+    setEarthTextureOffset: (v: number) => void;
 }
 
 const Slider: React.FC<{
@@ -260,6 +284,17 @@ const Controls: React.FC<ControlsProps> = ({
     gravityEquilibriumThreshold, setGravityEquilibriumThreshold,
     gravityShowEffective, setGravityShowEffective,
     accordionState, toggleAccordion, date, onSetTime,
+    earthTextureLOD, setEarthTextureLOD,
+    showClouds, setShowClouds,
+    cloudSpeed, setCloudSpeed,
+    cloudOpacity, setCloudOpacity,
+    showNightLights, setShowNightLights,
+    bumpScale, setBumpScale,
+    specularStrength, setSpecularStrength,
+    nightLightIntensity, setNightLightIntensity,
+    dayIntensity, setDayIntensity,
+    earthRotationOffset, setEarthRotationOffset,
+    earthTextureOffset, setEarthTextureOffset,
 }) => {
     // Date/Time Helpers
     const currentTimestamp = SIMULATION_EPOCH + date * 86400 * 1000;
@@ -317,6 +352,56 @@ const Controls: React.FC<ControlsProps> = ({
                         >
                             Ecliptic
                         </button>
+                    </div>
+                </div>
+            </AccordionSection>
+
+            {/* Earth Graphics */}
+            <AccordionSection title="Earth Graphics" isOpen={accordionState.earth ?? true} onToggle={() => toggleAccordion('earth')}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center text-[10px] text-gray-400">
+                        <span>Texture Quality</span>
+                        <div className="flex gap-1">
+                            {['low', 'med', 'high', 'ultra'].map((lod) => (
+                                <button
+                                    key={lod}
+                                    onClick={() => setEarthTextureLOD(lod as any)}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold border ${earthTextureLOD === lod
+                                        ? 'bg-blue-600 border-blue-500 text-white'
+                                        : 'bg-transparent border-gray-600 text-gray-400 hover:border-gray-400'
+                                        }`}
+                                >
+                                    {lod}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="pt-1 mt-1 border-t border-white/5">
+                        <Toggle label="Clouds" checked={showClouds} onChange={setShowClouds} />
+                        {showClouds && (
+                            <div className="flex flex-col gap-1 mt-1 pl-2 border-l border-white/5">
+                                <Slider label="Speed" value={cloudSpeed} min={0} max={0.2} step={0.001} onChange={setCloudSpeed} format={v => v.toFixed(3)} />
+                                <Slider label="Opacity" value={cloudOpacity} min={0} max={1} step={0.05} onChange={setCloudOpacity} format={v => v.toFixed(2)} />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="pt-1 mt-1 border-t border-white/5">
+                        <Toggle label="Night Lights" checked={showNightLights} onChange={setShowNightLights} />
+                    </div>
+
+                    <div className="pt-1 mt-1 border-t border-white/5">
+                        <Slider label="Normal Scale" value={bumpScale} min={0} max={3.0} step={0.1} onChange={setBumpScale} format={v => v.toFixed(1)} />
+                        <Slider label="Specular Strength" value={specularStrength} min={0} max={5} step={0.1} onChange={setSpecularStrength} format={v => v.toFixed(1)} />
+                        <Slider label="Night Intensity" value={nightLightIntensity} min={0} max={10} step={0.1} onChange={setNightLightIntensity} format={v => v.toFixed(1)} />
+                        <Slider label="Day Intensity" value={dayIntensity} min={0} max={5} step={0.1} onChange={setDayIntensity} format={v => v.toFixed(1)} />
+
+                        <div className="pt-1 mt-1 border-t border-white/5">
+                            <h4 className="text-[9px] uppercase font-bold text-gray-500 mb-1">Alignment Calibration</h4>
+                            <Slider label="Mesh Rotation" value={earthRotationOffset} min={0} max={6.28} step={0.01} onChange={setEarthRotationOffset} format={v => (v * 180 / Math.PI).toFixed(0) + "°"} />
+                            <Slider label="Layer Offset" value={earthTextureOffset} min={0} max={6.28} step={0.01} onChange={setEarthTextureOffset} format={v => (v * 180 / Math.PI).toFixed(0) + "°"} />
+                        </div>
                     </div>
                 </div>
             </AccordionSection>

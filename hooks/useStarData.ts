@@ -12,6 +12,10 @@ export interface StarDataProcessed {
 
 export const useStarData = (): StarDataProcessed => {
     return useMemo(() => {
+        if (!Array.isArray(starData)) {
+            console.error('starData is not an array');
+            return { positions: new Float32Array(0), magnitudes: new Float32Array(0), colorIndices: new Float32Array(0) };
+        }
         const count = starData.length;
         const positions = new Float32Array(count * 3);
         const magnitudes = new Float32Array(count);

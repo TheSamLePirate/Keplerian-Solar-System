@@ -60,6 +60,19 @@ const App: React.FC = () => {
     const [showEarthGrid, setShowEarthGrid] = useState(false);
     const [cameraMode, setCameraMode] = useState<'equatorial' | 'ecliptic'>('equatorial');
 
+    // Earth Graphics
+    const [earthTextureLOD, setEarthTextureLOD] = useState<'low' | 'med' | 'high' | 'ultra'>('high');
+    const [showClouds, setShowClouds] = useState(true);
+    const [cloudSpeed, setCloudSpeed] = useState(0.05);
+    const [cloudOpacity, setCloudOpacity] = useState(1.0);
+    const [showNightLights, setShowNightLights] = useState(true);
+    const [bumpScale, setBumpScale] = useState(0.02);
+    const [specularStrength, setSpecularStrength] = useState(1.0);
+    const [nightLightIntensity, setNightLightIntensity] = useState(2.0);
+    const [dayIntensity, setDayIntensity] = useState(1.0);
+    const [earthRotationOffset, setEarthRotationOffset] = useState(0.0);
+    const [earthTextureOffset, setEarthTextureOffset] = useState(0.0);
+
 
 
     // Post-processing State
@@ -293,6 +306,18 @@ const App: React.FC = () => {
                 showEarthGrid={showEarthGrid}
                 gridMode={gridMode}
                 cameraMode={cameraMode}
+
+                earthTextureLOD={earthTextureLOD}
+                showClouds={showClouds}
+                cloudSpeed={cloudSpeed}
+                cloudOpacity={cloudOpacity}
+                showNightLights={showNightLights}
+                bumpScale={bumpScale}
+                specularStrength={specularStrength}
+                nightLightIntensity={nightLightIntensity}
+                dayIntensity={dayIntensity}
+                earthRotationOffset={earthRotationOffset}
+                earthTextureOffset={earthTextureOffset}
             />
 
             {/* UI Overlay */}
@@ -394,6 +419,23 @@ const App: React.FC = () => {
                                     showCelestialGrid={showCelestialGrid} setShowCelestialGrid={setShowCelestialGrid}
                                     gridMode={gridMode} setGridMode={setGridMode}
                                     cameraMode={cameraMode} setCameraMode={setCameraMode}
+
+                                    earthTextureLOD={earthTextureLOD} setEarthTextureLOD={setEarthTextureLOD}
+                                    showClouds={showClouds} setShowClouds={setShowClouds}
+                                    cloudSpeed={cloudSpeed} setCloudSpeed={setCloudSpeed}
+                                    cloudOpacity={cloudOpacity} setCloudOpacity={setCloudOpacity}
+                                    showNightLights={showNightLights} setShowNightLights={setShowNightLights}
+                                    bumpScale={bumpScale} setBumpScale={setBumpScale}
+                                    specularStrength={specularStrength}
+                                    setSpecularStrength={setSpecularStrength}
+                                    nightLightIntensity={nightLightIntensity}
+                                    setNightLightIntensity={setNightLightIntensity}
+                                    dayIntensity={dayIntensity}
+                                    setDayIntensity={setDayIntensity}
+                                    earthRotationOffset={earthRotationOffset}
+                                    setEarthRotationOffset={setEarthRotationOffset}
+                                    earthTextureOffset={earthTextureOffset}
+                                    setEarthTextureOffset={setEarthTextureOffset}
                                     bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
                                     bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
                                     bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}

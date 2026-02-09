@@ -44,4 +44,16 @@ export interface SimulationState {
   showLabels: boolean;
   scaleFactor: number; // Size exaggeration
   paused: boolean;
+  // Earth Graphics
+  earthTextureLOD: 'low' | 'med' | 'high' | 'ultra';
+  showClouds: boolean;
+  cloudSpeed: number;
+  cloudOpacity: number;
+  showNightLights: boolean;
+  bumpScale: number;
+  specularStrength: number;
+  nightLightIntensity?: number;
+  dayIntensity?: number;
+  earthRotationOffset?: number;
+  earthTextureOffset?: number;
 }
