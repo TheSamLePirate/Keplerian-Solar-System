@@ -362,7 +362,12 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       const targetPos = _targetPos.current.set(0, 0, 0);
       const currentTime = timeRef.current; // Read the updated time
 
-      if (followingBody.type === "moon" || followingBody.type === "satellite") {
+      if (followingBody.type === "star") {
+        // Sun is at origin, targetPos already (0,0,0)
+      } else if (
+        followingBody.type === "moon" ||
+        followingBody.type === "satellite"
+      ) {
         // Find parent planet for moons and satellites
         const parent = PLANETS.find((p) =>
           p.moons?.some((m) => m.id === followingBody.id),

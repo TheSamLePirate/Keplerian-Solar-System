@@ -17,6 +17,8 @@ const KeyboardCameraController: React.FC<Props> = ({ controlsRef }) => {
   // Pre-allocated vectors to avoid GC
   const _forward = useRef(new THREE.Vector3());
   const _right = useRef(new THREE.Vector3());
+  const _quat = useRef(new THREE.Quaternion());
+  const _offset = useRef(new THREE.Vector3());
 
   useFrame((_, delta) => {
     const keys = keysRef.current;
@@ -47,10 +49,16 @@ const KeyboardCameraController: React.FC<Props> = ({ controlsRef }) => {
     if (keys.has("q") || keys.has("ArrowLeft")) moveX -= 1;
     if (keys.has("d") || keys.has("ArrowRight")) moveX += 1;
 
-    if (moveX !== 0 || moveZ !== 0) {
-      const dx = right.x * moveX + forward.x * moveZ;
-      const dy = right.y * moveX + forward.y * moveZ;
-      const dz = right.z * moveX + forward.z * moveZ;
+    // Vertical (W/C) — along camera up axis
+    let moveY = 0;
+    if (keys.has("w")) moveY += 1;
+    if (keys.has("c")) moveY -= 1;
+
+    if (moveX !== 0 || moveZ !== 0 || moveY !== 0) {
+      const up = camera.up;
+      const dx = right.x * moveX + forward.x * moveZ + up.x * moveY;
+      const dy = right.y * moveX + forward.y * moveZ + up.y * moveY;
+      const dz = right.z * moveX + forward.z * moveZ + up.z * moveY;
 
       camera.position.x += dx * speed;
       camera.position.y += dy * speed;
@@ -60,18 +68,15 @@ const KeyboardCameraController: React.FC<Props> = ({ controlsRef }) => {
       target.z += dz * speed;
     }
 
-    // Rotation (A/E) — orbit around target
+    // Rotation (A/E) — orbit around target, respecting camera up axis
     if (keys.has("a") || keys.has("e")) {
       const angle = keys.has("a") ? rotSpeed : -rotSpeed;
 
-      // Rotate camera position around target on the horizontal plane
-      const offset = _forward.current.subVectors(camera.position, target);
-      const cosA = Math.cos(angle);
-      const sinA = Math.sin(angle);
-      const nx = offset.x * cosA - offset.z * sinA;
-      const nz = offset.x * sinA + offset.z * cosA;
-      camera.position.x = target.x + nx;
-      camera.position.z = target.z + nz;
+      // Rotate camera position around the camera.up axis through target
+      const offset = _offset.current.subVectors(camera.position, target);
+      const quat = _quat.current.setFromAxisAngle(camera.up, angle);
+      offset.applyQuaternion(quat);
+      camera.position.copy(target).add(offset);
     }
   }, 2); // Priority 2: after camera follow (priority 1)
 

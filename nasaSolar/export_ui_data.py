@@ -689,7 +689,29 @@ export const MOON_ORBIT_SCALE = {MOON_ORBIT_SCALE}; // Visual exaggeration for m
 """
     ts_content += f'export const SIMULATION_EPOCH = new Date("{t.utc_iso()}").getTime();\n\n'
     
-    ts_content += """// Orbital elements computed from Skyfield for current epoch
+    ts_content += f"""// Sun data (at origin, no orbit)
+export const SUN_DATA: PlanetData = {{
+  id: "sun",
+  name: "Sun",
+  type: "star",
+  color: "#FFD700",
+  radius: 109.2,
+  rotationPeriod: 609.12,
+  axialTilt: 7.25,
+  description: "The star at the center of the Solar System. A G-type main-sequence star (G2V) containing 99.86% of the system mass.",
+  period: 0,
+  mass: {GM_SUN:.16f},
+  elements: {{
+    semiMajorAxis: 0,
+    eccentricity: 0,
+    inclination: 0,
+    ascendingNode: 0,
+    perihelion: 0,
+    meanLongitude: 0,
+  }},
+}};
+
+// Orbital elements computed from Skyfield for current epoch
 export const PLANETS: PlanetData[] = [
 """
 

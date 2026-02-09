@@ -7,6 +7,8 @@ const MOVEMENT_KEYS = new Set([
   "d",
   "a",
   "e",
+  "w",
+  "c",
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
