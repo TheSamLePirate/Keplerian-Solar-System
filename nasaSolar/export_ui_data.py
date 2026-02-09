@@ -29,7 +29,9 @@ VISUAL_DATA = {
         "radius": 0.38,
         "description": "The smallest planet in the Solar System and the closest to the Sun.",
         "rotationPeriod": 1407.6,
-        "axialTilt": 0.03
+        "axialTilt": 0.03,
+        "textureUrl": "/tex/base/mercury-high.jpg",
+        "displacementMapUrl": "/tex/base/mercury-height-high.jpg"
     },
     "venus": {
         "name": "Venus",
@@ -39,7 +41,9 @@ VISUAL_DATA = {
         "radius": 0.95,
         "description": "The second planet from the Sun. It has a thick atmosphere that traps heat.",
         "rotationPeriod": -5832.5,
-        "axialTilt": 177.3
+        "axialTilt": 177.3,
+        "textureUrl": "/tex/base/venus-high.jpg",
+        "normalMapUrl": "/tex/base/venus-normal.jpg"
     },
     "earth": {
         "name": "Earth",
@@ -74,6 +78,7 @@ VISUAL_DATA = {
         "radius": 0.53,
         "textureUrl": "/textures/mars_daymap.jpg",
         "normalMapUrl": "/textures/mars_normal.jpg",
+        "displacementMapUrl": "/tex/base/mars-height-high.jpg",
         "description": "The Red Planet. Dusty, cold, desert world with a very thin atmosphere.",
         "rotationPeriod": 24.62,
         "axialTilt": 25.19
@@ -96,7 +101,9 @@ VISUAL_DATA = {
         "radius": 0.286,
         "description": "The most geologically active body in the Solar System.",
         "rotationPeriod": 42.46,
-        "axialTilt": 0.0
+        "axialTilt": 0.0,
+        "textureUrl": "/tex/base/io-high.jpg",
+        "normalMapUrl": "/tex/base/io-normal-high.jpg"
     },
     "europa": {
         "name": "Europa",
@@ -105,7 +112,9 @@ VISUAL_DATA = {
         "radius": 0.245,
         "description": "An icy moon with a subsurface ocean.",
         "rotationPeriod": 85.22,
-        "axialTilt": 0.0
+        "axialTilt": 0.0,
+        "textureUrl": "/tex/base/europa-high.jpg",
+        "normalMapUrl": "/tex/base/europa-normal-high.jpg"
     },
     "ganymede": {
         "name": "Ganymede",
@@ -114,7 +123,9 @@ VISUAL_DATA = {
         "radius": 0.413,
         "description": "The largest moon in the Solar System.",
         "rotationPeriod": 171.7,
-        "axialTilt": 0.0
+        "axialTilt": 0.0,
+        "textureUrl": "/tex/base/ganymede-high.jpg",
+        "normalMapUrl": "/tex/base/ganymede-normal-high.jpg"
     },
     "callisto": {
         "name": "Callisto",
@@ -123,7 +134,9 @@ VISUAL_DATA = {
         "radius": 0.378,
         "description": "One of the most heavily cratered objects in the Solar System.",
         "rotationPeriod": 400.5,
-        "axialTilt": 0.0
+        "axialTilt": 0.0,
+        "textureUrl": "/tex/base/callisto-diffuse-low.jpg",
+        "displacementMapUrl": "/tex/base/callisto-height-low.jpg"
     },
     "saturn": {
         "name": "Saturn",
@@ -147,7 +160,8 @@ VISUAL_DATA = {
         "radius": 4.0,
         "description": "An ice giant with a unique tilt, rotating on its side.",
         "rotationPeriod": -17.24,
-        "axialTilt": 97.77
+        "axialTilt": 97.77,
+        "textureUrl": "/tex/base/uranus-low.jpg"
     },
     "neptune": {
         "name": "Neptune",
@@ -157,7 +171,8 @@ VISUAL_DATA = {
         "radius": 3.88,
         "description": "The most distant major planet. Dark, cold, and whipped by supersonic winds.",
         "rotationPeriod": 16.11,
-        "axialTilt": 28.32
+        "axialTilt": 28.32,
+        "textureUrl": "/tex/base/neptune-low.jpg"
     },
     "iss": {
         "name": "ISS",
