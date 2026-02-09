@@ -85,6 +85,9 @@ export interface AppSettings {
   aoDistanceFalloff: number;
   aoScreenSpace: boolean;
 
+  // Camera
+  cameraTransitionSpeed: number;
+
   // Gravity Field
   gravityVisible: boolean;
   gravityOpacity: number;

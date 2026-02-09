@@ -121,6 +121,18 @@ const Controls: React.FC<ControlsProps> = ({
           </button>
         </div>
 
+        <div className="mt-2">
+          <Slider
+            label="Transition Speed"
+            value={s.cameraTransitionSpeed}
+            min={0.5}
+            max={10}
+            step={0.5}
+            onChange={(v) => set("cameraTransitionSpeed", v)}
+            format={(v) => v.toFixed(1)}
+          />
+        </div>
+
         <div className="mt-2 text-[10px] text-gray-400">
           <span className="mb-1 block">Alignment (Up)</span>
           <div className="flex gap-1">

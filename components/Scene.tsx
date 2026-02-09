@@ -126,6 +126,7 @@ interface SceneContentProps {
   showEarthGrid: boolean;
   gridMode: "equatorial" | "ecliptic";
   cameraMode: "equatorial" | "ecliptic";
+  cameraTransitionSpeed: number;
 
   // Earth Graphics props
   earthTextureLOD: "low" | "med" | "high" | "ultra";
@@ -247,6 +248,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   showEarthGrid,
   gridMode,
   cameraMode,
+  cameraTransitionSpeed,
   earthTextureLOD,
   showClouds,
   cloudSpeed,
@@ -294,6 +296,12 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   const _parentPos = useRef(new THREE.Vector3());
   const _childPos = useRef(new THREE.Vector3());
   const _deltaPos = useRef(new THREE.Vector3());
+
+  // Smooth camera transition state
+  const transitionProgress = useRef(1); // 1 = arrived, <1 = transitioning
+  const transitionStartCamPos = useRef(new THREE.Vector3());
+  const transitionStartTarget = useRef(new THREE.Vector3());
+  const prevFollowId = useRef<string | null>(null);
 
   const prevResetCam = useRef(resetCameraTrigger);
 
@@ -356,9 +364,18 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   }, -1);
 
   // Priority 1: Update Camera Follow (After planets have updated)
-  useFrame(() => {
+  useFrame((_, delta) => {
     // Follow Logic - Uses followingBody instead of selectedPlanet
     if (isFollowing && followingBody && controlsRef.current) {
+      // Detect body change → start smooth transition
+      const currentFollowId = followingBody.id;
+      if (currentFollowId !== prevFollowId.current) {
+        transitionProgress.current = 0;
+        transitionStartCamPos.current.copy(camera.position);
+        transitionStartTarget.current.copy(controlsRef.current.target);
+        prevFollowId.current = currentFollowId;
+      }
+
       const targetPos = _targetPos.current.set(0, 0, 0);
       const currentTime = timeRef.current; // Read the updated time
 
@@ -418,15 +435,46 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         targetPos.set(posArray[0], posArray[1], posArray[2]);
       }
 
-      // Sync controls target to calculated position
-      controlsRef.current.target.copy(targetPos);
+      if (transitionProgress.current < 1) {
+        // Smooth transition: lerp from start positions to destination
+        transitionProgress.current = Math.min(
+          1,
+          transitionProgress.current + delta * cameraTransitionSpeed,
+        );
+        // Smooth easing (ease-out cubic)
+        const t = transitionProgress.current;
+        const ease = 1 - Math.pow(1 - t, 3);
 
-      // Move camera to maintain relative position to target (no damping on this part)
-      const deltaPos = _deltaPos.current
-        .copy(targetPos)
-        .sub(prevTargetPos.current);
-      camera.position.add(deltaPos);
-      prevTargetPos.current.copy(targetPos);
+        // Desired camera offset from body (maintain same relative view distance)
+        const desiredCamOffset = _deltaPos.current
+          .copy(transitionStartCamPos.current)
+          .sub(transitionStartTarget.current);
+        const desiredCamPos = _parentPos.current
+          .copy(targetPos)
+          .add(desiredCamOffset);
+
+        // Lerp camera and target from start to destination
+        camera.position.lerpVectors(
+          transitionStartCamPos.current,
+          desiredCamPos,
+          ease,
+        );
+        controlsRef.current.target.lerpVectors(
+          transitionStartTarget.current,
+          targetPos,
+          ease,
+        );
+        prevTargetPos.current.copy(controlsRef.current.target);
+      } else {
+        // Arrived — normal follow: maintain relative offset
+        controlsRef.current.target.copy(targetPos);
+
+        const deltaPos = _deltaPos.current
+          .copy(targetPos)
+          .sub(prevTargetPos.current);
+        camera.position.add(deltaPos);
+        prevTargetPos.current.copy(targetPos);
+      }
 
       // Update Focused Light
       if (focusedLightRef.current) {
@@ -435,11 +483,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         focusedLightRef.current.target = focusedLightTargetRef.current;
 
         // Light position: Toward the Sun (0,0,0)
-        // Direction from Object to Sun = (0,0,0) - targetPos = -targetPos
-        // We place the light some distance away in that direction
         const toSun = _deltaPos.current.copy(targetPos).negate().normalize();
-        // Distance: Enough to clear the object radius but close enough for precision
-        // ISS Radius is ~0.008 -> distance should be small
         const distance = 5 * PLANET_SCALE * scaleFactor;
         focusedLightRef.current.position
           .copy(targetPos)
@@ -450,6 +494,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       if (controlsRef.current) {
         prevTargetPos.current.copy(controlsRef.current.target);
       }
+      prevFollowId.current = null;
     }
   }, 1);
 

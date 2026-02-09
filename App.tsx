@@ -247,6 +247,7 @@ const App: React.FC = () => {
         showEarthGrid={settings.showEarthGrid}
         gridMode={settings.gridMode}
         cameraMode={settings.cameraMode}
+        cameraTransitionSpeed={settings.cameraTransitionSpeed}
         earthTextureLOD={settings.earthTextureLOD}
         showClouds={settings.showClouds}
         cloudSpeed={settings.cloudSpeed}
