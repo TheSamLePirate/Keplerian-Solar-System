@@ -21,6 +21,7 @@ export interface PlanetData {
   normalMapUrl?: string;
   specularMapUrl?: string;
   ringMapUrl?: string;
+  displacementMapUrl?: string;
   ringInnerRadius?: number; // Relative to planet radius (e.g. 1.1)
   ringOuterRadius?: number; // Relative to planet radius (e.g. 2.0)
   modelUrl?: string; // Path to 3D model file (.glb) for satellites like ISS

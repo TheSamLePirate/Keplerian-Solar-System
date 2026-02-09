@@ -357,6 +357,97 @@ const EarthMaterial = {
     `
 };
 
+const MoonMaterial = {
+    vertexShader: EarthMaterial.vertexShader, // Reuse Earth Vertex Shader (Displacement + LogDepth + Shadows)
+    fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    #include <packing>
+    #include <lights_pars_begin>
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+
+    uniform sampler2D map;
+    uniform sampler2D normalMap;
+    
+    uniform vec3 sunDirection; // Local space
+    uniform vec3 localCameraPos; // Local space
+    uniform float bumpScale;
+    uniform float dayIntensity;
+
+    varying vec2 vUv;
+    varying vec3 vLocalPosition;
+    varying vec3 vNormal;
+
+    // Easy normal mapping for sphere
+    vec3 getNormal() {
+        vec3 objectNormal = normalize(vNormal);
+        vec3 normalSample = texture2D(normalMap, vUv).rgb * 2.0 - 1.0;
+        
+        // TBN Matrix
+        vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), objectNormal));
+        if (length(tangent) < 0.001) tangent = vec3(1.0, 0.0, 0.0);
+        vec3 bitangent = normalize(cross(objectNormal, tangent));
+        
+        mat3 tbn = mat3(tangent, bitangent, objectNormal);
+        
+        // Use normalStrength for XY (slope) and keeping Z (up) relative
+        vec3 perturbed = tbn * normalize(vec3(normalSample.xy * bumpScale, normalSample.z)); 
+        return normalize(perturbed);
+    }
+
+    void main() {
+        #include <logdepthbuf_fragment>
+
+        vec3 normal = getNormal();
+        vec3 lightDir = normalize(sunDirection);
+        // vec3 viewDir = normalize(localCameraPos - vLocalPosition); // Not needed for diffuse only
+
+        // Diffuse factor
+        float NdotL = dot(normal, lightDir);
+        float diffuse = max(0.0, NdotL);
+
+        // Calculate Shadow Mask (0.0 = shadowed, 1.0 = lit)
+        float shadowMask = getShadowMask();
+
+        // Apply shadow to diffuse lighting
+        diffuse *= shadowMask;
+
+        // Sample Texture
+        vec4 texColor = texture2D(map, vUv);
+
+        // Final Color
+        // Simple Diffuse Lighting
+        vec3 finalColor = texColor.rgb * diffuse * dayIntensity;
+        
+        // Ambient fill (simulated bounce light)
+        finalColor += texColor.rgb * 0.02; 
+
+        gl_FragColor = vec4(finalColor, 1.0);
+    }
+    `
+};
+
+
+
+// Global Dummy Textures to reuse across Earth and Moon
+const dummyTexture = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1);
+dummyTexture.needsUpdate = true;
+
+const dummyCanvas = document.createElement('canvas');
+dummyCanvas.width = 1;
+dummyCanvas.height = 1;
+const dummyCtx = dummyCanvas.getContext('2d');
+if (dummyCtx) {
+    dummyCtx.fillStyle = 'rgba(128, 128, 128, 1)';
+    dummyCtx.fillRect(0, 0, 1, 1);
+}
+const dummyCube = new THREE.CubeTexture([
+    dummyCanvas, dummyCanvas, dummyCanvas,
+    dummyCanvas, dummyCanvas, dummyCanvas
+]);
+dummyCube.needsUpdate = true;
+
 const Planet: React.FC<PlanetProps> = ({
     data,
     timeRef,
@@ -386,15 +477,28 @@ const Planet: React.FC<PlanetProps> = ({
     cloudRotationOffset = 0.0
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
-    const { camera } = useThree(); // Added to fix lint error
+    const { camera } = useThree();
     const earthMeshRef = useRef<THREE.Mesh>(null);
     const groupRef = useRef<THREE.Group>(null);
     const issGroupRef = useRef<THREE.Group>(null);
     const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
     const earthMaterialRef = useRef<THREE.ShaderMaterial>(null);
+    const moonMaterialRef = useRef<THREE.ShaderMaterial>(null);
     const atmMeshRef = useRef<THREE.Mesh>(null);
     const [hovered, setHover] = useState(false);
     const isInsideAtmosphereRef = useRef(false);
+
+    // Texture Loading State (Moved to top)
+    const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null, ring: THREE.Texture | null, displacement: THREE.Texture | null }>({ map: null, normal: null, specular: null, ring: null, displacement: null });
+
+    const [earthTextures, setEarthTextures] = useState<{
+        day: THREE.CubeTexture | null;
+        night: THREE.CubeTexture | null;
+        clouds: THREE.CubeTexture | null;
+        normal: THREE.Texture | null;
+        specular: THREE.Texture | null;
+        loadedLOD: string | null;
+    }>({ day: null, night: null, clouds: null, normal: null, specular: null, loadedLOD: null });
 
     const isFocused = data.id === focusedBodyId;
 
@@ -419,6 +523,7 @@ const Planet: React.FC<PlanetProps> = ({
 
     // Constants
     const isMoon = data.type === 'moon';
+    const useMoonShader = data.id === 'moon'; // Only apply custom shader to Luna for now
     const isSatellite = data.type === 'satellite';
     const visualOrbitScale = (isMoon || isSatellite) ? MOON_ORBIT_SCALE : 1;
 
@@ -492,30 +597,9 @@ const Planet: React.FC<PlanetProps> = ({
 
     // Earth Uniforms
     const earthUniforms = useMemo(() => {
-        // Create dummy DataTexture for 2D maps (displacement, normal, specular)
-        const dummyTexture = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1);
-        dummyTexture.needsUpdate = true;
-
-        // Create dummy Canvas for Cube Maps (day, night, cloud)
-        // Using a canvas prevents WebGL errors with DataTexture + CubeTexture
-        const canvas = document.createElement('canvas');
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.fillStyle = 'rgba(128, 128, 128, 1)';
-            ctx.fillRect(0, 0, 1, 1);
-        }
-
-        const dummyCube = new THREE.CubeTexture([
-            canvas, canvas, canvas,
-            canvas, canvas, canvas
-        ]);
-        dummyCube.needsUpdate = true;
-
         return THREE.UniformsUtils.merge([
             THREE.UniformsLib.lights,
-            THREE.UniformsLib.fog, // Usually good to include if common chunks used
+            THREE.UniformsLib.fog,
             {
                 dayMap: { value: dummyCube },
                 nightMap: { value: dummyCube },
@@ -539,6 +623,50 @@ const Planet: React.FC<PlanetProps> = ({
             }
         ]);
     }, []);
+
+    // Moon Uniforms
+    const moonUniforms = useMemo(() => {
+        return THREE.UniformsUtils.merge([
+            THREE.UniformsLib.lights,
+            THREE.UniformsLib.fog,
+            {
+                map: { value: dummyTexture },
+                normalMap: { value: dummyTexture },
+                displacementMap: { value: dummyTexture },
+                displacementScale: { value: 0 },
+                sunDirection: { value: new THREE.Vector3() },
+                localCameraPos: { value: new THREE.Vector3() },
+                bumpScale: { value: bumpScale },
+                dayIntensity: { value: dayIntensity }
+            }
+        ]);
+    }, []);
+
+    // Sync Moon Textures to Uniforms (using material ref)
+    useEffect(() => {
+        if (data.id === 'moon' && moonMaterialRef.current) {
+            const u = moonMaterialRef.current.uniforms;
+
+            if (loadedTextures.map) {
+                console.log('Moon: Setting map texture');
+                u.map.value = loadedTextures.map;
+            }
+            if (loadedTextures.normal) {
+                console.log('Moon: Setting normal texture');
+                u.normalMap.value = loadedTextures.normal;
+            }
+            if (loadedTextures.displacement) {
+                console.log('Moon: Setting displacement texture', loadedTextures.displacement);
+                u.displacementMap.value = loadedTextures.displacement;
+            }
+
+            u.bumpScale.value = bumpScale;
+            u.displacementScale.value = displacementScale;
+            u.dayIntensity.value = dayIntensity;
+
+            console.log('Moon displacement scale:', displacementScale);
+        }
+    }, [data.id, loadedTextures, bumpScale, displacementScale, dayIntensity]);
 
     // Pre-allocate vectors
     const tempVec = useMemo(() => new THREE.Vector3(), []);
@@ -607,17 +735,9 @@ const Planet: React.FC<PlanetProps> = ({
     }, [data.id, showEarthGrid]);
 
     // Texture Loading (Standard 2D)
-    const [loadedTextures, setTextures] = useState<{ map: THREE.Texture | null, normal: THREE.Texture | null, specular: THREE.Texture | null, ring: THREE.Texture | null }>({ map: null, normal: null, specular: null, ring: null });
+    // loadedTextures moved to top
 
-    // Earth Texture Loading (Cubemaps + 2D)
-    const [earthTextures, setEarthTextures] = useState<{
-        day: THREE.CubeTexture | null;
-        night: THREE.CubeTexture | null;
-        clouds: THREE.CubeTexture | null;
-        normal: THREE.Texture | null;
-        specular: THREE.Texture | null;
-        loadedLOD: string | null;
-    }>({ day: null, night: null, clouds: null, normal: null, specular: null, loadedLOD: null });
+    // ... (Loader logic) ...
 
     React.useEffect(() => {
         let cancelled = false;
@@ -724,6 +844,15 @@ const Planet: React.FC<PlanetProps> = ({
                 setTextures(prev => ({ ...prev, specular: tex }));
             }, undefined, (err) => {
                 console.warn(`Failed to load specular map: ${data.specularMapUrl}`, err);
+            });
+        }
+        if (data.displacementMapUrl) {
+            loader.load(data.displacementMapUrl, (tex) => {
+                if (cancelled) { tex.dispose(); return; }
+                loadedTexturesList.push(tex);
+                setTextures(prev => ({ ...prev, displacement: tex }));
+            }, undefined, (err) => {
+                console.warn(`Failed to load displacement map: ${data.displacementMapUrl}`, err);
             });
         }
         if (data.ringMapUrl) {
@@ -905,6 +1034,27 @@ const Planet: React.FC<PlanetProps> = ({
                 u.localCameraPos.value.copy(tempVec);
             }
         }
+
+
+        if (useMoonShader && meshRef.current && moonMaterialRef.current) {
+            // Update Moon Uniforms on the MATERIAL instance
+            const u = moonMaterialRef.current.uniforms;
+
+            // Sun Position (Same logic as Earth)
+            tempSun.set(0, 0, 0);
+            meshRef.current.worldToLocal(tempSun);
+            u.sunDirection.value.copy(tempSun).normalize();
+
+            // Camera Position
+            tempVec.copy(camera.position);
+            meshRef.current.worldToLocal(tempVec);
+            u.localCameraPos.value.copy(tempVec);
+
+            // Dynamic Uniforms
+            u.dayIntensity.value = dayIntensity;
+            u.bumpScale.value = bumpScale;
+            u.displacementScale.value = displacementScale;
+        }
     });
 
     const tiltQuaternion = useMemo(() => {
@@ -955,7 +1105,33 @@ const Planet: React.FC<PlanetProps> = ({
                         </mesh>
                     )}
 
-                    {isEarth ? (
+                    {useMoonShader ? (
+                        <mesh
+                            ref={meshRef}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(data);
+                            }}
+                            onPointerOver={() => setHover(true)}
+                            onPointerOut={() => setHover(false)}
+                            castShadow
+                            receiveShadow
+                            renderOrder={1}
+                        >
+                            <sphereGeometry args={[size, 128, 128]} />
+                            <shaderMaterial
+                                ref={moonMaterialRef}
+                                key={`moon-mat-${data.id}`}
+                                vertexShader={MoonMaterial.vertexShader}
+                                fragmentShader={MoonMaterial.fragmentShader}
+                                uniforms={moonUniforms}
+                                lights={true}
+                                transparent={false}
+                                depthWrite={true}
+                                depthTest={true}
+                            />
+                        </mesh>
+                    ) : isEarth ? (
                         <mesh
                             ref={earthMeshRef}
                             onClick={(e) => {
@@ -1042,24 +1218,18 @@ const Planet: React.FC<PlanetProps> = ({
                             castShadow
                             receiveShadow
                         >
-                            <sphereGeometry args={[size, 64, 64]} />
-                            {loadedTextures.map ? (
-                                <meshPhongMaterial
-                                    color="white"
-                                    map={loadedTextures.map || undefined}
-                                    normalMap={loadedTextures.normal || undefined}
-                                    normalScale={new THREE.Vector2(1, 1)}
-                                    specularMap={loadedTextures.specular || undefined}
-                                    specular={loadedTextures.specular ? new THREE.Color('grey') : new THREE.Color(0x111111)}
-                                    shininess={loadedTextures.specular ? 50 : 5}
-                                />
-                            ) : (
-                                <meshStandardMaterial
-                                    {...materialProps}
-                                    map={undefined}
-                                    normalMap={undefined}
-                                />
-                            )}
+                            <sphereGeometry args={[size, 128, 128]} />
+                            <meshStandardMaterial
+                                map={loadedTextures.map}
+                                normalMap={loadedTextures.normal}
+                                normalScale={new THREE.Vector2(bumpScale, bumpScale)}
+                                roughness={0.8}
+                                metalness={0.1}
+                                displacementMap={loadedTextures.displacement}
+                                displacementScale={data.id === 'moon' ? displacementScale * 0.1 : 0}
+                                color={data.color}
+                            />
+
 
                             {/* Ring System */}
                             {loadedTextures.ring && data.ringInnerRadius && data.ringOuterRadius && (
@@ -1113,7 +1283,7 @@ const Planet: React.FC<PlanetProps> = ({
                             )}
                         </mesh>
                     )}
-                </group>
+                </group >
 
                 {data.moons && data.moons.map((moon) => (
                     <Planet
@@ -1140,7 +1310,7 @@ const Planet: React.FC<PlanetProps> = ({
                         specularStrength={specularStrength}
                     />
                 ))}
-            </group>
+            </group >
         </>
     );
 };

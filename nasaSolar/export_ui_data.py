@@ -62,8 +62,9 @@ VISUAL_DATA = {
         "description": "Earth's only natural satellite.",
         "rotationPeriod": 655.7,
         "axialTilt": 6.68,
-        "textureUrl": "/textures/moon_daymap.jpg",
-        "normalMapUrl": "/textures/moon_normal.jpg"
+        "textureUrl": "/tex/base/moon-high.jpg",
+        "normalMapUrl": "/tex/base/moon-normal-high.jpg",
+        "displacementMapUrl": "/tex/base/moon-height-high.jpg"
     },
     "mars": {
         "name": "Mars",
@@ -585,6 +586,8 @@ def generate_ts_object(data, elements, moons_content=None):
         s += f'{indent}normalMapUrl: "{data["normalMapUrl"]}",\n'
     if "specularMapUrl" in data:
         s += f'{indent}specularMapUrl: "{data["specularMapUrl"]}",\n'
+    if "displacementMapUrl" in data:
+        s += f'{indent}displacementMapUrl: "{data["displacementMapUrl"]}",\n'
     if "modelUrl" in data:
         s += f'{indent}modelUrl: "{data["modelUrl"]}",\n'
     s += f'{indent}rotationPeriod: {data["rotationPeriod"]},\n'
