@@ -187,6 +187,10 @@ const AtmosphereMaterial = {
 
 const EarthMaterial = {
     vertexShader: `
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    #include <shadowmap_pars_vertex>
+
     varying vec2 vUv;
     varying vec3 vNormal;
     varying vec3 vLocalPosition;
@@ -195,26 +199,36 @@ const EarthMaterial = {
     uniform sampler2D displacementMap;
     uniform float displacementScale;
     
-    // We need view position in Local Space for correct specular
-    // But standard three.js viewMatrix transforms to Camera Space
-    // So we'll pass the camera's local position uniform
-    
     void main() {
         vUv = uv;
         vLocalPosition = position;
         vNormal = normal; // Local normal
         
         // Vertex Displacement
-        // We use texture2D to sample displacement map.
-        // Needs high segment count sphere.
         float disp = texture2D(displacementMap, uv).r;
         vec3 displacedPosition = position + normal * (disp * displacementScale);
 
         vec4 worldPosition = modelMatrix * vec4(displacedPosition, 1.0);
         gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        
+        #include <logdepthbuf_vertex>
+
+        // Create world position for shadow map calculations
+        vec3 transformedNormal = normal; 
+        // Note: For perfect shadows with displacement, we would recalculate normal here, 
+        // but original normal is fine for bias usually.
+        
+        #include <shadowmap_vertex>
     }
     `,
     fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    #include <packing>
+    #include <lights_pars_begin>
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+
     uniform samplerCube dayMap;
     uniform samplerCube nightMap;
     uniform samplerCube cloudMap;
@@ -232,7 +246,7 @@ const EarthMaterial = {
     uniform float specularStrength;
     uniform float nightLightIntensity;
     uniform float dayIntensity;
-    uniform float earthTextureOffset; // New uniform for manual alignment reference
+    uniform float earthTextureOffset; 
 
     varying vec2 vUv;
     varying vec3 vLocalPosition;
@@ -256,6 +270,8 @@ const EarthMaterial = {
     }
 
     void main() {
+        #include <logdepthbuf_fragment>
+
         vec3 normal = getNormal();
         vec3 lightDir = normalize(sunDirection);
         vec3 viewDir = normalize(localCameraPos - vLocalPosition);
@@ -264,11 +280,17 @@ const EarthMaterial = {
         float NdotL = dot(normal, lightDir);
         float diffuse = max(0.0, NdotL);
 
-        // Day/Night Mix Factor (Start mixing at terminator)
-        float mixFactor = smoothstep(-0.2, 0.2, NdotL);
+        // Calculate Shadow Mask (0.0 = shadowed, 1.0 = lit)
+        float shadowMask = getShadowMask();
+
+        // Apply shadow to diffuse lighting
+        diffuse *= shadowMask;
+
+        // Day/Night Mix Factor 
+        // We use the SHADOWED diffuse for mixing, so night lights turn on in shadow
+        float mixFactor = smoothstep(-0.2, 0.2, diffuse); 
 
         // Sample Cubemaps
-        // Apply Texture Layer Offset for alignment
         vec3 sampleDir = normalize(vLocalPosition);
         
         float theta = earthTextureOffset;
@@ -287,17 +309,25 @@ const EarthMaterial = {
         if (NdotL > 0.0) {
             vec3 halfVector = normalize(lightDir + viewDir);
             float NdotH = max(0.0, dot(normal, halfVector));
-            specular = pow(NdotH, 60.0) * specularMask * specularStrength;
+            specular = pow(NdotH, 60.0) * specularMask * specularStrength * shadowMask;
         }
 
         // Base Color Mixing
         vec3 finalColor = dayColor.rgb * diffuse * dayIntensity + specular;
 
         if (showNightLights) {
-             finalColor += nightColor.rgb * (1.0 - mixFactor) * nightLightIntensity;
+             // Night lights should appear where it is "dark" (low mixFactor)
+             // Use original NdotL for mixFactor if we want lights ONLY on night side 
+             // OR use shadowMask if we want lights during eclipses too. 
+             // Use NdotL for terminator mixing, but maybe shadowMask for eclipses?
+             // Standard: Night lights are permanent on night side. Eclipses are just dark day.
+             // So let's use the GEOMETRIC day/night for mixing night lights, not shadow.
+             
+             float geoMix = smoothstep(-0.2, 0.2, NdotL);
+             finalColor += nightColor.rgb * (1.0 - geoMix) * nightLightIntensity;
         } else {
-             // Just ambient dark for night side if lights off
-             finalColor += dayColor.rgb * (1.0 - mixFactor) * 0.05;
+             float geoMix = smoothstep(-0.2, 0.2, NdotL);
+             finalColor += dayColor.rgb * (1.0 - geoMix) * 0.05;
         }
 
         // Clouds
@@ -307,18 +337,16 @@ const EarthMaterial = {
             float s = sin(totalCloudAngle);
             mat3 rotation = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
             
-            // Apply both cloud rotation AND the layer alignment rotation
             vec3 cloudDir = rotation * rotatedSampleDir;
             vec4 cloudSample = textureCube(cloudMap, cloudDir);
             
-            // Cloud Shadow (offset towards light)
             vec3 shadowDir = rotation * normalize(rotatedSampleDir + lightDir * 0.02);
             float cloudShadow = textureCube(cloudMap, shadowDir).r;
             
             finalColor *= (1.0 - cloudShadow * cloudOpacity * 0.5 * diffuse);
 
             float cloudDiffuse = max(0.0, dot(normalize(cloudDir), lightDir));
-            float cloudLight = max(cloudDiffuse, 0.1); 
+            float cloudLight = max(cloudDiffuse, 0.1) * shadowMask; // Cloud also receives shadow
             
             vec3 cloudColor = vec3(1.0) * cloudLight;
             finalColor = mix(finalColor, cloudColor, cloudSample.r * cloudOpacity);
@@ -463,27 +491,54 @@ const Planet: React.FC<PlanetProps> = ({
     }), []);
 
     // Earth Uniforms
-    const earthUniforms = useMemo(() => ({
-        dayMap: { value: null },
-        nightMap: { value: null },
-        cloudMap: { value: null },
-        normalMap: { value: null },
-        specularMap: { value: null },
-        displacementMap: { value: null }, // New Uniform
-        sunDirection: { value: new THREE.Vector3() },
-        localCameraPos: { value: new THREE.Vector3() }, // Added
-        cloudTime: { value: 0 },
-        cloudRotationOffset: { value: cloudRotationOffset },
-        cloudOpacity: { value: cloudOpacity },
-        showClouds: { value: showClouds },
-        showNightLights: { value: showNightLights },
-        bumpScale: { value: bumpScale },
-        specularStrength: { value: specularStrength },
-        nightLightIntensity: { value: nightLightIntensity },
-        dayIntensity: { value: dayIntensity },
-        earthTextureOffset: { value: earthTextureOffset },
-        displacementScale: { value: displacementScale }
-    }), []);
+    const earthUniforms = useMemo(() => {
+        // Create dummy DataTexture for 2D maps (displacement, normal, specular)
+        const dummyTexture = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1);
+        dummyTexture.needsUpdate = true;
+
+        // Create dummy Canvas for Cube Maps (day, night, cloud)
+        // Using a canvas prevents WebGL errors with DataTexture + CubeTexture
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = 'rgba(128, 128, 128, 1)';
+            ctx.fillRect(0, 0, 1, 1);
+        }
+
+        const dummyCube = new THREE.CubeTexture([
+            canvas, canvas, canvas,
+            canvas, canvas, canvas
+        ]);
+        dummyCube.needsUpdate = true;
+
+        return THREE.UniformsUtils.merge([
+            THREE.UniformsLib.lights,
+            THREE.UniformsLib.fog, // Usually good to include if common chunks used
+            {
+                dayMap: { value: dummyCube },
+                nightMap: { value: dummyCube },
+                cloudMap: { value: dummyCube },
+                normalMap: { value: dummyTexture },
+                specularMap: { value: dummyTexture },
+                displacementMap: { value: dummyTexture },
+                sunDirection: { value: new THREE.Vector3() },
+                localCameraPos: { value: new THREE.Vector3() },
+                cloudTime: { value: 0 },
+                cloudRotationOffset: { value: cloudRotationOffset },
+                cloudOpacity: { value: cloudOpacity },
+                showClouds: { value: showClouds },
+                showNightLights: { value: showNightLights },
+                bumpScale: { value: bumpScale },
+                specularStrength: { value: specularStrength },
+                nightLightIntensity: { value: nightLightIntensity },
+                dayIntensity: { value: dayIntensity },
+                earthTextureOffset: { value: earthTextureOffset },
+                displacementScale: { value: displacementScale }
+            }
+        ]);
+    }, []);
 
     // Pre-allocate vectors
     const tempVec = useMemo(() => new THREE.Vector3(), []);
@@ -910,13 +965,19 @@ const Planet: React.FC<PlanetProps> = ({
                             onPointerOut={() => setHover(false)}
                             castShadow
                             receiveShadow
+                            renderOrder={1} // Ensure it sorts correctly
                         >
                             <sphereGeometry args={[size, 128, 128]} />
                             <shaderMaterial
                                 ref={earthMaterialRef}
+                                key={`earth-mat-${data.id}`} // Force remount if needed
                                 vertexShader={EarthMaterial.vertexShader}
                                 fragmentShader={EarthMaterial.fragmentShader}
                                 uniforms={earthUniforms}
+                                lights={true}
+                                transparent={false}
+                                depthWrite={true}
+                                depthTest={true}
                             />
                             {/* Grid Overlay for Earth */}
                             {gridTexture && (
