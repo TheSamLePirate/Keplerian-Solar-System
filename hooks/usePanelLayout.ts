@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
 export interface PanelLayoutState {
   panels: Record<string, boolean>;
@@ -10,6 +10,7 @@ const DEFAULT_STATE: PanelLayoutState = {
     bodies: true,
     info: true,
     controls: true,
+    debug: false,
   },
   accordionState: {
     camera: true,
@@ -26,23 +27,26 @@ export function usePanelLayout() {
   const [state, setState] = useState<PanelLayoutState>(DEFAULT_STATE);
 
   const togglePanel = useCallback((id: string) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       panels: { ...prev.panels, [id]: !prev.panels[id] },
     }));
   }, []);
 
   const setPanelVisible = useCallback((id: string, visible: boolean) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       panels: { ...prev.panels, [id]: visible },
     }));
   }, []);
 
   const toggleAccordion = useCallback((id: string) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      accordionState: { ...prev.accordionState, [id]: !prev.accordionState[id] },
+      accordionState: {
+        ...prev.accordionState,
+        [id]: !prev.accordionState[id],
+      },
     }));
   }, []);
 

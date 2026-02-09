@@ -14,6 +14,15 @@ export interface PlanetLodInfo {
 }
 export const planetLodStore = new Map<string, PlanetLodInfo>();
 
+// Module-level culling store: written by Planet useFrame, read by DebugPanel
+export const planetCullingStore = new Map<string, boolean>(); // true = visible, false = culled
+
+// Module-level position store: written by Planet useFrame, read by DebugPanel
+export const planetPositionStore = new Map<
+  string,
+  { x: number; y: number; z: number }
+>();
+
 interface PlanetProps {
   data: PlanetData;
   timeRef: React.MutableRefObject<number>;
@@ -491,8 +500,10 @@ const Planet: React.FC<PlanetProps> = ({
   const earthMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const moonMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const atmMeshRef = useRef<THREE.Mesh>(null);
+  const tiltGroupRef = useRef<THREE.Group>(null);
   const [hovered, setHover] = useState(false);
   const isInsideAtmosphereRef = useRef(false);
+  const isVisibleRef = useRef(true);
 
   // Texture Loading State (Moved to top)
   const [loadedTextures, setTextures] = useState<{
@@ -717,6 +728,12 @@ const Planet: React.FC<PlanetProps> = ({
   const tempYAxis = useMemo(() => new THREE.Vector3(), []);
   const tempZAxis = useMemo(() => new THREE.Vector3(), []);
   const tempQuaternion = useMemo(() => new THREE.Quaternion(), []);
+
+  // Frustum culling pre-allocated objects
+  const frustum = useMemo(() => new THREE.Frustum(), []);
+  const projScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const boundingSphere = useMemo(() => new THREE.Sphere(), []);
+  const currentPosVec = useMemo(() => new THREE.Vector3(), []);
 
   // Grid Texture Generation
   const gridTexture = useMemo(() => {
@@ -1005,7 +1022,7 @@ const Planet: React.FC<PlanetProps> = ({
       time,
       data.period,
     );
-    let currentPos = new THREE.Vector3(
+    let currentPos = currentPosVec.set(
       pos[0] * visualOrbitScale,
       pos[1] * visualOrbitScale,
       pos[2] * visualOrbitScale,
@@ -1027,6 +1044,47 @@ const Planet: React.FC<PlanetProps> = ({
       // Update Matrix World immediately
       groupRef.current.updateMatrixWorld(true);
     }
+
+    // Frustum Culling: check if planet bounding sphere is on screen
+    // Use the largest visual extent (atmosphere or ring) for the test
+    const visibleRadius = data.ringOuterRadius
+      ? size * data.ringOuterRadius
+      : hasAtmosphere
+        ? atmRadius
+        : size;
+
+    projScreenMatrix.multiplyMatrices(
+      state.camera.projectionMatrix,
+      state.camera.matrixWorldInverse,
+    );
+    frustum.setFromProjectionMatrix(projScreenMatrix);
+
+    // Get world position of the group
+    if (groupRef.current) {
+      groupRef.current.getWorldPosition(boundingSphere.center);
+    } else {
+      boundingSphere.center.copy(currentPos);
+    }
+    boundingSphere.radius = visibleRadius * 1.5; // generous margin
+
+    const onScreen = frustum.intersectsSphere(boundingSphere);
+    isVisibleRef.current = onScreen;
+
+    // Write to culling store for DebugPanel
+    planetCullingStore.set(data.id, onScreen);
+
+    // Write world position for DebugPanel
+    const c = boundingSphere.center;
+    planetPositionStore.set(data.id, { x: c.x, y: c.y, z: c.z });
+
+    // Toggle visibility of the tilt group (meshes, atmosphere, labels)
+    // but NOT the outer group (so moons still get positioned correctly)
+    if (tiltGroupRef.current) {
+      tiltGroupRef.current.visible = onScreen;
+    }
+
+    // Skip all expensive updates if off-screen
+    if (!onScreen) return;
 
     // 2. Rotate Planet (Spin)
     if (meshRef.current) {
@@ -1232,7 +1290,7 @@ const Planet: React.FC<PlanetProps> = ({
       )}
 
       <group ref={groupRef}>
-        <group quaternion={tiltQuaternion}>
+        <group ref={tiltGroupRef} quaternion={tiltQuaternion}>
           {/* Atmosphere Mesh (Outer Shell) */}
           {hasAtmosphere && !isMoon && (
             <mesh ref={atmMeshRef}>
