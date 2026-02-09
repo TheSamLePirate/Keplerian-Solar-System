@@ -412,7 +412,7 @@ const Planet: React.FC<PlanetProps> = ({
                 </mesh>
               )}
 
-              {(showLabel || hovered || isSelected) && (
+              {(showLabel || hovered) && (
                 <Html position={[0, size * 1.5, 0]}>
                   <div
                     className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
@@ -440,7 +440,7 @@ const Planet: React.FC<PlanetProps> = ({
                 modelType={issModel}
                 layer={isFocused ? 1 : 0}
               />
-              {(showLabel || hovered || isSelected) && (
+              {(showLabel || hovered) && (
                 <Html position={[0, size * 3, 0]}>
                   <div
                     className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
@@ -523,7 +523,7 @@ const Planet: React.FC<PlanetProps> = ({
                   </mesh>
                 )}
 
-              {(showLabel || hovered || isSelected) && (
+              {(showLabel || hovered) && (
                 <Html position={[0, size * 1.5, 0]}>
                   <div
                     className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
