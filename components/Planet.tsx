@@ -1377,7 +1377,7 @@ const Planet: React.FC<PlanetProps> = ({
                 metalness={0.1}
                 displacementMap={loadedTextures.displacement}
                 displacementScale={
-                  data.id === "moon" ? displacementScale * 0.1 : 0
+                  loadedTextures.displacement ? displacementScale * 0.1 : 0
                 }
                 color={data.color}
               />
