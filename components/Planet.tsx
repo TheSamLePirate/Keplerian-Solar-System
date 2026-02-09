@@ -40,6 +40,8 @@ interface PlanetProps {
     dayIntensity?: number;
     earthRotationOffset?: number;
     earthTextureOffset?: number;
+    displacementScale?: number;
+    cloudRotationOffset?: number;
 }
 
 // Volumetric Rayleigh Scattering Shader (Local Space)
@@ -190,6 +192,9 @@ const EarthMaterial = {
     varying vec3 vLocalPosition;
     varying vec3 vSunDirection;
     
+    uniform sampler2D displacementMap;
+    uniform float displacementScale;
+    
     // We need view position in Local Space for correct specular
     // But standard three.js viewMatrix transforms to Camera Space
     // So we'll pass the camera's local position uniform
@@ -199,7 +204,13 @@ const EarthMaterial = {
         vLocalPosition = position;
         vNormal = normal; // Local normal
         
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        // Vertex Displacement
+        // We use texture2D to sample displacement map.
+        // Needs high segment count sphere.
+        float disp = texture2D(displacementMap, uv).r;
+        vec3 displacedPosition = position + normal * (disp * displacementScale);
+
+        vec4 worldPosition = modelMatrix * vec4(displacedPosition, 1.0);
         gl_Position = projectionMatrix * viewMatrix * worldPosition;
     }
     `,
@@ -213,6 +224,7 @@ const EarthMaterial = {
     uniform vec3 sunDirection; // Local space
     uniform vec3 localCameraPos; // Local space
     uniform float cloudTime;
+    uniform float cloudRotationOffset;
     uniform float cloudOpacity;
     uniform bool showClouds;
     uniform bool showNightLights;
@@ -290,8 +302,9 @@ const EarthMaterial = {
 
         // Clouds
         if (showClouds) {
-            float c = cos(cloudTime);
-            float s = sin(cloudTime);
+            float totalCloudAngle = cloudTime + cloudRotationOffset;
+            float c = cos(totalCloudAngle);
+            float s = sin(totalCloudAngle);
             mat3 rotation = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
             
             // Apply both cloud rotation AND the layer alignment rotation
@@ -340,7 +353,9 @@ const Planet: React.FC<PlanetProps> = ({
     nightLightIntensity = 2.0,
     dayIntensity = 1.0,
     earthRotationOffset = 0.0,
-    earthTextureOffset = 0.0
+    earthTextureOffset = 0.0,
+    displacementScale = 0.0,
+    cloudRotationOffset = 0.0
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const { camera } = useThree(); // Added to fix lint error
@@ -454,9 +469,11 @@ const Planet: React.FC<PlanetProps> = ({
         cloudMap: { value: null },
         normalMap: { value: null },
         specularMap: { value: null },
+        displacementMap: { value: null }, // New Uniform
         sunDirection: { value: new THREE.Vector3() },
         localCameraPos: { value: new THREE.Vector3() }, // Added
         cloudTime: { value: 0 },
+        cloudRotationOffset: { value: cloudRotationOffset },
         cloudOpacity: { value: cloudOpacity },
         showClouds: { value: showClouds },
         showNightLights: { value: showNightLights },
@@ -464,7 +481,8 @@ const Planet: React.FC<PlanetProps> = ({
         specularStrength: { value: specularStrength },
         nightLightIntensity: { value: nightLightIntensity },
         dayIntensity: { value: dayIntensity },
-        earthTextureOffset: { value: earthTextureOffset }
+        earthTextureOffset: { value: earthTextureOffset },
+        displacementScale: { value: displacementScale }
     }), []);
 
     // Pre-allocate vectors
@@ -572,6 +590,7 @@ const Planet: React.FC<PlanetProps> = ({
 
             const normalPath = `${path}/base/earth-normal-${fallbackLod}.jpg`;
             const specularPath = `${path}/base/earth-specular-${fallbackLod}.jpg`;
+            const heightPath = `${path}/base/earth-height-${fallbackLod}.jpg`;
 
             const loadCubemap = (p: string, prefix: string) => new Promise<THREE.CubeTexture>((resolve, reject) => {
                 const suffixes = ['_rt.jpg', '_lf.jpg', '_up.jpg', '_dn.jpg', '_ft.jpg', '_bk.jpg'];
@@ -595,8 +614,9 @@ const Planet: React.FC<PlanetProps> = ({
                 loadCubemap(nightPath, 'earth-night'),
                 loadCubemap(cloudPath, 'earth-cloud'),
                 load2D(normalPath, false),
-                load2D(specularPath, true)
-            ]).then(([day, night, clouds, normal, specular]) => {
+                load2D(specularPath, true),
+                load2D(heightPath, true)
+            ]).then(([day, night, clouds, normal, specular, height]) => {
                 if (cancelled) return;
                 setEarthTextures({ day, night, clouds, normal, specular, loadedLOD: lod });
 
@@ -607,6 +627,7 @@ const Planet: React.FC<PlanetProps> = ({
                     earthUniforms.cloudMap.value = clouds;
                     earthUniforms.normalMap.value = normal;
                     earthUniforms.specularMap.value = specular;
+                    earthUniforms.displacementMap.value = height;
                 }
             }).catch(err => {
                 console.error("Failed to load earth textures for LOD " + lod, err);
@@ -810,12 +831,13 @@ const Planet: React.FC<PlanetProps> = ({
 
             // Update dynamic uniforms
             u.cloudTime.value = time * cloudSpeed * 100.0; // scale up speed
+            earthUniforms.cloudRotationOffset.value = cloudRotationOffset;
             earthUniforms.cloudOpacity.value = cloudOpacity;
             earthUniforms.showClouds.value = showClouds;
             earthUniforms.showNightLights.value = showNightLights;
             earthUniforms.bumpScale.value = bumpScale;
             earthUniforms.specularStrength.value = specularStrength;
-            earthUniforms.specularStrength.value = specularStrength;
+            earthUniforms.displacementScale.value = displacementScale;
             earthUniforms.nightLightIntensity.value = nightLightIntensity;
             earthUniforms.dayIntensity.value = dayIntensity;
             earthUniforms.earthTextureOffset.value = earthTextureOffset;
@@ -889,7 +911,7 @@ const Planet: React.FC<PlanetProps> = ({
                             castShadow
                             receiveShadow
                         >
-                            <sphereGeometry args={[size, 64, 64]} />
+                            <sphereGeometry args={[size, 128, 128]} />
                             <shaderMaterial
                                 ref={earthMaterialRef}
                                 vertexShader={EarthMaterial.vertexShader}

@@ -119,6 +119,8 @@ interface SceneContentProps {
     dayIntensity: number;
     earthRotationOffset: number;
     earthTextureOffset: number;
+    displacementScale: number;
+    cloudRotationOffset: number;
 }
 
 const FocusedLight: React.FC<{ followingBody: PlanetData | null; sunPosition: THREE.Vector3 }> = ({ followingBody, sunPosition }) => {
@@ -151,7 +153,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     gravityShowContours, gravityContourFreq, gravityExcludeSun, gravityEquilibriumThreshold, gravityShowEffective, gravityShowEquilibrium,
     showConstellations, showCelestialGrid, showEarthGrid, gridMode, cameraMode,
     earthTextureLOD, showClouds, cloudSpeed, cloudOpacity, showNightLights, bumpScale, specularStrength, nightLightIntensity, dayIntensity,
-    earthRotationOffset, earthTextureOffset
+    earthRotationOffset, earthTextureOffset, displacementScale, cloudRotationOffset
 }) => {
     // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
     const timeRef = useRef(0);
@@ -471,6 +473,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
                     dayIntensity={dayIntensity}
                     earthRotationOffset={earthRotationOffset}
                     earthTextureOffset={earthTextureOffset}
+                    displacementScale={displacementScale}
+                    cloudRotationOffset={cloudRotationOffset}
                 />
             ))}
 

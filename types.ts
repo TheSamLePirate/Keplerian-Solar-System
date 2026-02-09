@@ -56,4 +56,6 @@ export interface SimulationState {
   dayIntensity?: number;
   earthRotationOffset?: number;
   earthTextureOffset?: number;
+  displacementScale?: number;
+  cloudRotationOffset?: number;
 }

@@ -180,6 +180,10 @@ interface ControlsProps {
     setEarthRotationOffset: (v: number) => void;
     earthTextureOffset: number;
     setEarthTextureOffset: (v: number) => void;
+    displacementScale: number;
+    setDisplacementScale: (v: number) => void;
+    cloudRotationOffset: number;
+    setCloudRotationOffset: (v: number) => void;
 }
 
 const Slider: React.FC<{
@@ -295,6 +299,8 @@ const Controls: React.FC<ControlsProps> = ({
     dayIntensity, setDayIntensity,
     earthRotationOffset, setEarthRotationOffset,
     earthTextureOffset, setEarthTextureOffset,
+    displacementScale, setDisplacementScale,
+    cloudRotationOffset, setCloudRotationOffset
 }) => {
     // Date/Time Helpers
     const currentTimestamp = SIMULATION_EPOCH + date * 86400 * 1000;
@@ -383,6 +389,7 @@ const Controls: React.FC<ControlsProps> = ({
                             <div className="flex flex-col gap-1 mt-1 pl-2 border-l border-white/5">
                                 <Slider label="Speed" value={cloudSpeed} min={0} max={0.2} step={0.001} onChange={setCloudSpeed} format={v => v.toFixed(3)} />
                                 <Slider label="Opacity" value={cloudOpacity} min={0} max={1} step={0.05} onChange={setCloudOpacity} format={v => v.toFixed(2)} />
+                                <Slider label="Offset" value={cloudRotationOffset} min={0} max={6.28} step={0.01} onChange={setCloudRotationOffset} format={v => (v * 180 / Math.PI).toFixed(0) + "°"} />
                             </div>
                         )}
                     </div>
@@ -393,6 +400,7 @@ const Controls: React.FC<ControlsProps> = ({
 
                     <div className="pt-1 mt-1 border-t border-white/5">
                         <Slider label="Normal Scale" value={bumpScale} min={0} max={3.0} step={0.1} onChange={setBumpScale} format={v => v.toFixed(1)} />
+                        <Slider label="Displacement" value={displacementScale} min={0} max={0.2} step={0.001} onChange={setDisplacementScale} format={v => v.toFixed(3)} />
                         <Slider label="Specular Strength" value={specularStrength} min={0} max={5} step={0.1} onChange={setSpecularStrength} format={v => v.toFixed(1)} />
                         <Slider label="Night Intensity" value={nightLightIntensity} min={0} max={10} step={0.1} onChange={setNightLightIntensity} format={v => v.toFixed(1)} />
                         <Slider label="Day Intensity" value={dayIntensity} min={0} max={5} step={0.1} onChange={setDayIntensity} format={v => v.toFixed(1)} />

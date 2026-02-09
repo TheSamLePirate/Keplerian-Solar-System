@@ -63,15 +63,17 @@ const App: React.FC = () => {
     // Earth Graphics
     const [earthTextureLOD, setEarthTextureLOD] = useState<'low' | 'med' | 'high' | 'ultra'>('high');
     const [showClouds, setShowClouds] = useState(true);
-    const [cloudSpeed, setCloudSpeed] = useState(0.05);
+    const [cloudSpeed, setCloudSpeed] = useState(0.0);
     const [cloudOpacity, setCloudOpacity] = useState(1.0);
+    const [cloudRotationOffset, setCloudRotationOffset] = useState(Math.PI * 1.5);
     const [showNightLights, setShowNightLights] = useState(true);
     const [bumpScale, setBumpScale] = useState(0.02);
     const [specularStrength, setSpecularStrength] = useState(1.0);
     const [nightLightIntensity, setNightLightIntensity] = useState(2.0);
     const [dayIntensity, setDayIntensity] = useState(1.0);
     const [earthRotationOffset, setEarthRotationOffset] = useState(0.0);
-    const [earthTextureOffset, setEarthTextureOffset] = useState(0.0);
+    const [earthTextureOffset, setEarthTextureOffset] = useState(Math.PI / 2);
+    const [displacementScale, setDisplacementScale] = useState(0.0);
 
 
 
@@ -318,6 +320,8 @@ const App: React.FC = () => {
                 dayIntensity={dayIntensity}
                 earthRotationOffset={earthRotationOffset}
                 earthTextureOffset={earthTextureOffset}
+                displacementScale={displacementScale}
+                cloudRotationOffset={cloudRotationOffset}
             />
 
             {/* UI Overlay */}
@@ -436,6 +440,10 @@ const App: React.FC = () => {
                                     setEarthRotationOffset={setEarthRotationOffset}
                                     earthTextureOffset={earthTextureOffset}
                                     setEarthTextureOffset={setEarthTextureOffset}
+                                    displacementScale={displacementScale}
+                                    setDisplacementScale={setDisplacementScale}
+                                    cloudRotationOffset={cloudRotationOffset}
+                                    setCloudRotationOffset={setCloudRotationOffset}
                                     bloomThreshold={bloomThreshold} setBloomThreshold={setBloomThreshold}
                                     bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
                                     bloomRadius={bloomRadius} setBloomRadius={setBloomRadius}
