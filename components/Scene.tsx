@@ -33,6 +33,7 @@ import GravityParticles from "./GravityParticles";
 import { useStarData } from "../hooks/useStarData";
 import Constellations from "./Constellations";
 import CelestialGrid from "./CelestialGrid";
+import KeyboardCameraController from "./KeyboardCameraController";
 
 // Module-level camera store: written by SceneContent useFrame, read by DebugPanel
 export const cameraPositionStore = { x: 0, y: 0, z: 0 };
@@ -510,6 +511,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         enablePan={true}
         dampingFactor={0.05}
       />
+      <KeyboardCameraController controlsRef={controlsRef} />
       <RealStars
         positions={positions}
         magnitudes={magnitudes}

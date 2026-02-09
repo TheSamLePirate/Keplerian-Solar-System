@@ -10,136 +10,27 @@ import ResizableSidebar from "./components/ui/ResizableSidebar";
 import SplashLoader from "./components/ui/SplashLoader";
 import DebugPanel from "./components/DebugPanel";
 import { usePanelLayout } from "./hooks/usePanelLayout";
+import { useSettings } from "./hooks/useSettings";
 import { PlanetData } from "./types";
 import { SIMULATION_EPOCH } from "./constants";
 
 const App: React.FC = () => {
-  // Simulation State
-  const [speedLog, setSpeedLog] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [scaleFactor, setScaleFactor] = useState(0.5);
-  const [showOrbits, setShowOrbits] = useState(true);
-  const [showLabels, setShowLabels] = useState(false);
+  // Persisted settings (localStorage)
+  const { settings, set, resetSettings } = useSettings();
 
+  // Session-only state (not persisted)
+  const [paused, setPaused] = useState(false);
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
   const [followingBody, setFollowingBody] = useState<PlanetData | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
-
   const [simTime, setSimTime] = useState(0);
   const [fps, setFps] = useState(0);
-
-  // Atmosphere Settings
-  const [atmOpacity, setAtmOpacity] = useState(0.1);
-  const [atmPow, setAtmPow] = useState(8);
-  const [atmSamples, setAtmSamples] = useState(32);
-
-  // Light Settings
-  const [ambientLight, setAmbientLight] = useState(0);
-  const [sunLuminosity, setSunLuminosity] = useState(3.0);
-  const [shadowEnabled, setShadowEnabled] = useState(true);
-  const [shadowMapSize, setShadowMapSize] = useState(4096);
-  const [shadowRadius, setShadowRadius] = useState(2);
-  const [renderScale, setRenderScale] = useState(1);
-  const [starsCount, setStarsCount] = useState(200000);
 
   // Triggers
   const [forcedTime, setForcedTime] = useState<
     { value: number; id: number } | undefined
   >(undefined);
   const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
-
-  // ISS Model Selection
-  const [issModel, setIssModel] = useState<"small" | "big">("big");
-
-  // Star Settings
-  const [starSize, setStarSize] = useState(2.0);
-  const [starSizeMagShape, setStarSizeMagShape] = useState(0.1);
-  const [starBrightness, setStarBrightness] = useState(0.5);
-  const [starBrightnessMagShape, setStarBrightnessMagShape] = useState(0.2);
-  const [starSaturation, setStarSaturation] = useState(1.0);
-  const [showConstellations, setShowConstellations] = useState(false);
-  const [showCelestialGrid, setShowCelestialGrid] = useState(false);
-  const [gridMode, setGridMode] = useState<"equatorial" | "ecliptic">(
-    "equatorial",
-  );
-  const [showEarthGrid, setShowEarthGrid] = useState(false);
-  const [cameraMode, setCameraMode] = useState<"equatorial" | "ecliptic">(
-    "equatorial",
-  );
-
-  // Earth Graphics
-  const [earthTextureLOD, setEarthTextureLOD] = useState<
-    "low" | "med" | "high" | "ultra"
-  >("high");
-  const [showClouds, setShowClouds] = useState(true);
-  const [cloudSpeed, setCloudSpeed] = useState(0.0);
-  const [cloudOpacity, setCloudOpacity] = useState(1.0);
-  const [cloudRotationOffset, setCloudRotationOffset] = useState(Math.PI * 1.5);
-  const [showNightLights, setShowNightLights] = useState(true);
-  const [bumpScale, setBumpScale] = useState(0.02);
-  const [specularStrength, setSpecularStrength] = useState(1.0);
-  const [nightLightIntensity, setNightLightIntensity] = useState(2.0);
-  const [dayIntensity, setDayIntensity] = useState(1.0);
-  const [earthRotationOffset, setEarthRotationOffset] = useState(0.0);
-  const [earthTextureOffset, setEarthTextureOffset] = useState(Math.PI / 2);
-  const [displacementScale, setDisplacementScale] = useState(0.0);
-
-  // Post-processing State
-  const [bloomThreshold, setBloomThreshold] = useState(1.1);
-  const [bloomIntensity, setBloomIntensity] = useState(1.5);
-  const [bloomRadius, setBloomRadius] = useState(0.7);
-  const [noiseOpacity, setNoiseOpacity] = useState(0.07);
-  const [vignetteDarkness, setVignetteDarkness] = useState(0.9);
-  const [vignetteOffset, setVignetteOffset] = useState(0.1);
-  const [chromaticAberrationOffset, setChromaticAberrationOffset] = useState(0);
-  const [brightness, setBrightness] = useState(0.0);
-  const [contrast, setContrast] = useState(0.0);
-  const [exposure, setExposure] = useState(1.2);
-  const [bloomSmoothing, setBloomSmoothing] = useState(0.0);
-  const [hue, setHue] = useState(0.0);
-  const [saturation, setSaturation] = useState(0.0);
-
-  // Advanced Props
-  const [bloomMipmapBlur, setBloomMipmapBlur] = useState(true);
-  const [toneMappingAdaptive, setToneMappingAdaptive] = useState(true);
-  const [vignetteEskil, setVignetteEskil] = useState(false);
-  const [noisePremultiply, setNoisePremultiply] = useState(false);
-  const [chromaticRadial, setChromaticRadial] = useState(false);
-  const [chromaticModulation, setChromaticModulation] = useState(0.0);
-
-  // Effect Toggles
-  const [enableBloom, setEnableBloom] = useState(true);
-  const [enableNoise, setEnableNoise] = useState(true);
-  const [enableVignette, setEnableVignette] = useState(true);
-  const [enableChromaticAberration, setEnableChromaticAberration] =
-    useState(false);
-  const [enableBrightnessContrast, setEnableBrightnessContrast] =
-    useState(true);
-  const [enableHueSaturation, setEnableHueSaturation] = useState(true);
-  const [enableAO, setEnableAO] = useState(true);
-  const [aoIntensity, setAoIntensity] = useState(5.0);
-  const [aoRadius, setAoRadius] = useState(0.05);
-  const [aoDistanceFalloff, setAoDistanceFalloff] = useState(1.0);
-  const [aoScreenSpace, setAoScreenSpace] = useState(false);
-
-  // Gravitational Potential Vis
-  const [gravityVisible, setGravityVisible] = useState(false);
-  const [gravityOpacity, setGravityOpacity] = useState(0.5);
-  const [gravityMin, setGravityMin] = useState(1e-5);
-  const [gravityMax, setGravityMax] = useState(0.5);
-  const [gravityIntensityPow, setGravityIntensityPow] = useState(0.5);
-  const [gravityDirectionSat, setGravityDirectionSat] = useState(0.8);
-  const [gravityShowDirection, setGravityShowDirection] = useState(true);
-  const [gravityPlaneSize, setGravityPlaneSize] = useState(200); // 200 AU wide
-  const [gravityYOffset, setGravityYOffset] = useState(-5);
-  const [gravityParticlesVisible, setGravityParticlesVisible] = useState(false); // Slightly below ecliptic to not cut planets
-  const [gravityShowContours, setGravityShowContours] = useState(true);
-  const [gravityContourFreq, setGravityContourFreq] = useState(50);
-  const [gravityExcludeSun, setGravityExcludeSun] = useState(false);
-  const [gravityShowEquilibrium, setGravityShowEquilibrium] = useState(false);
-  const [gravityEquilibriumThreshold, setGravityEquilibriumThreshold] =
-    useState(0.001); // Default low threshold
-  const [gravityShowEffective, setGravityShowEffective] = useState(false); // Rotating frame
 
   // Panel Layout State
   const {
@@ -154,10 +45,10 @@ const App: React.FC = () => {
   const actualSpeed = useMemo(() => {
     const minSpeed = 1 / 86400;
     const maxSpeed = 365.25;
-    if (speedLog === 0) return minSpeed;
-    const r = Math.pow(maxSpeed / minSpeed, speedLog / 100);
+    if (settings.speedLog === 0) return minSpeed;
+    const r = Math.pow(maxSpeed / minSpeed, settings.speedLog / 100);
     return minSpeed * r;
-  }, [speedLog]);
+  }, [settings.speedLog]);
 
   // Handlers
   const handle3DPlanetClick = useCallback(
@@ -242,6 +133,17 @@ const App: React.FC = () => {
           e.preventDefault();
           setPaused((p) => !p);
           break;
+        case "f":
+          if (followingBody) {
+            setIsFollowing((prev) => !prev);
+          }
+          break;
+        case "r":
+          set(
+            "cameraMode",
+            settings.cameraMode === "equatorial" ? "ecliptic" : "equatorial",
+          );
+          break;
         case "Escape":
           setSelectedPlanet(null);
           setIsFollowing(false);
@@ -251,7 +153,7 @@ const App: React.FC = () => {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePanel]);
+  }, [togglePanel, settings.cameraMode, set, followingBody]);
 
   // Determine sidebar visibility
   const leftVisible = panels.bodies;
@@ -266,9 +168,9 @@ const App: React.FC = () => {
       <Scene
         speed={actualSpeed}
         paused={paused}
-        scaleFactor={scaleFactor}
-        showOrbits={showOrbits}
-        showLabels={showLabels}
+        scaleFactor={settings.scaleFactor}
+        showOrbits={settings.showOrbits}
+        showLabels={settings.showLabels}
         selectedPlanet={selectedPlanet}
         followingBody={followingBody}
         isFollowing={isFollowing}
@@ -276,88 +178,88 @@ const App: React.FC = () => {
         onBackgroundClick={handleBackgroundClick}
         onTimeUpdate={setSimTime}
         onFpsUpdate={setFps}
-        atmOpacity={atmOpacity}
-        atmPow={atmPow}
-        atmSamples={atmSamples}
-        ambientLightIntensity={ambientLight}
-        sunLuminosity={sunLuminosity}
-        shadowEnabled={shadowEnabled}
-        shadowMapSize={shadowMapSize}
-        shadowRadius={shadowRadius}
-        renderScale={renderScale}
-        starsCount={starsCount}
+        atmOpacity={settings.atmOpacity}
+        atmPow={settings.atmPow}
+        atmSamples={settings.atmSamples}
+        ambientLightIntensity={settings.ambientLight}
+        sunLuminosity={settings.sunLuminosity}
+        shadowEnabled={settings.shadowEnabled}
+        shadowMapSize={settings.shadowMapSize}
+        shadowRadius={settings.shadowRadius}
+        renderScale={settings.renderScale}
+        starsCount={settings.starsCount}
         forcedTime={forcedTime}
         resetCameraTrigger={resetCameraTrigger}
-        issModel={issModel}
-        starSize={starSize}
-        starSizeMagShape={starSizeMagShape}
-        starBrightness={starBrightness}
-        starBrightnessMagShape={starBrightnessMagShape}
-        starSaturation={starSaturation}
-        bloomThreshold={bloomThreshold}
-        bloomIntensity={bloomIntensity}
-        bloomRadius={bloomRadius}
-        bloomSmoothing={bloomSmoothing}
-        bloomMipmapBlur={bloomMipmapBlur}
-        noiseOpacity={noiseOpacity}
-        noisePremultiply={noisePremultiply}
-        vignetteDarkness={vignetteDarkness}
-        vignetteOffset={vignetteOffset}
-        vignetteEskil={vignetteEskil}
-        chromaticAberrationOffset={chromaticAberrationOffset}
-        chromaticRadial={chromaticRadial}
-        chromaticModulation={chromaticModulation}
-        brightness={brightness}
-        contrast={contrast}
-        exposure={exposure}
-        hue={hue}
-        saturation={saturation}
-        toneMappingAdaptive={toneMappingAdaptive}
-        enableBloom={enableBloom}
-        enableNoise={enableNoise}
-        enableVignette={enableVignette}
-        enableChromaticAberration={enableChromaticAberration}
-        enableBrightnessContrast={enableBrightnessContrast}
-        enableHueSaturation={enableHueSaturation}
-        enableAO={enableAO}
-        aoIntensity={aoIntensity}
-        aoRadius={aoRadius}
-        aoDistanceFalloff={aoDistanceFalloff}
-        aoScreenSpace={aoScreenSpace}
-        gravityVisible={gravityVisible}
-        gravityOpacity={gravityOpacity}
-        gravityMin={gravityMin}
-        gravityMax={gravityMax}
-        gravityIntensityPow={gravityIntensityPow}
-        gravityDirectionSat={gravityDirectionSat}
-        gravityShowDirection={gravityShowDirection}
-        gravityPlaneSize={gravityPlaneSize}
-        gravityYOffset={gravityYOffset}
-        gravityParticlesVisible={gravityParticlesVisible}
-        gravityShowContours={gravityShowContours}
-        gravityContourFreq={gravityContourFreq}
-        gravityExcludeSun={gravityExcludeSun}
-        gravityShowEquilibrium={gravityShowEquilibrium}
-        gravityEquilibriumThreshold={gravityEquilibriumThreshold}
-        gravityShowEffective={gravityShowEffective}
-        showConstellations={showConstellations}
-        showCelestialGrid={showCelestialGrid}
-        showEarthGrid={showEarthGrid}
-        gridMode={gridMode}
-        cameraMode={cameraMode}
-        earthTextureLOD={earthTextureLOD}
-        showClouds={showClouds}
-        cloudSpeed={cloudSpeed}
-        cloudOpacity={cloudOpacity}
-        showNightLights={showNightLights}
-        bumpScale={bumpScale}
-        specularStrength={specularStrength}
-        nightLightIntensity={nightLightIntensity}
-        dayIntensity={dayIntensity}
-        earthRotationOffset={earthRotationOffset}
-        earthTextureOffset={earthTextureOffset}
-        displacementScale={displacementScale}
-        cloudRotationOffset={cloudRotationOffset}
+        issModel={settings.issModel}
+        starSize={settings.starSize}
+        starSizeMagShape={settings.starSizeMagShape}
+        starBrightness={settings.starBrightness}
+        starBrightnessMagShape={settings.starBrightnessMagShape}
+        starSaturation={settings.starSaturation}
+        bloomThreshold={settings.bloomThreshold}
+        bloomIntensity={settings.bloomIntensity}
+        bloomRadius={settings.bloomRadius}
+        bloomSmoothing={settings.bloomSmoothing}
+        bloomMipmapBlur={settings.bloomMipmapBlur}
+        noiseOpacity={settings.noiseOpacity}
+        noisePremultiply={settings.noisePremultiply}
+        vignetteDarkness={settings.vignetteDarkness}
+        vignetteOffset={settings.vignetteOffset}
+        vignetteEskil={settings.vignetteEskil}
+        chromaticAberrationOffset={settings.chromaticAberrationOffset}
+        chromaticRadial={settings.chromaticRadial}
+        chromaticModulation={settings.chromaticModulation}
+        brightness={settings.brightness}
+        contrast={settings.contrast}
+        exposure={settings.exposure}
+        hue={settings.hue}
+        saturation={settings.saturation}
+        toneMappingAdaptive={settings.toneMappingAdaptive}
+        enableBloom={settings.enableBloom}
+        enableNoise={settings.enableNoise}
+        enableVignette={settings.enableVignette}
+        enableChromaticAberration={settings.enableChromaticAberration}
+        enableBrightnessContrast={settings.enableBrightnessContrast}
+        enableHueSaturation={settings.enableHueSaturation}
+        enableAO={settings.enableAO}
+        aoIntensity={settings.aoIntensity}
+        aoRadius={settings.aoRadius}
+        aoDistanceFalloff={settings.aoDistanceFalloff}
+        aoScreenSpace={settings.aoScreenSpace}
+        gravityVisible={settings.gravityVisible}
+        gravityOpacity={settings.gravityOpacity}
+        gravityMin={settings.gravityMin}
+        gravityMax={settings.gravityMax}
+        gravityIntensityPow={settings.gravityIntensityPow}
+        gravityDirectionSat={settings.gravityDirectionSat}
+        gravityShowDirection={settings.gravityShowDirection}
+        gravityPlaneSize={settings.gravityPlaneSize}
+        gravityYOffset={settings.gravityYOffset}
+        gravityParticlesVisible={settings.gravityParticlesVisible}
+        gravityShowContours={settings.gravityShowContours}
+        gravityContourFreq={settings.gravityContourFreq}
+        gravityExcludeSun={settings.gravityExcludeSun}
+        gravityShowEquilibrium={settings.gravityShowEquilibrium}
+        gravityEquilibriumThreshold={settings.gravityEquilibriumThreshold}
+        gravityShowEffective={settings.gravityShowEffective}
+        showConstellations={settings.showConstellations}
+        showCelestialGrid={settings.showCelestialGrid}
+        showEarthGrid={settings.showEarthGrid}
+        gridMode={settings.gridMode}
+        cameraMode={settings.cameraMode}
+        earthTextureLOD={settings.earthTextureLOD}
+        showClouds={settings.showClouds}
+        cloudSpeed={settings.cloudSpeed}
+        cloudOpacity={settings.cloudOpacity}
+        showNightLights={settings.showNightLights}
+        bumpScale={settings.bumpScale}
+        specularStrength={settings.specularStrength}
+        nightLightIntensity={settings.nightLightIntensity}
+        dayIntensity={settings.dayIntensity}
+        earthRotationOffset={settings.earthRotationOffset}
+        earthTextureOffset={settings.earthTextureOffset}
+        displacementScale={settings.displacementScale}
+        cloudRotationOffset={settings.cloudRotationOffset}
       />
 
       {/* UI Overlay */}
@@ -445,179 +347,12 @@ const App: React.FC = () => {
                 maxHeight="100%"
               >
                 <Controls
-                  speedLog={speedLog}
-                  setSpeedLog={setSpeedLog}
-                  scaleFactor={scaleFactor}
-                  setScaleFactor={setScaleFactor}
-                  showOrbits={showOrbits}
-                  setShowOrbits={setShowOrbits}
-                  showLabels={showLabels}
-                  setShowLabels={setShowLabels}
+                  settings={settings}
+                  set={set}
+                  resetSettings={resetSettings}
                   isFollowing={isFollowing}
                   setIsFollowing={setIsFollowing}
-                  atmOpacity={atmOpacity}
-                  setAtmOpacity={setAtmOpacity}
-                  atmPow={atmPow}
-                  setAtmPow={setAtmPow}
-                  atmSamples={atmSamples}
-                  setAtmSamples={setAtmSamples}
                   onResetCamera={handleResetCamera}
-                  ambientLight={ambientLight}
-                  setAmbientLight={setAmbientLight}
-                  sunLuminosity={sunLuminosity}
-                  setSunLuminosity={setSunLuminosity}
-                  shadowEnabled={shadowEnabled}
-                  setShadowEnabled={setShadowEnabled}
-                  shadowMapSize={shadowMapSize}
-                  setShadowMapSize={setShadowMapSize}
-                  shadowRadius={shadowRadius}
-                  setShadowRadius={setShadowRadius}
-                  renderScale={renderScale}
-                  setRenderScale={setRenderScale}
-                  starsCount={starsCount}
-                  setStarsCount={setStarsCount}
-                  issModel={issModel}
-                  setIssModel={setIssModel}
-                  starSize={starSize}
-                  setStarSize={setStarSize}
-                  starSizeMagShape={starSizeMagShape}
-                  setStarSizeMagShape={setStarSizeMagShape}
-                  starBrightness={starBrightness}
-                  setStarBrightness={setStarBrightness}
-                  starBrightnessMagShape={starBrightnessMagShape}
-                  setStarBrightnessMagShape={setStarBrightnessMagShape}
-                  starSaturation={starSaturation}
-                  setStarSaturation={setStarSaturation}
-                  showConstellations={showConstellations}
-                  setShowConstellations={setShowConstellations}
-                  showCelestialGrid={showCelestialGrid}
-                  setShowCelestialGrid={setShowCelestialGrid}
-                  gridMode={gridMode}
-                  setGridMode={setGridMode}
-                  cameraMode={cameraMode}
-                  setCameraMode={setCameraMode}
-                  earthTextureLOD={earthTextureLOD}
-                  setEarthTextureLOD={setEarthTextureLOD}
-                  showClouds={showClouds}
-                  setShowClouds={setShowClouds}
-                  cloudSpeed={cloudSpeed}
-                  setCloudSpeed={setCloudSpeed}
-                  cloudOpacity={cloudOpacity}
-                  setCloudOpacity={setCloudOpacity}
-                  showNightLights={showNightLights}
-                  setShowNightLights={setShowNightLights}
-                  bumpScale={bumpScale}
-                  setBumpScale={setBumpScale}
-                  specularStrength={specularStrength}
-                  setSpecularStrength={setSpecularStrength}
-                  nightLightIntensity={nightLightIntensity}
-                  setNightLightIntensity={setNightLightIntensity}
-                  dayIntensity={dayIntensity}
-                  setDayIntensity={setDayIntensity}
-                  earthRotationOffset={earthRotationOffset}
-                  setEarthRotationOffset={setEarthRotationOffset}
-                  earthTextureOffset={earthTextureOffset}
-                  setEarthTextureOffset={setEarthTextureOffset}
-                  displacementScale={displacementScale}
-                  setDisplacementScale={setDisplacementScale}
-                  cloudRotationOffset={cloudRotationOffset}
-                  setCloudRotationOffset={setCloudRotationOffset}
-                  bloomThreshold={bloomThreshold}
-                  setBloomThreshold={setBloomThreshold}
-                  bloomIntensity={bloomIntensity}
-                  setBloomIntensity={setBloomIntensity}
-                  bloomRadius={bloomRadius}
-                  setBloomRadius={setBloomRadius}
-                  bloomSmoothing={bloomSmoothing}
-                  setBloomSmoothing={setBloomSmoothing}
-                  bloomMipmapBlur={bloomMipmapBlur}
-                  setBloomMipmapBlur={setBloomMipmapBlur}
-                  noiseOpacity={noiseOpacity}
-                  setNoiseOpacity={setNoiseOpacity}
-                  noisePremultiply={noisePremultiply}
-                  setNoisePremultiply={setNoisePremultiply}
-                  vignetteDarkness={vignetteDarkness}
-                  setVignetteDarkness={setVignetteDarkness}
-                  vignetteOffset={vignetteOffset}
-                  setVignetteOffset={setVignetteOffset}
-                  vignetteEskil={vignetteEskil}
-                  setVignetteEskil={setVignetteEskil}
-                  chromaticAberrationOffset={chromaticAberrationOffset}
-                  setChromaticAberrationOffset={setChromaticAberrationOffset}
-                  chromaticRadial={chromaticRadial}
-                  setChromaticRadial={setChromaticRadial}
-                  chromaticModulation={chromaticModulation}
-                  setChromaticModulation={setChromaticModulation}
-                  brightness={brightness}
-                  setBrightness={setBrightness}
-                  contrast={contrast}
-                  setContrast={setContrast}
-                  exposure={exposure}
-                  setExposure={setExposure}
-                  hue={hue}
-                  setHue={setHue}
-                  saturation={saturation}
-                  setSaturation={setSaturation}
-                  toneMappingAdaptive={toneMappingAdaptive}
-                  setToneMappingAdaptive={setToneMappingAdaptive}
-                  enableBloom={enableBloom}
-                  setEnableBloom={setEnableBloom}
-                  enableNoise={enableNoise}
-                  setEnableNoise={setEnableNoise}
-                  enableVignette={enableVignette}
-                  setEnableVignette={setEnableVignette}
-                  enableChromaticAberration={enableChromaticAberration}
-                  setEnableChromaticAberration={setEnableChromaticAberration}
-                  enableBrightnessContrast={enableBrightnessContrast}
-                  setEnableBrightnessContrast={setEnableBrightnessContrast}
-                  enableHueSaturation={enableHueSaturation}
-                  setEnableHueSaturation={setEnableHueSaturation}
-                  enableAO={enableAO}
-                  setEnableAO={setEnableAO}
-                  aoIntensity={aoIntensity}
-                  setAoIntensity={setAoIntensity}
-                  aoRadius={aoRadius}
-                  setAoRadius={setAoRadius}
-                  aoDistanceFalloff={aoDistanceFalloff}
-                  setAoDistanceFalloff={setAoDistanceFalloff}
-                  aoScreenSpace={aoScreenSpace}
-                  setAoScreenSpace={setAoScreenSpace}
-                  gravityVisible={gravityVisible}
-                  setGravityVisible={setGravityVisible}
-                  gravityOpacity={gravityOpacity}
-                  setGravityOpacity={setGravityOpacity}
-                  gravityMin={gravityMin}
-                  setGravityMin={setGravityMin}
-                  gravityMax={gravityMax}
-                  setGravityMax={setGravityMax}
-                  gravityIntensityPow={gravityIntensityPow}
-                  setGravityIntensityPow={setGravityIntensityPow}
-                  gravityDirectionSat={gravityDirectionSat}
-                  setGravityDirectionSat={setGravityDirectionSat}
-                  gravityShowDirection={gravityShowDirection}
-                  setGravityShowDirection={setGravityShowDirection}
-                  gravityPlaneSize={gravityPlaneSize}
-                  setGravityPlaneSize={setGravityPlaneSize}
-                  gravityYOffset={gravityYOffset}
-                  setGravityYOffset={setGravityYOffset}
-                  gravityParticlesVisible={gravityParticlesVisible}
-                  setGravityParticlesVisible={setGravityParticlesVisible}
-                  gravityShowContours={gravityShowContours}
-                  setGravityShowContours={setGravityShowContours}
-                  gravityContourFreq={gravityContourFreq}
-                  setGravityContourFreq={setGravityContourFreq}
-                  gravityExcludeSun={gravityExcludeSun}
-                  setGravityExcludeSun={setGravityExcludeSun}
-                  gravityShowEquilibrium={gravityShowEquilibrium}
-                  setGravityShowEquilibrium={setGravityShowEquilibrium}
-                  gravityEquilibriumThreshold={gravityEquilibriumThreshold}
-                  setGravityEquilibriumThreshold={
-                    setGravityEquilibriumThreshold
-                  }
-                  gravityShowEffective={gravityShowEffective}
-                  setGravityShowEffective={setGravityShowEffective}
-                  showEarthGrid={showEarthGrid}
-                  setShowEarthGrid={setShowEarthGrid}
                   accordionState={accordionState}
                   toggleAccordion={toggleAccordion}
                   date={simTime}
@@ -644,8 +379,8 @@ const App: React.FC = () => {
             paused={paused}
             setPaused={setPaused}
             onResetTime={handleResetTime}
-            speedLog={speedLog}
-            setSpeedLog={setSpeedLog}
+            speedLog={settings.speedLog}
+            setSpeedLog={(v) => set("speedLog", v)}
           />
         </div>
       </div>
