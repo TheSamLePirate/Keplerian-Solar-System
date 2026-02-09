@@ -25,7 +25,7 @@ import {
 } from "../constants";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
-import Planet from "./Planet";
+import Planet from "./planet";
 
 import Sun from "./Sun";
 import GravitationalPotential from "./GravitationalPotential";

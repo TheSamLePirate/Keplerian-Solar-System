@@ -3,7 +3,7 @@ import {
   planetCullingStore,
   planetLodStore,
   planetPositionStore,
-} from "./Planet";
+} from "./planet";
 import { cameraPositionStore } from "./Scene";
 import { PLANETS } from "../constants";
 
