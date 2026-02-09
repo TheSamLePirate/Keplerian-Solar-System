@@ -33,13 +33,8 @@ const App: React.FC = () => {
   const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
 
   // Panel Layout State
-  const {
-    panels,
-    accordionState,
-    togglePanel,
-    setPanelVisible,
-    toggleAccordion,
-  } = usePanelLayout();
+  const { panels, accordionState, togglePanel, toggleAccordion } =
+    usePanelLayout();
 
   // Calculate actual speed
   const actualSpeed = useMemo(() => {
@@ -51,37 +46,25 @@ const App: React.FC = () => {
   }, [settings.speedLog]);
 
   // Handlers
-  const handle3DPlanetClick = useCallback(
-    (p: PlanetData) => {
-      setSelectedPlanet(p);
-      setFollowingBody(p);
-      setIsFollowing(true);
-      setPanelVisible("info", true);
-    },
-    [setPanelVisible],
-  );
+  const handle3DPlanetClick = useCallback((p: PlanetData) => {
+    setSelectedPlanet(p);
+    setFollowingBody(p);
+    setIsFollowing(true);
+  }, []);
 
   const handleBackgroundClick = useCallback(() => {
     setSelectedPlanet(null);
   }, []);
 
-  const handleListSelect = useCallback(
-    (p: PlanetData) => {
-      setSelectedPlanet(p);
-      setPanelVisible("info", true);
-    },
-    [setPanelVisible],
-  );
+  const handleListSelect = useCallback((p: PlanetData) => {
+    setSelectedPlanet(p);
+  }, []);
 
-  const handleListFollow = useCallback(
-    (p: PlanetData) => {
-      setSelectedPlanet(p);
-      setFollowingBody(p);
-      setIsFollowing(true);
-      setPanelVisible("info", true);
-    },
-    [setPanelVisible],
-  );
+  const handleListFollow = useCallback((p: PlanetData) => {
+    setSelectedPlanet(p);
+    setFollowingBody(p);
+    setIsFollowing(true);
+  }, []);
 
   const handleTrackFromPanel = useCallback(() => {
     if (selectedPlanet) {
