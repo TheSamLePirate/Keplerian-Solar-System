@@ -10,16 +10,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Atmosphere
   atmOpacity: 0.1,
   atmPow: 8,
-  atmSamples: 32,
+  atmSamples: 8,
 
   // Lighting
   ambientLight: 0,
   sunLuminosity: 3.0,
   shadowEnabled: true,
-  shadowMapSize: 4096,
+  shadowMapSize: 1024,
   shadowRadius: 2,
   renderScale: 1,
-  starsCount: 200000,
+  starsCount: 2000,
 
   // ISS
   issModel: "big",
@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cameraMode: "equatorial",
 
   // Earth Graphics
-  earthTextureLOD: "high",
+  earthTextureLOD: "low",
   showClouds: true,
   cloudSpeed: 0.0,
   cloudOpacity: 1.0,
@@ -67,7 +67,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   saturation: 0.0,
 
   // Advanced Post-Processing
-  bloomMipmapBlur: true,
+  bloomMipmapBlur: false,
   toneMappingAdaptive: true,
   vignetteEskil: false,
   noisePremultiply: false,
@@ -76,12 +76,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
   // Effect Toggles
   enableBloom: true,
-  enableNoise: true,
+  enableNoise: false,
   enableVignette: true,
   enableChromaticAberration: false,
   enableBrightnessContrast: true,
   enableHueSaturation: true,
-  enableAO: true,
+  enableAO: false,
   aoIntensity: 5.0,
   aoRadius: 0.05,
   aoDistanceFalloff: 1.0,

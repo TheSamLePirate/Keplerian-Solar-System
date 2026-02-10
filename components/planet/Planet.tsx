@@ -530,13 +530,6 @@ const Planet: React.FC<PlanetProps> = ({
                                 ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
                                 `}
                   >
-                    {data.textureUrl && (
-                      <img
-                        src={data.textureUrl}
-                        alt=""
-                        className="w-3 h-3 rounded-full object-cover border border-white/50"
-                      />
-                    )}
                     {data.name}
                   </div>
                 </Html>
