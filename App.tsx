@@ -183,6 +183,13 @@ const App: React.FC = () => {
         sunFilamentIntensity={settings.sunFilamentIntensity}
         sunSurfaceRelief={settings.sunSurfaceRelief}
         sunProminenceSize={settings.sunProminenceSize}
+        sunRaysEnabled={settings.sunRaysEnabled}
+        sunRaysIntensity={settings.sunRaysIntensity}
+        sunRaysDecay={settings.sunRaysDecay}
+        sunRaysSpeed={settings.sunRaysSpeed}
+        sunRaysColor={settings.sunRaysColor}
+        lensflareEnabled={settings.lensflareEnabled}
+        lensflareOpacity={settings.lensflareOpacity}
         shadowEnabled={settings.shadowEnabled}
         shadowMapSize={settings.shadowMapSize}
         shadowRadius={settings.shadowRadius}

@@ -3,6 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PLANET_SCALE } from '../constants';
 import { SunMaterial, SunCoronaMaterial } from './planet/sun-shader';
+import { LensflareEffect } from './Lensflare';
 
 interface SunProps {
     scaleFactor: number;
@@ -29,6 +30,9 @@ interface SunProps {
     sunFilamentScale: number;
     sunFilamentIntensity: number;
     sunSurfaceRelief: number;
+    // Lensflare
+    lensflareEnabled?: boolean;
+    lensflareOpacity?: number;
 }
 
 const Sun = React.forwardRef<THREE.Mesh, SunProps>(({
@@ -53,7 +57,9 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({
     sunCoronaOpacity,
     sunFilamentScale,
     sunFilamentIntensity,
-    sunSurfaceRelief
+    sunSurfaceRelief,
+    lensflareEnabled = false,
+    lensflareOpacity = 1.0
 }, ref) => {
     const { gl } = useThree();
     const lightRef = useRef<THREE.PointLight>(null);
@@ -138,7 +144,6 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({
     // Update Uniforms
     useEffect(() => {
         if (materialRef.current) {
-            // ... (existing updates) ...
             materialRef.current.uniforms.uColorA.value.set(sunColorA);
             materialRef.current.uniforms.uColorB.value.set(sunColorB);
             materialRef.current.uniforms.uSpeed.value = sunSpeed;
@@ -176,7 +181,6 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({
         <group>
             {/* Main Light Source */}
             <pointLight
-                // ... (existing lights) ...
                 ref={lightRef}
                 intensity={luminosity}
                 distance={0}
@@ -189,7 +193,10 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({
                 shadow-radius={shadowRadius}
                 shadow-camera-far={1000000}
                 shadow-camera-near={0.1}
-            />
+            >
+                {lensflareEnabled && <LensflareEffect opacity={lensflareOpacity} color={sunColorA} />}
+            </pointLight>
+
             <ambientLight intensity={Math.max(0.02, luminosity * 0.02)} />
 
             {/* Sun Sphere */}

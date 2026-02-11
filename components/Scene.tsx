@@ -14,7 +14,9 @@ import {
   SMAA,
   HueSaturation,
   N8AO,
+  GodRays,
 } from "@react-three/postprocessing";
+import { BlendFunction, KernelSize } from "postprocessing";
 import * as THREE from "three";
 
 import {
@@ -160,6 +162,15 @@ interface SceneContentProps {
   earthTextureOffset: number;
   displacementScale: number;
   cloudRotationOffset: number;
+  // Volumetric Rays
+  sunRaysEnabled: boolean;
+  sunRaysIntensity: number;
+  sunRaysDecay: number;
+  sunRaysSpeed: number;
+  sunRaysColor: string;
+  // Lensflare
+  lensflareEnabled: boolean;
+  lensflareOpacity: number;
 }
 
 const FocusedLight: React.FC<{
@@ -297,6 +308,13 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   earthTextureOffset,
   displacementScale,
   cloudRotationOffset,
+  sunRaysEnabled,
+  sunRaysIntensity,
+  sunRaysDecay,
+  sunRaysSpeed,
+  sunRaysColor,
+  lensflareEnabled,
+  lensflareOpacity,
 }) => {
   // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
   const timeRef = useRef(0);
@@ -653,6 +671,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         shadowEnabled={shadowEnabled}
         shadowMapSize={shadowMapSize}
         shadowRadius={shadowRadius}
+        lensflareEnabled={lensflareEnabled}
+        lensflareOpacity={lensflareOpacity}
       />
 
       {/* Focused Light for crisp shadows on followed object */}
@@ -736,7 +756,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         />
       ))}
 
-      <EffectComposer depthBuffer={true}>
+      <EffectComposer depthBuffer={true} multisampling={0}>
         {enableAO && (
           <N8AO
             aoRadius={aoRadius}
@@ -785,6 +805,19 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         )}
         {enableHueSaturation && (
           <HueSaturation hue={hue} saturation={saturation} />
+        )}
+        {sunRaysEnabled && sunRef.current && (
+          <GodRays
+            sun={sunRef.current}
+            blendFunction={BlendFunction.SCREEN}
+            samples={100} // High quality samples
+            density={0.97} // High density for fullness
+            decay={0.96} // High decay for long, fullscreen rays
+            weight={0.8} // High weight for visibility
+            exposure={sunRaysIntensity * 0.2} // Boost exposure sensitivity
+            blur={true}
+            kernelSize={KernelSize.SMALL}
+          />
         )}
       </EffectComposer>
     </>

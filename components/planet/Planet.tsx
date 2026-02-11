@@ -359,6 +359,7 @@ const Planet: React.FC<PlanetProps> = ({
               castShadow
               receiveShadow
               renderOrder={1}
+              userData={{ isOccluder: true }}
             >
               <sphereGeometry args={[size, 128, 128]} />
               <shaderMaterial
@@ -385,6 +386,7 @@ const Planet: React.FC<PlanetProps> = ({
               castShadow
               receiveShadow
               renderOrder={1}
+              userData={{ isOccluder: true }}
             >
               <sphereGeometry args={[size, 128, 128]} />
               <shaderMaterial
@@ -463,6 +465,7 @@ const Planet: React.FC<PlanetProps> = ({
               onPointerOut={() => setHover(false)}
               castShadow
               receiveShadow
+              userData={{ isOccluder: true }}
             >
               <sphereGeometry args={[size, 128, 128]} />
               <meshStandardMaterial

@@ -38,6 +38,17 @@ export const DEFAULT_SETTINGS: AppSettings = {
   renderScale: 1,
   starsCount: 2000,
 
+  // Volumetric Rays
+  sunRaysEnabled: false,
+  sunRaysIntensity: 1.0,
+  sunRaysDecay: 0.96,
+  sunRaysSpeed: 0.2,
+  sunRaysColor: "#ffaa00",
+
+  // Lensflare
+  lensflareEnabled: false,
+  lensflareOpacity: 0.7,
+
   // ISS
   issModel: "big",
 

@@ -36,6 +36,17 @@ export interface AppSettings {
   renderScale: number;
   starsCount: number;
 
+  // Volumetric Rays
+  sunRaysEnabled: boolean;
+  sunRaysIntensity: number;
+  sunRaysDecay: number;
+  sunRaysSpeed: number;
+  sunRaysColor: string;
+
+  // Lensflare
+  lensflareEnabled: boolean;
+  lensflareOpacity: number;
+
   // ISS
   issModel: "small" | "big";
 

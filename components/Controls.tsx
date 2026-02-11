@@ -764,6 +764,71 @@ const Controls: React.FC<ControlsProps> = ({
                 format={(v) => v.toFixed(2)}
               />
             </div>
+
+            <div className="pt-1 mt-1 border-t border-white/5 flex flex-col gap-1">
+              <span className="text-[9px] uppercase font-bold text-gray-500 mb-1">Volumetric Rays</span>
+              <Toggle
+                label="Enable Rays"
+                checked={s.sunRaysEnabled}
+                onChange={(v) => set("sunRaysEnabled", v)}
+              />
+              {s.sunRaysEnabled && (
+                <>
+                  <Slider
+                    label="Intensity"
+                    value={s.sunRaysIntensity}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    onChange={(v) => set("sunRaysIntensity", v)}
+                    format={(v) => v.toFixed(1)}
+                  />
+                  <Slider
+                    label="Decay"
+                    value={s.sunRaysDecay}
+                    min={0.8}
+                    max={0.99}
+                    step={0.01}
+                    onChange={(v) => set("sunRaysDecay", v)}
+                    format={(v) => v.toFixed(2)}
+                  />
+                  <Slider
+                    label="Speed"
+                    value={s.sunRaysSpeed}
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    onChange={(v) => set("sunRaysSpeed", v)}
+                    format={(v) => v.toFixed(1)}
+                  />
+                  <ColorPicker
+                    label="Color"
+                    value={s.sunRaysColor}
+                    onChange={(v) => set("sunRaysColor", v)}
+                  />
+                </>
+              )}
+            </div>
+
+            <div className="pt-1 mt-1 border-t border-white/5 flex flex-col gap-1">
+              <span className="text-[9px] uppercase font-bold text-gray-500 mb-1">Lens Flare</span>
+              <Toggle
+                label="Enable Lens Flare"
+                checked={s.lensflareEnabled}
+                onChange={(v) => set("lensflareEnabled", v)}
+              />
+              {s.lensflareEnabled && (
+                <Slider
+                  label="Opacity"
+                  value={s.lensflareOpacity}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  onChange={(v) => set("lensflareOpacity", v)}
+                  format={(v) => v.toFixed(1)}
+                />
+              )}
+            </div>
           </div>
         )}
       </AccordionSection>
