@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo, Suspense } from "react";
+import React, { useRef, useEffect, useMemo, Suspense } from "react";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -14,9 +14,7 @@ import {
   SMAA,
   HueSaturation,
   N8AO,
-  GodRays,
 } from "@react-three/postprocessing";
-import { BlendFunction, KernelSize } from "postprocessing";
 import * as THREE from "three";
 
 import {
@@ -162,39 +160,10 @@ interface SceneContentProps {
   earthTextureOffset: number;
   displacementScale: number;
   cloudRotationOffset: number;
-  // Volumetric Rays
-  sunRaysEnabled: boolean;
-  sunRaysIntensity: number;
-  sunRaysDecay: number;
-  sunRaysSpeed: number;
-  sunRaysColor: string;
   // Lensflare
   lensflareEnabled: boolean;
   lensflareOpacity: number;
 }
-
-const FocusedLight: React.FC<{
-  followingBody: PlanetData | null;
-  sunPosition: THREE.Vector3;
-}> = ({ followingBody, sunPosition }) => {
-  const lightRef = useRef<THREE.DirectionalLight>(null);
-  const targetRef = useRef<THREE.Object3D>(new THREE.Object3D());
-  const { scene } = useThree();
-
-  useEffect(() => {
-    scene.add(targetRef.current);
-    return () => {
-      scene.remove(targetRef.current);
-    };
-  }, [scene]);
-
-  useFrame(() => {
-    if (!followingBody || !lightRef.current) return;
-    // Logic handled in parent for simpler position syncing
-  });
-
-  return null;
-};
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
   speed,
@@ -308,11 +277,6 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   earthTextureOffset,
   displacementScale,
   cloudRotationOffset,
-  sunRaysEnabled,
-  sunRaysIntensity,
-  sunRaysDecay,
-  sunRaysSpeed,
-  sunRaysColor,
   lensflareEnabled,
   lensflareOpacity,
 }) => {
@@ -462,7 +426,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             currentTime,
             followingBody.period,
           );
-          const orbitScale = followingBody.type === "moon" ? MOON_ORBIT_SCALE : 1;
+          const orbitScale =
+            followingBody.type === "moon" ? MOON_ORBIT_SCALE : 1;
           const childPos = _childPos.current.set(
             childPosArray[0] * orbitScale,
             childPosArray[1] * orbitScale,
@@ -472,7 +437,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           // For satellites, apply minimum orbit radius (same logic as Planet.tsx)
           if (followingBody.type === "satellite") {
             const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
-            const satelliteMinOrbitRadius = parentPlanetVisualRadius * SATELLITE_ORBIT_FACTOR;
+            const satelliteMinOrbitRadius =
+              parentPlanetVisualRadius * SATELLITE_ORBIT_FACTOR;
             const distance = childPos.length();
             if (distance > 0) {
               childPos
@@ -805,19 +771,6 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         )}
         {enableHueSaturation && (
           <HueSaturation hue={hue} saturation={saturation} />
-        )}
-        {sunRaysEnabled && sunRef.current && (
-          <GodRays
-            sun={sunRef.current}
-            blendFunction={BlendFunction.SCREEN}
-            samples={100} // High quality samples
-            density={0.97} // High density for fullness
-            decay={0.96} // High decay for long, fullscreen rays
-            weight={0.8} // High weight for visibility
-            exposure={sunRaysIntensity * 0.2} // Boost exposure sensitivity
-            blur={true}
-            kernelSize={KernelSize.SMALL}
-          />
         )}
       </EffectComposer>
     </>
