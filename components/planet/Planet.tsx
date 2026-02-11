@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState } from "react";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { calculateOrbitalPositionWithPeriod } from "../../utils/physics";
-import { PLANET_SCALE, MOON_ORBIT_SCALE } from "../../constants";
+import { PLANET_SCALE, MOON_ORBIT_SCALE, SATELLITE_ORBIT_FACTOR } from "../../constants";
 import ISSModel from "../ISS";
 import { PlanetProps } from "./PlanetProps";
 import { AtmosphereMaterial, EarthMaterial, MoonMaterial } from "./shaders";
@@ -55,13 +55,13 @@ const Planet: React.FC<PlanetProps> = ({
   const isMoon = data.type === "moon";
   const useMoonShader = data.id === "moon";
   const isSatellite = data.type === "satellite";
-  const visualOrbitScale = isMoon || isSatellite ? MOON_ORBIT_SCALE : 1;
+  const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE : 1;
 
   const hasAtmosphere = !!data.atmosphereColor;
   const isEarth = data.id === "earth";
 
   const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
-  const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.15;
+  const satelliteMinOrbitRadius = parentPlanetVisualRadius * SATELLITE_ORBIT_FACTOR;
 
   const size = data.radius * PLANET_SCALE * scaleFactor;
   const atmRadius = size * 1.25;

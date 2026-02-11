@@ -22,6 +22,7 @@ import {
   MOON_ORBIT_SCALE,
   PLANET_SCALE,
   AU_SCALE,
+  SATELLITE_ORBIT_FACTOR,
 } from "../constants";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
@@ -409,16 +410,17 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             currentTime,
             followingBody.period,
           );
+          const orbitScale = followingBody.type === "moon" ? MOON_ORBIT_SCALE : 1;
           const childPos = _childPos.current.set(
-            childPosArray[0] * MOON_ORBIT_SCALE,
-            childPosArray[1] * MOON_ORBIT_SCALE,
-            childPosArray[2] * MOON_ORBIT_SCALE,
+            childPosArray[0] * orbitScale,
+            childPosArray[1] * orbitScale,
+            childPosArray[2] * orbitScale,
           );
 
           // For satellites, apply minimum orbit radius (same logic as Planet.tsx)
           if (followingBody.type === "satellite") {
             const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
-            const satelliteMinOrbitRadius = parentPlanetVisualRadius * 1.15;
+            const satelliteMinOrbitRadius = parentPlanetVisualRadius * SATELLITE_ORBIT_FACTOR;
             const distance = childPos.length();
             if (distance > 0) {
               childPos
