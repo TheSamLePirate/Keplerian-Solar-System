@@ -31,6 +31,7 @@ import Planet from "./planet";
 import Sun from "./Sun";
 import GravitationalPotential from "./GravitationalPotential";
 import GravityParticles from "./GravityParticles";
+import VolumetricLight from "./VolumetricLight";
 import { useStarData } from "../hooks/useStarData";
 import Constellations from "./Constellations";
 import CelestialGrid from "./CelestialGrid";
@@ -139,6 +140,17 @@ interface SceneContentProps {
   gravityShowEquilibrium: boolean;
   gravityEquilibriumThreshold: number;
   gravityShowEffective: boolean;
+
+  // Volumetric Light
+  volumetricEnabled: boolean;
+  volumetricIntensity: number;
+  volumetricSamples: number;
+  volumetricDecay: number;
+  volumetricScatterColor: string;
+  volumetricShadowSharpness: number;
+  volumetricShadowScale: number;
+  volumetricMaxDistance: number;
+
   showConstellations: boolean;
   showCelestialGrid: boolean;
   showEarthGrid: boolean;
@@ -258,6 +270,14 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   gravityEquilibriumThreshold,
   gravityShowEffective,
   gravityShowEquilibrium,
+  volumetricEnabled,
+  volumetricIntensity,
+  volumetricSamples,
+  volumetricDecay,
+  volumetricScatterColor,
+  volumetricShadowSharpness,
+  volumetricShadowScale,
+  volumetricMaxDistance,
   showConstellations,
   showCelestialGrid,
   showEarthGrid,
@@ -687,6 +707,19 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         timeRef={timeRef}
         speed={speed}
         paused={paused}
+      />
+
+      <VolumetricLight
+        visible={volumetricEnabled}
+        intensity={volumetricIntensity}
+        samples={volumetricSamples}
+        decay={volumetricDecay}
+        scatterColor={volumetricScatterColor}
+        shadowSharpness={volumetricShadowSharpness}
+        shadowScale={volumetricShadowScale}
+        maxDistance={volumetricMaxDistance}
+        timeRef={timeRef}
+        scaleFactor={scaleFactor}
       />
 
       {PLANETS.map((planet) => (

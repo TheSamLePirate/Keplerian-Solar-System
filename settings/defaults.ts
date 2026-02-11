@@ -128,4 +128,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
   gravityShowEquilibrium: false,
   gravityEquilibriumThreshold: 0.001,
   gravityShowEffective: false,
+
+  // Volumetric Light
+  volumetricEnabled: false,
+  volumetricIntensity: 1.0,
+  volumetricSamples: 32,
+  volumetricDecay: 1.0,
+  volumetricScatterColor: "#FFF5E0",
+  volumetricShadowSharpness: 0.8,
+  volumetricShadowScale: 50,
+  volumetricMaxDistance: 15,
 };

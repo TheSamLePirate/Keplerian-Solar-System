@@ -126,6 +126,16 @@ export interface AppSettings {
   gravityShowEquilibrium: boolean;
   gravityEquilibriumThreshold: number;
   gravityShowEffective: boolean;
+
+  // Volumetric Light
+  volumetricEnabled: boolean;
+  volumetricIntensity: number;
+  volumetricSamples: number;
+  volumetricDecay: number;
+  volumetricScatterColor: string;
+  volumetricShadowSharpness: number;
+  volumetricShadowScale: number;
+  volumetricMaxDistance: number;
 }
 
 export type SettingsSetter = <K extends keyof AppSettings>(

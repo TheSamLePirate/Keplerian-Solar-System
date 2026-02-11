@@ -65,7 +65,7 @@ const Sun = React.forwardRef<THREE.Mesh, SunProps>(({
     const lightRef = useRef<THREE.PointLight>(null);
     const materialRef = useRef<THREE.ShaderMaterial>(null);
     const coronaMaterialRef = useRef<THREE.ShaderMaterial>(null);
-    const size = 5 * PLANET_SCALE * scaleFactor;
+    const size = 100 * PLANET_SCALE * scaleFactor;
 
     const cappedShadowSize = useMemo(() => {
         const maxSize = gl.capabilities.maxTextureSize || 4096;

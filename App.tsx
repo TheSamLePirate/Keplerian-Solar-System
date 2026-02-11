@@ -244,6 +244,14 @@ const App: React.FC = () => {
         gravityShowEquilibrium={settings.gravityShowEquilibrium}
         gravityEquilibriumThreshold={settings.gravityEquilibriumThreshold}
         gravityShowEffective={settings.gravityShowEffective}
+        volumetricEnabled={settings.volumetricEnabled}
+        volumetricIntensity={settings.volumetricIntensity}
+        volumetricSamples={settings.volumetricSamples}
+        volumetricDecay={settings.volumetricDecay}
+        volumetricScatterColor={settings.volumetricScatterColor}
+        volumetricShadowSharpness={settings.volumetricShadowSharpness}
+        volumetricShadowScale={settings.volumetricShadowScale}
+        volumetricMaxDistance={settings.volumetricMaxDistance}
         showConstellations={settings.showConstellations}
         showCelestialGrid={settings.showCelestialGrid}
         showEarthGrid={settings.showEarthGrid}

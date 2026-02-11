@@ -594,6 +594,82 @@ const Controls: React.FC<ControlsProps> = ({
         )}
       </AccordionSection>
 
+      {/* Volumetric Light */}
+      <AccordionSection
+        title="Volumetric Light"
+        isOpen={accordionState.volumetric ?? false}
+        onToggle={() => toggleAccordion("volumetric")}
+      >
+        <Toggle
+          label="Enable"
+          checked={s.volumetricEnabled}
+          onChange={(v) => set("volumetricEnabled", v)}
+        />
+        {s.volumetricEnabled && (
+          <div className="flex flex-col gap-1 mt-1">
+            <Slider
+              label="Intensity"
+              value={s.volumetricIntensity}
+              min={0}
+              max={2}
+              step={0.01}
+              onChange={(v) => set("volumetricIntensity", v)}
+              format={(v) => v.toFixed(2)}
+            />
+            <Slider
+              label="Samples"
+              value={s.volumetricSamples}
+              min={16}
+              max={128}
+              step={8}
+              onChange={(v) => set("volumetricSamples", Math.round(v))}
+              format={(v) => v.toFixed(0)}
+            />
+            <Slider
+              label="Decay"
+              value={s.volumetricDecay}
+              min={0.5}
+              max={5}
+              step={0.1}
+              onChange={(v) => set("volumetricDecay", v)}
+              format={(v) => v.toFixed(1)}
+            />
+            <Slider
+              label="Shadow Sharpness"
+              value={s.volumetricShadowSharpness}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={(v) => set("volumetricShadowSharpness", v)}
+              format={(v) => v.toFixed(2)}
+            />
+            <Slider
+              label="Shadow Scale"
+              value={s.volumetricShadowScale}
+              min={1}
+              max={200}
+              step={1}
+              onChange={(v) => set("volumetricShadowScale", v)}
+              format={(v) => `${v.toFixed(0)}x`}
+            />
+            <Slider
+              label="Max Distance (AU)"
+              value={s.volumetricMaxDistance}
+              min={1}
+              max={30}
+              step={1}
+              onChange={(v) => set("volumetricMaxDistance", v)}
+              format={(v) => v.toFixed(0)}
+            />
+            <ColorPicker
+              label="Scatter Color"
+              value={s.volumetricScatterColor}
+              onChange={(v) => set("volumetricScatterColor", v)}
+            />
+          </div>
+        )}
+      </AccordionSection>
+
       {/* Lighting */}
       <AccordionSection
         title="Lighting"
