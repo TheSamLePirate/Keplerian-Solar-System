@@ -647,7 +647,7 @@ const Controls: React.FC<ControlsProps> = ({
               label="Shadow Scale"
               value={s.volumetricShadowScale}
               min={1}
-              max={200}
+              max={2000}
               step={1}
               onChange={(v) => set("volumetricShadowScale", v)}
               format={(v) => `${v.toFixed(0)}x`}

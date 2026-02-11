@@ -15,7 +15,7 @@ export const SUN_DATA: PlanetData = {
   name: "Sun",
   type: "star",
   color: "#FFD700",
-  radius: 109.2,
+  radius: 500.2,
   rotationPeriod: 609.12,
   axialTilt: 7.25,
   description: "The star at the center of the Solar System. A G-type main-sequence star (G2V) containing 99.86% of the system mass.",
