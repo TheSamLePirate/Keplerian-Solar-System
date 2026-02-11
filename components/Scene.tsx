@@ -57,6 +57,23 @@ interface SceneContentProps {
   atmSamples: number;
   ambientLightIntensity: number;
   sunLuminosity: number;
+  sunShaderEnabled: boolean;
+  sunColorA: string;
+  sunColorB: string;
+  sunSpeed: number;
+  sunNoiseScale: number;
+  sunTurbulence: number;
+  sunRayCount: number;
+  sunSpotIntensity: number;
+  sunSpotCount: number;
+  sunRimPower: number;
+  sunRimColor: string;
+  sunCoronas: boolean;
+  sunCoronaOpacity: number;
+  sunFilamentScale: number;
+  sunFilamentIntensity: number;
+  sunSurfaceRelief: number;
+  sunProminenceSize: number;
   shadowEnabled: boolean;
   shadowMapSize: number;
   shadowRadius: number;
@@ -186,6 +203,23 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   atmSamples,
   ambientLightIntensity,
   sunLuminosity,
+  sunShaderEnabled,
+  sunColorA,
+  sunColorB,
+  sunSpeed,
+  sunNoiseScale,
+  sunTurbulence,
+  sunRayCount,
+  sunSpotIntensity,
+  sunSpotCount,
+  sunRimPower,
+  sunRimColor,
+  sunCoronas,
+  sunCoronaOpacity,
+  sunFilamentScale,
+  sunFilamentIntensity,
+  sunSurfaceRelief,
+  sunProminenceSize,
   shadowEnabled,
   shadowMapSize,
   shadowRadius,
@@ -599,6 +633,23 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         ref={sunRef}
         scaleFactor={scaleFactor}
         luminosity={sunLuminosity}
+        sunShaderEnabled={sunShaderEnabled}
+        sunColorA={sunColorA}
+        sunColorB={sunColorB}
+        sunSpeed={sunSpeed}
+        sunNoiseScale={sunNoiseScale}
+        sunTurbulence={sunTurbulence}
+        sunRayCount={sunRayCount}
+        sunSpotIntensity={sunSpotIntensity}
+        sunSpotCount={sunSpotCount}
+        sunRimPower={sunRimPower}
+        sunRimColor={sunRimColor}
+        sunCoronas={sunCoronas}
+        sunCoronaOpacity={sunCoronaOpacity}
+        sunFilamentScale={sunFilamentScale}
+        sunFilamentIntensity={sunFilamentIntensity}
+        sunSurfaceRelief={sunSurfaceRelief}
+        sunProminenceSize={sunProminenceSize}
         shadowEnabled={shadowEnabled}
         shadowMapSize={shadowMapSize}
         shadowRadius={shadowRadius}

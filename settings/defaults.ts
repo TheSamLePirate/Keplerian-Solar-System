@@ -15,6 +15,23 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Lighting
   ambientLight: 0,
   sunLuminosity: 3.0,
+  sunShaderEnabled: true,
+  sunColorA: "#ffd700", // Gold
+  sunColorB: "#ff4500", // OrangeRed
+  sunSpeed: 1.0,
+  sunNoiseScale: 1.0,
+  sunTurbulence: 0.5,
+  sunRayCount: 8,
+  sunSpotIntensity: 2.0,
+  sunSpotCount: 5.0,
+  sunRimPower: 2.0,
+  sunRimColor: "#ffaa00",
+  sunCoronas: true,
+  sunCoronaOpacity: 0.6,
+  sunFilamentScale: 1.0,
+  sunFilamentIntensity: 1.0,
+  sunSurfaceRelief: 0.1,
+  sunProminenceSize: 1.0,
   shadowEnabled: true,
   shadowMapSize: 1024,
   shadowRadius: 2,

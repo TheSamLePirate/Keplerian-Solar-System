@@ -61,6 +61,21 @@ const Toggle: React.FC<{
     />
   </div>
 );
+const ColorPicker: React.FC<{
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}> = ({ label, value, onChange }) => (
+  <div className="flex justify-between items-center text-[10px] text-gray-400">
+    <span>{label}</span>
+    <input
+      type="color"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-6 h-4 border-none p-0 bg-transparent cursor-pointer"
+    />
+  </div>
+);
 
 const Controls: React.FC<ControlsProps> = ({
   settings: s,
@@ -105,11 +120,10 @@ const Controls: React.FC<ControlsProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => setIsFollowing(!isFollowing)}
-            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${
-              isFollowing
-                ? "bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
-                : "bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50"
-            }`}
+            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${isFollowing
+              ? "bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+              : "bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50"
+              }`}
           >
             {isFollowing ? "Locked On" : "Free Cam"}
           </button>
@@ -166,11 +180,10 @@ const Controls: React.FC<ControlsProps> = ({
                 <button
                   key={lod}
                   onClick={() => set("earthTextureLOD", lod as any)}
-                  className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold border ${
-                    s.earthTextureLOD === lod
-                      ? "bg-blue-600 border-blue-500 text-white"
-                      : "bg-transparent border-gray-600 text-gray-400 hover:border-gray-400"
-                  }`}
+                  className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold border ${s.earthTextureLOD === lod
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-transparent border-gray-600 text-gray-400 hover:border-gray-400"
+                    }`}
                 >
                   {lod}
                 </button>
@@ -605,7 +618,155 @@ const Controls: React.FC<ControlsProps> = ({
         />
       </AccordionSection>
 
-      {/* Visual Quality */}
+
+
+      {/* Sun Shader */}
+      <AccordionSection
+        title="Sun"
+        isOpen={accordionState.sun ?? false}
+        onToggle={() => toggleAccordion("sun")}
+      >
+        <Toggle
+          label="Enable Shader"
+          checked={s.sunShaderEnabled}
+          onChange={(v) => set("sunShaderEnabled", v)}
+        />
+        {s.sunShaderEnabled && (
+          <div className="flex flex-col gap-1 mt-1">
+            <ColorPicker
+              label="Core Color"
+              value={s.sunColorA}
+              onChange={(v) => set("sunColorA", v)}
+            />
+            <ColorPicker
+              label="Edge Color"
+              value={s.sunColorB}
+              onChange={(v) => set("sunColorB", v)}
+            />
+            <Slider
+              label="Animation Speed"
+              value={s.sunSpeed}
+              min={0}
+              max={5}
+              step={0.1}
+              onChange={(v) => set("sunSpeed", v)}
+              format={(v) => v.toFixed(1)}
+            />
+            <Slider
+              label="Noise Scale"
+              value={s.sunNoiseScale}
+              min={0.1}
+              max={5}
+              step={0.1}
+              onChange={(v) => set("sunNoiseScale", v)}
+              format={(v) => v.toFixed(1)}
+            />
+            <Slider
+              label="Turbulence"
+              value={s.sunTurbulence}
+              min={0}
+              max={2}
+              step={0.1}
+              onChange={(v) => set("sunTurbulence", v)}
+              format={(v) => v.toFixed(1)}
+            />
+            <Slider
+              label="Ray Count"
+              value={s.sunRayCount}
+              min={4}
+              max={20}
+              step={1}
+              onChange={(v) => set("sunRayCount", v)}
+              format={(v) => v.toFixed(0)}
+            />
+            <div className="pt-1 mt-1 border-t border-white/5 flex flex-col gap-1">
+              <span className="text-[9px] uppercase font-bold text-gray-500 mb-1">Advanced</span>
+              <Toggle
+                label="Coronas/Atmosphere"
+                checked={s.sunCoronas}
+                onChange={(v) => set("sunCoronas", v)}
+              />
+              <Slider
+                label="Spot Intensity"
+                value={s.sunSpotIntensity}
+                min={0}
+                max={5}
+                step={0.1}
+                onChange={(v) => set("sunSpotIntensity", v)}
+                format={(v) => v.toFixed(1)}
+              />
+              <Slider
+                label="Spot Count"
+                value={s.sunSpotCount}
+                min={1}
+                max={20}
+                step={0.5}
+                onChange={(v) => set("sunSpotCount", v)}
+                format={(v) => v.toFixed(1)}
+              />
+              <Slider
+                label="Rim Power"
+                value={s.sunRimPower}
+                min={0.5}
+                max={5}
+                step={0.1}
+                onChange={(v) => set("sunRimPower", v)}
+                format={(v) => v.toFixed(1)}
+              />
+              <ColorPicker
+                label="Rim Color"
+                value={s.sunRimColor}
+                onChange={(v) => set("sunRimColor", v)}
+              />
+              <Slider
+                label="Corona Opacity"
+                value={s.sunCoronaOpacity ?? 0.6}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(v) => set("sunCoronaOpacity", v)}
+                format={(v) => v.toFixed(2)}
+              />
+              <Slider
+                label="Prominence Size"
+                value={s.sunProminenceSize ?? 1.0}
+                min={0.1}
+                max={3.0}
+                step={0.1}
+                onChange={(v) => set("sunProminenceSize", v)}
+                format={(v) => v.toFixed(1)}
+              />
+              <Slider
+                label="Filament Scale"
+                value={s.sunFilamentScale ?? 1.0}
+                min={0.1}
+                max={5.0}
+                step={0.1}
+                onChange={(v) => set("sunFilamentScale", v)}
+                format={(v) => v.toFixed(1)}
+              />
+              <Slider
+                label="Filament Intensity"
+                value={s.sunFilamentIntensity ?? 1.0}
+                min={0}
+                max={3.0}
+                step={0.1}
+                onChange={(v) => set("sunFilamentIntensity", v)}
+                format={(v) => v.toFixed(1)}
+              />
+              <Slider
+                label="Surface Relief"
+                value={s.sunSurfaceRelief ?? 0.1}
+                min={0}
+                max={0.5}
+                step={0.01}
+                onChange={(v) => set("sunSurfaceRelief", v)}
+                format={(v) => v.toFixed(2)}
+              />
+            </div>
+          </div>
+        )}
+      </AccordionSection>
       <AccordionSection
         title="Visual Quality"
         isOpen={accordionState.quality ?? false}
@@ -764,21 +925,19 @@ const Controls: React.FC<ControlsProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => set("issModel", "small")}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${
-              s.issModel === "small"
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
-            }`}
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${s.issModel === "small"
+              ? "bg-blue-600 border-blue-500 text-white"
+              : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
+              }`}
           >
             Small
           </button>
           <button
             onClick={() => set("issModel", "big")}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${
-              s.issModel === "big"
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
-            }`}
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${s.issModel === "big"
+              ? "bg-blue-600 border-blue-500 text-white"
+              : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
+              }`}
           >
             Detailed
           </button>
@@ -1102,7 +1261,7 @@ const Controls: React.FC<ControlsProps> = ({
           Reset All Settings
         </button>
       </div>
-    </div>
+    </div >
   );
 };
 

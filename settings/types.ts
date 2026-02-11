@@ -13,6 +13,23 @@ export interface AppSettings {
   // Lighting
   ambientLight: number;
   sunLuminosity: number;
+  sunShaderEnabled: boolean;
+  sunColorA: string;
+  sunColorB: string;
+  sunSpeed: number;
+  sunNoiseScale: number;
+  sunTurbulence: number;
+  sunRayCount: number;
+  sunSpotIntensity: number;
+  sunSpotCount: number;
+  sunRimPower: number;
+  sunRimColor: string;
+  sunCoronas: boolean;
+  sunCoronaOpacity: number;
+  sunFilamentScale: number;
+  sunFilamentIntensity: number;
+  sunSurfaceRelief: number;
+  sunProminenceSize: number;
   shadowEnabled: boolean;
   shadowMapSize: number;
   shadowRadius: number;
