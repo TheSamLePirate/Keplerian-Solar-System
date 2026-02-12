@@ -25,3 +25,11 @@ export const dummyCube = new THREE.CubeTexture([
   dummyCanvas,
 ]);
 dummyCube.needsUpdate = true;
+
+// Default Normal Map (Flat Blue: 128,128,255)
+export const dummyNormalMap = new THREE.DataTexture(
+  new Uint8Array([128, 128, 255, 255]),
+  1,
+  1,
+);
+dummyNormalMap.needsUpdate = true;

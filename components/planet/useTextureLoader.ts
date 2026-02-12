@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import * as THREE from "three";
 import { PlanetData } from "../../types";
+import { dummyTexture, dummyCube, dummyNormalMap } from "./textures";
 
 export interface LoadedTextures {
   map: THREE.Texture | null;
@@ -42,7 +43,7 @@ export function useTextureLoader({
 }: UseTextureLoaderParams) {
   const [loadedTextures, setTextures] = useState<LoadedTextures>({
     map: null,
-    normal: null,
+    normal: dummyNormalMap, // Default valid normal map
     specular: null,
     ring: null,
     displacement: null,
@@ -59,7 +60,9 @@ export function useTextureLoader({
 
   // Sync Moon Textures to Uniforms (using material ref)
   useEffect(() => {
-    if (data.id === "moon" && moonMaterialRef.current) {
+    // Determine if this planet is using the moon material (based on ref availability)
+    // Note: We don't check data.id === 'moon' anymore because Jupiter moons use it too.
+    if (moonMaterialRef.current) {
       const u = moonMaterialRef.current.uniforms;
 
       if (loadedTextures.map) {

@@ -52,6 +52,8 @@ interface UsePlanetFrameParams {
   jupiterUniforms: Record<string, { value: unknown }>;
   eclipseShadowIntensity: number;
   scaleFactor: number;
+  parentId?: string;
+  parentRadius?: number;
 }
 
 export function usePlanetFrame({
@@ -94,6 +96,8 @@ export function usePlanetFrame({
   jupiterUniforms,
   eclipseShadowIntensity,
   scaleFactor,
+  parentId,
+  parentRadius,
 }: UsePlanetFrameParams) {
   const { camera } = useThree();
   const isInsideAtmosphereRef = useRef(false);
@@ -444,6 +448,9 @@ export function usePlanetFrame({
         }
       });
     }
+
+
+    // 7. Update Moon Shader Uniforms (Generic for Moon and Jupiter's Moons)
     if (useMoonShader && meshRef.current && moonMaterialRef.current) {
       const u = moonMaterialRef.current.uniforms;
 
@@ -456,37 +463,65 @@ export function usePlanetFrame({
       u.localCameraPos.value.copy(tempVec);
 
       u.dayIntensity.value = dayIntensity;
-      u.bumpScale.value = bumpScale;
-      u.displacementScale.value = displacementScale;
+
+      // Decouple Jupiter moons from Earth displacement settings if they lack maps.
+      if (parentId === 'jupiter') {
+        u.bumpScale.value = data.normalMapUrl ? bumpScale : 0.0;
+        u.displacementScale.value = data.displacementMapUrl ? displacementScale : 0.0;
+      } else {
+        u.bumpScale.value = bumpScale;
+        u.displacementScale.value = displacementScale;
+      }
 
       u.eclipseShadowIntensity.value = eclipseShadowIntensity;
 
+      // 1. Sun Position in Local Space
       tempSun.set(0, 0, 0);
       meshRef.current.worldToLocal(tempSun);
       u.eclipseSunPos.value.copy(tempSun);
 
-      const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
+      u.eclipseShadowIntensity.value = eclipseShadowIntensity;
 
-      // Sun Visual Radius: 10 * PS * SF
-      u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+      // 1. Sun Position in Local Space
+      tempSun.set(0, 0, 0);
+      meshRef.current.worldToLocal(tempSun);
+      u.eclipseSunPos.value.copy(tempSun);
 
+      // 2. Generic Occluder Logic (Parent Planet)
+      if (parentId && groupRef.current && groupRef.current.parent) {
+        const parentGroup = groupRef.current.parent;
 
-      if (groupRef.current && groupRef.current.parent) {
-        const earthGroup = groupRef.current.parent;
-        earthGroup.getWorldPosition(tempVec);
-        meshRef.current.worldToLocal(tempVec);
+        // Debug: Check if parent exists
+        // console.log("Moon Parent:", parentId);
+
+        tempVec.set(0, 0, 0);
+        parentGroup.localToWorld(tempVec); // Parent World Pos (Center of Parent)
+        meshRef.current.worldToLocal(tempVec); // Parent Pos in Moon Local Space
 
         const moonPosArray = u.eclipseMoons.value as THREE.Vector3[];
         const moonRadiiArray = u.eclipseMoonRadii.value as number[];
 
         moonPosArray[0].copy(tempVec);
 
-        // Earth Radius (Visual)
-        // Earth is 1.0 * PS * SF
-        moonRadiiArray[0] = 1.0 * PLANET_SCALE * derivedScaleFactor;
-        u.numEclipseMoons.value = 1;
-      }
+        // Calculate Parent Radius (Visual)
+        // parentRadius prop is the raw radius (e.g. 1.0 for Earth, 11.2 for Jupiter)
+        // We need to scale it exactly like the moon size is scaled.
+        // size = data.radius * PLANET_SCALE * scaleFactor
+        // parentVisualRadius = parentRadius * PLANET_SCALE * scaleFactor
+        const pRadius = parentRadius || 1.0;
+        moonRadiiArray[0] = pRadius * PLANET_SCALE * scaleFactor;
 
+        u.numEclipseMoons.value = 1;
+
+        // Sun Radius
+        // Using same derived factor for consistency
+        const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
+        u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+
+      } else {
+        // Fallback or No Parent (should not happen for moons if setup correctly)
+        u.numEclipseMoons.value = 0;
+      }
     }
   });
 

@@ -29,4 +29,7 @@ export interface PlanetProps {
   displacementScale?: number;
   cloudRotationOffset?: number;
   eclipseShadowIntensity?: number;
+  parentRadius?: number;
+  parentId?: string;
+  onPlanetClick?: (planet: PlanetData) => void;
 }

@@ -131,6 +131,9 @@ const Planet: React.FC<PlanetProps> = ({
   displacementScale = 0.0,
   cloudRotationOffset = 0.0,
   eclipseShadowIntensity = 0.0,
+  onPlanetClick,
+  parentId,
+  parentRadius,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const earthMeshRef = useRef<THREE.Mesh>(null);
@@ -148,7 +151,7 @@ const Planet: React.FC<PlanetProps> = ({
 
   // Constants
   const isMoon = data.type === "moon";
-  const useMoonShader = data.id === "moon";
+  const useMoonShader = data.id === "moon" || (parentId === 'jupiter' && isMoon);
   const isJupiter = data.id === "jupiter";
   const isSatellite = data.type === "satellite";
   const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE * scaleFactor : 1;
@@ -436,6 +439,8 @@ const Planet: React.FC<PlanetProps> = ({
     jupiterUniforms,
     eclipseShadowIntensity,
     scaleFactor,
+    parentId,
+    parentRadius,
   });
 
   const tiltQuaternion = useMemo(() => {
@@ -751,6 +756,9 @@ const Planet: React.FC<PlanetProps> = ({
               showOrbit={showOrbit}
               showLabel={showLabel}
               scaleFactor={scaleFactor}
+              onPlanetClick={onPlanetClick}
+              parentId={data.id}
+              parentRadius={data.radius}
               atmOpacity={atmOpacity}
               atmPow={atmPow}
               atmSamples={atmSamples}
