@@ -21,6 +21,7 @@ interface UsePlanetFrameParams {
   atmMeshRef: React.RefObject<THREE.Mesh | null>;
   earthMaterialRef: React.RefObject<THREE.ShaderMaterial | null>;
   moonMaterialRef: React.RefObject<THREE.ShaderMaterial | null>;
+  jupiterMaterialRef: React.RefObject<THREE.ShaderMaterial | null>;
   issGroupRef: React.RefObject<THREE.Group | null>;
   // Derived values
   size: number;
@@ -48,6 +49,7 @@ interface UsePlanetFrameParams {
   earthTextureOffset: number;
   displacementScale: number;
   earthUniforms: Record<string, { value: unknown }>;
+  jupiterUniforms: Record<string, { value: unknown }>;
   eclipseShadowIntensity: number;
   scaleFactor: number;
 }
@@ -63,6 +65,7 @@ export function usePlanetFrame({
   atmMeshRef,
   earthMaterialRef,
   moonMaterialRef,
+  jupiterMaterialRef,
   issGroupRef,
   size,
   atmRadius,
@@ -88,6 +91,7 @@ export function usePlanetFrame({
   earthTextureOffset,
   displacementScale,
   earthUniforms,
+  jupiterUniforms,
   eclipseShadowIntensity,
   scaleFactor,
 }: UsePlanetFrameParams) {
@@ -377,6 +381,68 @@ export function usePlanetFrame({
         u.eclipseShadowIntensity.value = eclipseShadowIntensity;
 
       }
+    }
+
+    // 6. Update Jupiter Shader Uniforms
+    if (data.id === 'jupiter' && jupiterMaterialRef.current && meshRef.current) {
+      const u = jupiterMaterialRef.current.uniforms;
+
+      tempSun.set(0, 0, 0);
+      meshRef.current.worldToLocal(tempSun);
+      u.sunDirection.value.copy(tempSun).normalize();
+
+      tempVec.copy(camera.position);
+      meshRef.current.worldToLocal(tempVec);
+      u.localCameraPos.value.copy(tempVec);
+
+      u.dayIntensity.value = dayIntensity;
+      u.bumpScale.value = 0.0;
+      u.displacementScale.value = 0.0;
+      u.eclipseShadowIntensity.value = eclipseShadowIntensity;
+
+      // 1. Sun Position in Local Space
+      tempSun.set(0, 0, 0);
+      meshRef.current.worldToLocal(tempSun);
+      u.eclipseSunPos.value.copy(tempSun);
+
+      // 2. Sun Radius (Visual)
+      const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
+      // Using same factor as Earth for consistency, though Jupiter is further
+      u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+
+      // 3. Identify Moons
+      let relevantMoons: PlanetData[] = [];
+      if (data.moons) {
+        data.moons.forEach(m => {
+          if (m.type === 'moon') relevantMoons.push(m);
+        });
+      }
+      if (relevantMoons.length > 4) relevantMoons = relevantMoons.slice(0, 4);
+      u.numEclipseMoons.value = relevantMoons.length;
+
+      // 4. Calculate Moon Positions & Radii
+      const moonPosArray = u.eclipseMoons.value as THREE.Vector3[];
+      const moonRadiiArray = u.eclipseMoonRadii.value as number[];
+
+      relevantMoons.forEach((moon, index) => {
+        const moonOrbitPos = calculateOrbitalPositionWithPeriod(
+          moon.elements,
+          time,
+          moon.period
+        );
+
+        const moonVisualScale = MOON_ORBIT_SCALE * scaleFactor;
+        tempVec.set(moonOrbitPos[0], moonOrbitPos[1], moonOrbitPos[2]).multiplyScalar(moonVisualScale);
+
+        if (groupRef.current) {
+          groupRef.current.getWorldPosition(tempSun); // Jupiter World Pos
+          tempVec.add(tempSun); // Moon World Pos
+          meshRef.current.worldToLocal(tempVec); // Moon Local Pos
+          moonPosArray[index].copy(tempVec);
+
+          moonRadiiArray[index] = moon.radius * PLANET_SCALE * derivedScaleFactor;
+        }
+      });
     }
     if (useMoonShader && meshRef.current && moonMaterialRef.current) {
       const u = moonMaterialRef.current.uniforms;

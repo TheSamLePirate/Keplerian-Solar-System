@@ -24,6 +24,7 @@ interface UseTextureLoaderParams {
   earthTextureLOD: "low" | "med" | "high" | "ultra";
   earthUniforms: Record<string, { value: unknown }>;
   moonMaterialRef: React.RefObject<THREE.ShaderMaterial | null>;
+  jupiterMaterialRef: React.RefObject<THREE.ShaderMaterial | null>;
   bumpScale: number;
   displacementScale: number;
   dayIntensity: number;
@@ -34,6 +35,7 @@ export function useTextureLoader({
   earthTextureLOD,
   earthUniforms,
   moonMaterialRef,
+  jupiterMaterialRef,
   bumpScale,
   displacementScale,
   dayIntensity,
@@ -81,6 +83,30 @@ export function useTextureLoader({
       u.dayIntensity.value = dayIntensity;
 
       console.log("Moon displacement scale:", displacementScale);
+    }
+  }, [data.id, loadedTextures, bumpScale, displacementScale, dayIntensity]);
+
+  // Sync Jupiter Textures to Uniforms
+  useEffect(() => {
+    if (data.id === "jupiter" && jupiterMaterialRef.current) {
+      const u = jupiterMaterialRef.current.uniforms;
+
+      if (loadedTextures.map) {
+        console.log("Jupiter: Setting map texture");
+        u.map.value = loadedTextures.map;
+      }
+      if (loadedTextures.normal) {
+        console.log("Jupiter: Setting normal texture");
+        u.normalMap.value = loadedTextures.normal;
+      }
+      // Jupiter doesn't usually use displacement but we support it if available
+      if (loadedTextures.displacement) {
+        u.displacementMap.value = loadedTextures.displacement;
+      }
+
+      u.bumpScale.value = 0.0;
+      u.displacementScale.value = 0.0;
+      u.dayIntensity.value = dayIntensity;
     }
   }, [data.id, loadedTextures, bumpScale, displacementScale, dayIntensity]);
 

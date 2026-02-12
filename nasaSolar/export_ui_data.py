@@ -88,7 +88,6 @@ VISUAL_DATA = {
         "name": "Jupiter",
         "type": "planet",
         "color": "#D4A373",
-        "atmosphereColor": "#C6A584",
         "radius": 11.2,
         "textureUrl": "/textures/jupiter_daymap.jpg",
         "description": "The largest planet in the Solar System. A gas giant with a Great Red Spot.",

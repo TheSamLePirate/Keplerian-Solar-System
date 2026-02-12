@@ -6,7 +6,7 @@ import { calculateOrbitalPositionWithPeriod } from "../../utils/physics";
 import { PLANET_SCALE, MOON_ORBIT_SCALE, SATELLITE_ORBIT_FACTOR } from "../../constants";
 import ISSModel from "../ISS";
 import { PlanetProps } from "./PlanetProps";
-import { AtmosphereMaterial, EarthMaterial, MoonMaterial } from "./shaders";
+import { AtmosphereMaterial, EarthMaterial, MoonMaterial, JupiterMaterial } from "./shaders";
 import { dummyTexture, dummyCube } from "./textures";
 import { useTextureLoader } from "./useTextureLoader";
 import { usePlanetFrame } from "./usePlanetFrame";
@@ -139,6 +139,7 @@ const Planet: React.FC<PlanetProps> = ({
   const atmMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const earthMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const moonMaterialRef = useRef<THREE.ShaderMaterial>(null);
+  const jupiterMaterialRef = useRef<THREE.ShaderMaterial>(null);
   const atmMeshRef = useRef<THREE.Mesh>(null);
   const tiltGroupRef = useRef<THREE.Group>(null);
   const [hovered, setHover] = useState(false);
@@ -148,6 +149,7 @@ const Planet: React.FC<PlanetProps> = ({
   // Constants
   const isMoon = data.type === "moon";
   const useMoonShader = data.id === "moon";
+  const isJupiter = data.id === "jupiter";
   const isSatellite = data.type === "satellite";
   const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE * scaleFactor : 1;
 
@@ -277,7 +279,6 @@ const Planet: React.FC<PlanetProps> = ({
     ]);
   }, []);
 
-  // Moon Uniforms
   const moonUniforms = useMemo(() => {
     return THREE.UniformsUtils.merge([
       THREE.UniformsLib.lights,
@@ -301,12 +302,37 @@ const Planet: React.FC<PlanetProps> = ({
     ]);
   }, []);
 
+  // Jupiter Uniforms
+  const jupiterUniforms = useMemo(() => {
+    return THREE.UniformsUtils.merge([
+      THREE.UniformsLib.lights,
+      THREE.UniformsLib.fog,
+      {
+        map: { value: dummyTexture },
+        normalMap: { value: dummyTexture },
+        displacementMap: { value: dummyTexture }, // Not used but good for compatibility if we add it later
+        displacementScale: { value: 0 },
+        sunDirection: { value: new THREE.Vector3() },
+        localCameraPos: { value: new THREE.Vector3() },
+        bumpScale: { value: bumpScale },
+        dayIntensity: { value: dayIntensity },
+        eclipseShadowIntensity: { value: eclipseShadowIntensity },
+        eclipseSunPos: { value: new THREE.Vector3() },
+        eclipseSunRadius: { value: 696340 },
+        eclipseMoons: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
+        eclipseMoonRadii: { value: [0, 0, 0, 0] },
+        numEclipseMoons: { value: 0 },
+      },
+    ]);
+  }, []);
+
   // Texture Loading Hook
   const { loadedTextures } = useTextureLoader({
     data,
     earthTextureLOD,
     earthUniforms,
     moonMaterialRef,
+    jupiterMaterialRef,
     bumpScale,
     displacementScale,
     dayIntensity,
@@ -381,6 +407,7 @@ const Planet: React.FC<PlanetProps> = ({
     atmMeshRef,
     earthMaterialRef,
     moonMaterialRef,
+    jupiterMaterialRef,
     issGroupRef,
     size,
     atmRadius,
@@ -406,6 +433,7 @@ const Planet: React.FC<PlanetProps> = ({
     earthTextureOffset,
     displacementScale,
     earthUniforms,
+    jupiterUniforms,
     eclipseShadowIntensity,
     scaleFactor,
   });
@@ -587,6 +615,43 @@ const Planet: React.FC<PlanetProps> = ({
                 </Html>
               )}
             </group>
+          ) : isJupiter ? (
+            <mesh
+              ref={meshRef}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(data);
+              }}
+              onPointerOver={() => setHover(true)}
+              onPointerOut={() => setHover(false)}
+              castShadow={eclipseShadowIntensity <= 0}
+              receiveShadow={eclipseShadowIntensity <= 0}
+              userData={{ isOccluder: true }}
+            >
+              <sphereGeometry args={[size, 128, 128]} />
+              <shaderMaterial
+                ref={jupiterMaterialRef}
+                key={`jupiter-mat-${data.id}`}
+                vertexShader={JupiterMaterial.vertexShader}
+                fragmentShader={JupiterMaterial.fragmentShader}
+                uniforms={jupiterUniforms}
+                lights={true}
+                transparent={false}
+                depthWrite={true}
+                depthTest={true}
+              />
+              {(showLabel || hovered) && (
+                <Html position={[0, size * 1.5, 0]}>
+                  <div
+                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                                ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
+                                `}
+                  >
+                    {data.name}
+                  </div>
+                </Html>
+              )}
+            </mesh>
           ) : (
             <mesh
               ref={meshRef}
@@ -674,7 +739,8 @@ const Planet: React.FC<PlanetProps> = ({
           )}
         </group>
 
-        {data.moons &&
+        {
+          data.moons &&
           data.moons.map((moon) => (
             <Planet
               key={moon.id}
@@ -701,8 +767,9 @@ const Planet: React.FC<PlanetProps> = ({
               dayIntensity={dayIntensity}
               displacementScale={displacementScale}
             />
-          ))}
-      </group>
+          ))
+        }
+      </group >
     </>
   );
 };

@@ -345,7 +345,8 @@ export const EarthMaterial = {
 
         // Apply Eclipse Shadow
         float eclipseOcc = calcEclipseShadow(vLocalPosition, eclipseSunPos, eclipseSunRadius);
-        diffuse *= (1.0 - eclipseOcc * eclipseShadowIntensity);
+        float eclipseFactor = (1.0 - eclipseOcc * eclipseShadowIntensity);
+        diffuse *= eclipseFactor;
 
         // Day/Night Mix Factor
         // We use the SHADOWED diffuse for mixing, so night lights turn on in shadow
@@ -370,7 +371,7 @@ export const EarthMaterial = {
         if (NdotL > 0.0) {
             vec3 halfVector = normalize(lightDir + viewDir);
             float NdotH = max(0.0, dot(normal, halfVector));
-            specular = pow(NdotH, 60.0) * specularMask * specularStrength * shadowMask;
+            specular = pow(NdotH, 60.0) * specularMask * specularStrength * shadowMask * eclipseFactor;
         }
 
         // Base Color Mixing
@@ -407,7 +408,7 @@ export const EarthMaterial = {
             finalColor *= (1.0 - cloudShadow * cloudOpacity * 0.5 * diffuse);
 
             float cloudDiffuse = max(0.0, dot(normalize(cloudDir), lightDir));
-            float cloudLight = max(cloudDiffuse, 0.1) * shadowMask; // Cloud also receives shadow
+            float cloudLight = max(cloudDiffuse, 0.1) * shadowMask * eclipseFactor; // Cloud also receives shadow
 
             vec3 cloudColor = vec3(1.0) * cloudLight;
             finalColor = mix(finalColor, cloudColor, cloudSample.r * cloudOpacity);
@@ -566,9 +567,138 @@ export const MoonMaterial = {
         // Ambient fill (simulated bounce light)
         finalColor += texColor.rgb * 0.02;
 
-        // DEBUG: Red Shadow
-        finalColor = mix(finalColor, vec3(1.0, 0.0, 0.0), eclipseOcc * (1.0 - clamp(eclipseShadowIntensity * 2.0, 0.0, 1.0)));
+        // Eclipse Shadow Tint (Black)
+        finalColor = mix(finalColor, vec3(0.0, 0.0, 0.0), eclipseOcc * (1.0 - clamp(eclipseShadowIntensity * 2.0, 0.0, 1.0)));
 
+
+        gl_FragColor = vec4(finalColor, 1.0);
+    }
+    `,
+};
+
+export const JupiterMaterial = {
+    vertexShader: EarthMaterial.vertexShader,
+    fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    #include <packing>
+    #include <lights_pars_begin>
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+
+    uniform sampler2D map;
+    uniform sampler2D normalMap;
+
+    uniform vec3 sunDirection; // Local space
+    uniform vec3 localCameraPos; // Local space
+    uniform float bumpScale;
+    uniform float dayIntensity;
+
+    varying vec2 vUv;
+    varying vec3 vLocalPosition;
+    varying vec3 vNormal;
+
+    // Eclipse Uniforms
+    uniform vec3 eclipseSunPos;
+    uniform float eclipseSunRadius;
+    uniform vec3 eclipseMoons[4];
+    uniform float eclipseMoonRadii[4];
+    uniform int numEclipseMoons;
+    uniform float eclipseShadowIntensity;
+
+    float calcEclipseShadow(vec3 surfPos, vec3 sunPos, float sunRad) {
+        float occlusion = 0.0;
+        
+        for(int i = 0; i < 4; i++) {
+             if(i >= numEclipseMoons) break;
+             
+             vec3 moonPos = eclipseMoons[i];
+             float moonRad = eclipseMoonRadii[i];
+             
+             vec3 toSun = sunPos - surfPos;
+             float distSun = length(toSun);
+             
+             vec3 toMoon = moonPos - surfPos;
+             float distMoon = length(toMoon);
+             
+             if (dot(toSun, toMoon) <= 0.0) continue; 
+             
+             float angSun = atan(sunRad / distSun);
+             float angMoon = atan(moonRad / distMoon);
+             
+             float cosTheta = dot(normalize(toSun), normalize(toMoon));
+             float angDist = acos(clamp(cosTheta, -1.0, 1.0));
+             
+             if (angDist >= angSun + angMoon) continue; 
+             
+             float coverage = 0.0;
+             
+             if (angDist <= abs(angMoon - angSun)) {
+                 if (angMoon >= angSun) {
+                     coverage = 1.0; 
+                 } else {
+                     coverage = (angMoon * angMoon) / (angSun * angSun); 
+                 }
+             } else {
+                 float r1 = angSun;
+                 float r2 = angMoon;
+                 float d = angDist;
+                 
+                 float part1Term = (d*d + r1*r1 - r2*r2)/(2.0*d*r1);
+                 float part2Term = (d*d + r2*r2 - r1*r1)/(2.0*d*r2);
+                 part1Term = clamp(part1Term, -1.0, 1.0);
+                 part2Term = clamp(part2Term, -1.0, 1.0);
+
+                 float part1 = r1*r1 * acos(part1Term);
+                 float part2 = r2*r2 * acos(part2Term);
+                 float part3 = 0.5 * sqrt(max(0.0, (-d+r1+r2)*(d+r1-r2)*(d-r1+r2)*(d+r1+r2)));
+                 
+                 float area = part1 + part2 - part3;
+                 float sunArea = 3.14159265 * r1 * r1;
+                 coverage = area / sunArea;
+             }
+             
+             occlusion += coverage;
+        }
+        
+        return clamp(occlusion, 0.0, 1.0);
+    }
+
+    vec3 getNormal() {
+        vec3 objectNormal = normalize(vNormal);
+        vec3 normalSample = texture2D(normalMap, vUv).rgb * 2.0 - 1.0;
+
+        vec3 tangent = normalize(cross(vec3(0.0, 1.0, 0.0), objectNormal));
+        if (length(tangent) < 0.001) tangent = vec3(1.0, 0.0, 0.0);
+        vec3 bitangent = normalize(cross(objectNormal, tangent));
+
+        mat3 tbn = mat3(tangent, bitangent, objectNormal);
+
+        vec3 perturbed = tbn * normalize(vec3(normalSample.xy * bumpScale, normalSample.z));
+        return normalize(perturbed);
+    }
+
+    void main() {
+        #include <logdepthbuf_fragment>
+
+        vec3 normal = getNormal();
+        vec3 lightDir = normalize(sunDirection);
+
+        float NdotL = dot(normal, lightDir);
+        float diffuse = max(0.0, NdotL);
+
+        float shadowMask = getShadowMask();
+        diffuse *= shadowMask;
+
+        float eclipseOcc = calcEclipseShadow(vLocalPosition, eclipseSunPos, eclipseSunRadius);
+        diffuse *= (1.0 - eclipseOcc * eclipseShadowIntensity);
+
+        vec4 texColor = texture2D(map, vUv);
+        vec3 finalColor = texColor.rgb * diffuse * dayIntensity;
+        finalColor += texColor.rgb * 0.02;
+
+        // Eclipse Shadow Tint (Black)
+        finalColor = mix(finalColor, vec3(0.0, 0.0, 0.0), eclipseOcc * (1.0 - clamp(eclipseShadowIntensity * 2.0, 0.0, 1.0)));
 
         gl_FragColor = vec4(finalColor, 1.0);
     }
