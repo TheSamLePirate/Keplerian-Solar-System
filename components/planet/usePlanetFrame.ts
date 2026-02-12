@@ -8,6 +8,7 @@ import {
   planetCullingStore,
   planetPositionStore,
 } from "./stores";
+import { PLANETS, SUN_DATA, PLANET_SCALE, MOON_ORBIT_SCALE } from "../../constants";
 
 interface UsePlanetFrameParams {
   data: PlanetData;
@@ -47,6 +48,8 @@ interface UsePlanetFrameParams {
   earthTextureOffset: number;
   displacementScale: number;
   earthUniforms: Record<string, { value: unknown }>;
+  eclipseShadowIntensity: number;
+  scaleFactor: number;
 }
 
 export function usePlanetFrame({
@@ -85,6 +88,8 @@ export function usePlanetFrame({
   earthTextureOffset,
   displacementScale,
   earthUniforms,
+  eclipseShadowIntensity,
+  scaleFactor,
 }: UsePlanetFrameParams) {
   const { camera } = useThree();
   const isInsideAtmosphereRef = useRef(false);
@@ -289,13 +294,90 @@ export function usePlanetFrame({
       earthUniforms.dayIntensity.value = dayIntensity;
       earthUniforms.earthTextureOffset.value = earthTextureOffset;
 
+
       if (earthMeshRef.current) {
         tempVec.copy(camera.position);
         earthMeshRef.current.worldToLocal(tempVec);
         u.localCameraPos.value.copy(tempVec);
+
+        // Eclipse Logic
+        u.dayIntensity.value = dayIntensity;
+        u.bumpScale.value = bumpScale;
+        u.displacementScale.value = displacementScale;
+
+        // Always update Eclipse Geometry (Positions/Radii) for Debug Line usage
+
+        // CRITICAL: Ensure the Earth's World Matrix is updated with the latest rotation
+        // calculated above (lines 120+) BEFORE transforming world coords to local.
+        // Otherwise, we use the previous frame's matrix, causing the shadow to drift/lag
+        // relative to the spinning texture.
+        if (earthMeshRef.current) {
+          earthMeshRef.current.updateMatrixWorld();
+        }
+
+        // 1. Sun Position in Local Space
+        tempSun.set(0, 0, 0);
+        earthMeshRef.current.worldToLocal(tempSun);
+        u.eclipseSunPos.value.copy(tempSun);
+
+        // CRITICAL FIX: Update Sun Direction for Day/Night Cycle Shader
+        // This ensures the visual "Day Side" matches the geometric Sun position
+        if (earthUniforms.sunDirection) {
+          (earthUniforms.sunDirection.value as THREE.Vector3).copy(tempSun).normalize();
+        }
+
+        // 2. Sun Radius (Visual)
+        // Hardcoded '10' matches Sun.tsx
+        const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
+        u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+
+
+        // 3. Identify Moons
+        let relevantMoons: PlanetData[] = [];
+        if (data.id === 'earth') {
+          const moon = PLANETS.find(p => p.id === 'earth')?.moons?.find(m => m.id === 'moon');
+          if (moon) relevantMoons.push(moon);
+        } else if (data.moons) {
+          data.moons.forEach(m => {
+            if (m.type === 'moon') relevantMoons.push(m);
+          });
+        }
+
+        if (relevantMoons.length > 4) relevantMoons = relevantMoons.slice(0, 4);
+        u.numEclipseMoons.value = relevantMoons.length;
+
+        // 4. Calculate Moon Positions & Radii
+        const moonPosArray = u.eclipseMoons.value as THREE.Vector3[];
+        const moonRadiiArray = u.eclipseMoonRadii.value as number[];
+
+        relevantMoons.forEach((moon, index) => {
+          const moonOrbitPos = calculateOrbitalPositionWithPeriod(
+            moon.elements,
+            time,
+            moon.period
+          );
+
+          // Apply Visual Scales (MOON_ORBIT_SCALE)
+          const moonVisualScale = MOON_ORBIT_SCALE * scaleFactor;
+
+          tempVec.set(moonOrbitPos[0], moonOrbitPos[1], moonOrbitPos[2]).multiplyScalar(moonVisualScale);
+
+          if (groupRef.current) {
+            groupRef.current.getWorldPosition(tempSun); // Earth World Pos
+            tempVec.add(tempSun); // Moon World Pos
+            earthMeshRef.current.worldToLocal(tempVec); // Moon Local Pos
+            moonPosArray[index].copy(tempVec);
+
+            // Radius (Visual)
+            // Just the radius of the moon mesh.
+            moonRadiiArray[index] = moon.radius * PLANET_SCALE * derivedScaleFactor;
+          }
+        });
+
+        u.eclipseShadowIntensity.value = eclipseShadowIntensity;
+
       }
     }
-
     if (useMoonShader && meshRef.current && moonMaterialRef.current) {
       const u = moonMaterialRef.current.uniforms;
 
@@ -310,6 +392,35 @@ export function usePlanetFrame({
       u.dayIntensity.value = dayIntensity;
       u.bumpScale.value = bumpScale;
       u.displacementScale.value = displacementScale;
+
+      u.eclipseShadowIntensity.value = eclipseShadowIntensity;
+
+      tempSun.set(0, 0, 0);
+      meshRef.current.worldToLocal(tempSun);
+      u.eclipseSunPos.value.copy(tempSun);
+
+      const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
+
+      // Sun Visual Radius: 10 * PS * SF
+      u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+
+
+      if (groupRef.current && groupRef.current.parent) {
+        const earthGroup = groupRef.current.parent;
+        earthGroup.getWorldPosition(tempVec);
+        meshRef.current.worldToLocal(tempVec);
+
+        const moonPosArray = u.eclipseMoons.value as THREE.Vector3[];
+        const moonRadiiArray = u.eclipseMoonRadii.value as number[];
+
+        moonPosArray[0].copy(tempVec);
+
+        // Earth Radius (Visual)
+        // Earth is 1.0 * PS * SF
+        moonRadiiArray[0] = 1.0 * PLANET_SCALE * derivedScaleFactor;
+        u.numEclipseMoons.value = 1;
+      }
+
     }
   });
 

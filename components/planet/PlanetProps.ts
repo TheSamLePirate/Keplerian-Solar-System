@@ -28,4 +28,5 @@ export interface PlanetProps {
   earthTextureOffset?: number;
   displacementScale?: number;
   cloudRotationOffset?: number;
+  eclipseShadowIntensity?: number;
 }

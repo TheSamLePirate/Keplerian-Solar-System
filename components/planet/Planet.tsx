@@ -1,4 +1,5 @@
 import React, { useRef, useMemo, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { calculateOrbitalPositionWithPeriod } from "../../utils/physics";
@@ -9,6 +10,98 @@ import { AtmosphereMaterial, EarthMaterial, MoonMaterial } from "./shaders";
 import { dummyTexture, dummyCube } from "./textures";
 import { useTextureLoader } from "./useTextureLoader";
 import { usePlanetFrame } from "./usePlanetFrame";
+// 1. Updated Component with Green Marker
+const EclipseDebugLine = ({ sunPos, moonPos, active, planetSize }: { sunPos: THREE.Vector3; moonPos: THREE.Vector3; active: boolean; planetSize: number }) => {
+  const lineRef = useRef<any>(null);
+  const markerRef = useRef<THREE.Mesh>(null);
+  const points = useMemo(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], []);
+
+  useFrame(() => {
+    // 1. Line Update
+    if (lineRef.current) {
+      const dist = sunPos.distanceTo(moonPos);
+      if (dist < 0.1) {
+        lineRef.current.visible = false;
+        if (markerRef.current) markerRef.current.visible = false;
+      } else {
+        lineRef.current.visible = true;
+        points[0].copy(sunPos); // Sun
+        points[1].copy(moonPos); // Moon
+
+        const dir = new THREE.Vector3().subVectors(moonPos, sunPos).normalize();
+
+        // Extend past Moon to Earth
+        // Approximate distance to Earth center is length(moonPos) roughly, or just push it far enough
+        const rayEnd = dir.clone().multiplyScalar(planetSize * 30);
+        points[2].copy(moonPos).add(rayEnd);
+
+        if (lineRef.current.geometry) {
+          lineRef.current.geometry.setFromPoints(points);
+        }
+
+        // 2. Intersection (Green Marker)
+        // Ray: Origin = MoonPos, Dir = dir
+        // Sphere: Center = (0,0,0) (Local Earth), Radius = planetSize
+
+        // Analytic Ray-Sphere Intersection
+        // P = O + t*D
+        // |P|² = R²
+        // |O + t*D|² = R²
+        // (O+tD).(O+tD) = R²
+        // O.O + 2t(O.D) + t²(D.D) = R²
+        // t² + 2t(O.D) + (O.O - R²) = 0
+
+        const O = moonPos;
+        const D = dir;
+        const R = planetSize;
+
+        const a = 1.0; // D is normalized
+        const b = 2.0 * O.dot(D);
+        const c = O.dot(O) - R * R;
+
+        const delta = b * b - 4.0 * a * c;
+
+        if (delta >= 0 && markerRef.current) {
+          const t1 = (-b - Math.sqrt(delta)) / (2.0 * a);
+          const t2 = (-b + Math.sqrt(delta)) / (2.0 * a);
+
+          // We want the closest positive t (intersection in front)
+          // But Moon is likely *outside* Earth (t > 0).
+          // The intersection *behind* the moon (towards Earth) is what we want.
+          // Since Ray is Sun->Moon, and Earth is further, t should be positive.
+
+          let t = -1.0;
+          if (t1 > 0) t = t1;
+          if (t2 > 0 && (t < 0 || t2 < t1)) t = t2;
+
+          if (t > 0) {
+            markerRef.current.visible = true;
+            markerRef.current.position.copy(O).add(D.multiplyScalar(t));
+            // Push slightly out to avoid z-fighting
+            markerRef.current.position.setLength(planetSize * 1.01);
+          } else {
+            markerRef.current.visible = false;
+          }
+        } else if (markerRef.current) {
+          markerRef.current.visible = false;
+        }
+      }
+    }
+  });
+
+  return (
+    <group renderOrder={999}>
+      <line ref={lineRef}>
+        <bufferGeometry />
+        <lineBasicMaterial color="red" linewidth={2} transparent opacity={1.0} depthTest={false} />
+      </line>
+      <mesh ref={markerRef}>
+        <sphereGeometry args={[planetSize * 0.05, 16, 16]} />
+        <meshBasicMaterial color="#00ff00" depthTest={false} transparent opacity={0.8} />
+      </mesh>
+    </group>
+  );
+};
 
 const Planet: React.FC<PlanetProps> = ({
   data,
@@ -37,6 +130,7 @@ const Planet: React.FC<PlanetProps> = ({
   earthTextureOffset = 0.0,
   displacementScale = 0.0,
   cloudRotationOffset = 0.0,
+  eclipseShadowIntensity = 0.0,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const earthMeshRef = useRef<THREE.Mesh>(null);
@@ -55,7 +149,7 @@ const Planet: React.FC<PlanetProps> = ({
   const isMoon = data.type === "moon";
   const useMoonShader = data.id === "moon";
   const isSatellite = data.type === "satellite";
-  const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE : 1;
+  const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE * scaleFactor : 1;
 
   const hasAtmosphere = !!data.atmosphereColor;
   const isEarth = data.id === "earth";
@@ -165,6 +259,12 @@ const Planet: React.FC<PlanetProps> = ({
         dayIntensity: { value: dayIntensity },
         earthTextureOffset: { value: earthTextureOffset },
         displacementScale: { value: displacementScale },
+        eclipseShadowIntensity: { value: eclipseShadowIntensity },
+        eclipseSunPos: { value: new THREE.Vector3() },
+        eclipseSunRadius: { value: 696340 }, // km, default
+        eclipseMoons: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
+        eclipseMoonRadii: { value: [0, 0, 0, 0] },
+        numEclipseMoons: { value: 0 },
       },
     ]);
   }, []);
@@ -183,6 +283,12 @@ const Planet: React.FC<PlanetProps> = ({
         localCameraPos: { value: new THREE.Vector3() },
         bumpScale: { value: bumpScale },
         dayIntensity: { value: dayIntensity },
+        eclipseShadowIntensity: { value: eclipseShadowIntensity },
+        eclipseSunPos: { value: new THREE.Vector3() },
+        eclipseSunRadius: { value: 696340 },
+        eclipseMoons: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
+        eclipseMoonRadii: { value: [0, 0, 0, 0] },
+        numEclipseMoons: { value: 0 },
       },
     ]);
   }, []);
@@ -292,6 +398,8 @@ const Planet: React.FC<PlanetProps> = ({
     earthTextureOffset,
     displacementScale,
     earthUniforms,
+    eclipseShadowIntensity,
+    scaleFactor,
   });
 
   const tiltQuaternion = useMemo(() => {
@@ -310,10 +418,16 @@ const Planet: React.FC<PlanetProps> = ({
         target,
       );
     }
+    // In Equatorial Frame, Earth's axis is the reference (Y-Up).
+    // So we should NOT tilt Earth, the orbit is what is tilted.
+    if (data.id === 'earth') {
+      return new THREE.Quaternion(); // Identity
+    }
+
     return new THREE.Quaternion().setFromEuler(
       new THREE.Euler(THREE.MathUtils.degToRad(-(data.axialTilt || 0)), 0, 0),
     );
-  }, [data.axialTilt, data.poleDirection]);
+  }, [data.axialTilt, data.poleDirection, data.id]);
 
   return (
     <>
@@ -356,8 +470,8 @@ const Planet: React.FC<PlanetProps> = ({
               }}
               onPointerOver={() => setHover(true)}
               onPointerOut={() => setHover(false)}
-              castShadow
-              receiveShadow
+              castShadow={eclipseShadowIntensity <= 0}
+              receiveShadow={eclipseShadowIntensity <= 0}
               renderOrder={1}
               userData={{ isOccluder: true }}
             >
@@ -383,12 +497,22 @@ const Planet: React.FC<PlanetProps> = ({
               }}
               onPointerOver={() => setHover(true)}
               onPointerOut={() => setHover(false)}
-              castShadow
-              receiveShadow
+              castShadow={eclipseShadowIntensity <= 0}
+              receiveShadow={eclipseShadowIntensity <= 0}
               renderOrder={1}
               userData={{ isOccluder: true }}
             >
               <sphereGeometry args={[size, 128, 128]} />
+              {/* DEBUG: Eclipse Alignment Line */}
+              {earthUniforms.numEclipseMoons.value > 0 && (
+                <EclipseDebugLine
+                  sunPos={earthUniforms.eclipseSunPos.value}
+                  moonPos={earthUniforms.eclipseMoons.value[0]}
+                  active={true}
+                  planetSize={size}
+                /* meshRef={earthMeshRef} - removed */
+                />
+              )}
               <shaderMaterial
                 ref={earthMaterialRef}
                 key={`earth-mat-${data.id}`}
@@ -463,8 +587,8 @@ const Planet: React.FC<PlanetProps> = ({
               }}
               onPointerOver={() => setHover(true)}
               onPointerOut={() => setHover(false)}
-              castShadow
-              receiveShadow
+              castShadow={eclipseShadowIntensity <= 0}
+              receiveShadow={eclipseShadowIntensity <= 0}
               userData={{ isOccluder: true }}
             >
               <sphereGeometry args={[size, 128, 128]} />

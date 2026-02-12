@@ -26,6 +26,7 @@ export interface AppSettings {
   sunRimColor: string;
   sunCoronas: boolean;
   sunCoronaOpacity: number;
+  eclipseShadowIntensity: number;
   sunFilamentScale: number;
   sunFilamentIntensity: number;
   sunSurfaceRelief: number;

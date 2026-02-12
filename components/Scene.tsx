@@ -71,6 +71,7 @@ interface SceneContentProps {
   sunRimColor: string;
   sunCoronas: boolean;
   sunCoronaOpacity: number;
+  eclipseShadowIntensity: number;
   sunFilamentScale: number;
   sunFilamentIntensity: number;
   sunSurfaceRelief: number;
@@ -208,6 +209,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   sunRimColor,
   sunCoronas,
   sunCoronaOpacity,
+  eclipseShadowIntensity,
   sunFilamentScale,
   sunFilamentIntensity,
   sunSurfaceRelief,
@@ -752,6 +754,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           earthTextureOffset={earthTextureOffset}
           displacementScale={displacementScale}
           cloudRotationOffset={cloudRotationOffset}
+          eclipseShadowIntensity={eclipseShadowIntensity}
         />
       ))}
 

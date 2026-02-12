@@ -20,6 +20,7 @@ AU_SCALE = 50.0          # 1 AU = 50 3D units
 PLANET_SCALE = 0.5       # Base visual scale for planets
 MOON_ORBIT_SCALE = 30.0  # Visual exaggeration for moon orbits
 
+
 # Visual Data (Preserved from original constants.ts)
 VISUAL_DATA = {
     "mercury": {
@@ -684,6 +685,7 @@ def main():
 export const AU_SCALE = {AU_SCALE}; // 1 AU = {AU_SCALE} 3D units
 export const PLANET_SCALE = {PLANET_SCALE}; // Base visual scale for planets
 export const MOON_ORBIT_SCALE = {MOON_ORBIT_SCALE}; // Visual exaggeration for moon orbits
+export const SATELLITE_ORBIT_FACTOR = 1.063;
 
 // Simulation Epoch (Start derived from Python export time)
 """

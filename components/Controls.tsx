@@ -120,11 +120,10 @@ const Controls: React.FC<ControlsProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => setIsFollowing(!isFollowing)}
-            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${
-              isFollowing
+            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${isFollowing
                 ? "bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
                 : "bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50"
-            }`}
+              }`}
           >
             {isFollowing ? "Locked On" : "Free Cam"}
           </button>
@@ -181,11 +180,10 @@ const Controls: React.FC<ControlsProps> = ({
                 <button
                   key={lod}
                   onClick={() => set("earthTextureLOD", lod as any)}
-                  className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold border ${
-                    s.earthTextureLOD === lod
+                  className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold border ${s.earthTextureLOD === lod
                       ? "bg-blue-600 border-blue-500 text-white"
                       : "bg-transparent border-gray-600 text-gray-400 hover:border-gray-400"
-                  }`}
+                    }`}
                 >
                   {lod}
                 </button>
@@ -694,6 +692,15 @@ const Controls: React.FC<ControlsProps> = ({
           onChange={(v) => set("ambientLight", v)}
           format={(v) => `${(v * 100).toFixed(0)}%`}
         />
+        <Slider
+          label="Eclipse Strength"
+          value={s.eclipseShadowIntensity ?? 0}
+          min={0}
+          max={10}
+          step={0.05}
+          onChange={(v) => set("eclipseShadowIntensity", v)}
+          format={(v) => v.toFixed(2)}
+        />
       </AccordionSection>
 
       {/* Sun Shader */}
@@ -1025,21 +1032,19 @@ const Controls: React.FC<ControlsProps> = ({
         <div className="flex gap-1.5">
           <button
             onClick={() => set("issModel", "small")}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${
-              s.issModel === "small"
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${s.issModel === "small"
                 ? "bg-blue-600 border-blue-500 text-white"
                 : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
-            }`}
+              }`}
           >
             Small
           </button>
           <button
             onClick={() => set("issModel", "big")}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${
-              s.issModel === "big"
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${s.issModel === "big"
                 ? "bg-blue-600 border-blue-500 text-white"
                 : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
-            }`}
+              }`}
           >
             Detailed
           </button>

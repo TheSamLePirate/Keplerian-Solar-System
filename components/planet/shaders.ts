@@ -1,6 +1,6 @@
 // Volumetric Rayleigh Scattering Shader (Local Space)
 export const AtmosphereMaterial = {
-  vertexShader: `
+    vertexShader: `
     varying vec3 vLocalPosition;
 
     void main() {
@@ -8,7 +8,7 @@ export const AtmosphereMaterial = {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
-  fragmentShader: `
+    fragmentShader: `
     varying vec3 vLocalPosition;
 
     uniform vec3 color;
@@ -140,7 +140,7 @@ export const AtmosphereMaterial = {
 };
 
 export const EarthMaterial = {
-  vertexShader: `
+    vertexShader: `
     #include <common>
     #include <logdepthbuf_pars_vertex>
     #include <shadowmap_pars_vertex>
@@ -175,7 +175,7 @@ export const EarthMaterial = {
         #include <shadowmap_vertex>
     }
     `,
-  fragmentShader: `
+    fragmentShader: `
     #include <common>
     #include <logdepthbuf_pars_fragment>
     #include <packing>
@@ -205,6 +205,109 @@ export const EarthMaterial = {
     varying vec2 vUv;
     varying vec3 vLocalPosition;
     varying vec3 vNormal;
+
+    // Eclipse Uniforms
+    uniform vec3 eclipseSunPos;
+    uniform float eclipseSunRadius;
+    uniform vec3 eclipseMoons[4];
+    uniform float eclipseMoonRadii[4];
+    uniform int numEclipseMoons;
+    uniform float eclipseShadowIntensity;
+
+    float calcEclipseShadow(vec3 surfPos, vec3 sunPos, float sunRad) {
+        // if (eclipseShadowIntensity <= 0.0) return 0.0; // REMOVED
+
+        
+        float occlusion = 0.0;
+        
+        for(int i = 0; i < 4; i++) {
+             if(i >= numEclipseMoons) break;
+             
+             vec3 moonPos = eclipseMoons[i];
+             float moonRad = eclipseMoonRadii[i];
+             
+             vec3 toSun = sunPos - surfPos;
+             float distSun = length(toSun);
+             
+             vec3 toMoon = moonPos - surfPos;
+             float distMoon = length(toMoon);
+             
+             // 1. Basic check: Moon must be closer than Sun
+             if (distMoon >= distSun) continue;
+
+             // 2. Alignment Check (Dot Product)
+             vec3 dirSun = normalize(toSun);
+             vec3 dirMoon = normalize(toMoon);
+             float cosTheta = dot(dirSun, dirMoon);
+             
+             // If moon is behind us or too far off angle, skip
+             if (cosTheta <= 0.0) continue;
+
+             // 3. Angular Sizes (in radians)
+             // Use small angle approximation (radius / distance) for robust math
+             float angRadSun = sunRad / distSun;
+             float angRadMoon = moonRad / distMoon;
+
+             // FIX: Ensure Moon is always visually large enough to cover the Sun
+             // This compensates for the "Planet Scale" expanding the Sun's visual radius
+             // faster than the Moon's relative angular size.
+             // angRadMoon = max(angRadMoon, angRadSun * 1.02); // REMOVED
+
+
+             // 4. Angular Separation
+             float separation = acos(clamp(cosTheta, -1.0, 1.0));
+
+             // 5. Shadow Calculation
+             // We want to return 1.0 if fully blocked, 0.0 if not blocked.
+             
+             // Hard-edge check for debugging:
+             // if (separation < angRadMoon) occlusion += 1.0; 
+
+             // Soft-edge check (Penumbra)
+             // Umbra starts when separation < (angRadMoon - angRadSun)
+             // Penumbra ends when separation > (angRadMoon + angRadSun)
+             
+             float umbraLimit = abs(angRadMoon - angRadSun);
+             float penumbraLimit = angRadMoon + angRadSun;
+
+             // Note: If Moon < Sun (Transit), we can never get full occlusion physically.
+             // But for visual effect, we might want to boost it.
+             // Current Logic: Physic-based overlap area is complex.
+             // Simplified Logic: Smoothstep from penumbra edge to center.
+
+             if (separation > penumbraLimit) continue;
+
+             float factor = 0.0;
+             if (separation <= umbraLimit) {
+                 if (angRadMoon >= angRadSun) {
+                    factor = 1.0; // Total Eclipse
+                 } else {
+                    // Transit (Annular)
+                    // Initial area approximation: (R_moon / R_sun)^2
+                    factor = (angRadMoon * angRadMoon) / (angRadSun * angRadSun);
+                    
+                    // BOOST: Make transits more visible for debugging/visuals
+                    // factor = mix(factor, 1.0, 0.5); 
+                    // Let's keep it physical-ish but ensure min visibility
+                    factor = max(factor, 0.5); // Force at least 50% darkness for any transit alignment
+                 }
+             } else {
+                 // Penumbra Region
+                 // Interpolate from 0 at penumbraLimit to 'factor' at umbraLimit
+                 float t = (penumbraLimit - separation) / (penumbraLimit - umbraLimit);
+                 // t is 0 at edge, 1 at umbra
+                 
+                 // Base factor for the umbra core
+                 float coreFactor = (angRadMoon >= angRadSun) ? 1.0 : max((angRadMoon*angRadMoon)/(angRadSun*angRadSun), 0.5);
+                 
+                 factor = t * coreFactor;
+             }
+             
+             occlusion += factor;
+        }
+        
+        return clamp(occlusion, 0.0, 0.95); // Cap at 0.95 to keep *some* texture visible
+    }
 
     // Easy normal mapping for sphere
     vec3 getNormal() {
@@ -239,6 +342,10 @@ export const EarthMaterial = {
 
         // Apply shadow to diffuse lighting
         diffuse *= shadowMask;
+
+        // Apply Eclipse Shadow
+        float eclipseOcc = calcEclipseShadow(vLocalPosition, eclipseSunPos, eclipseSunRadius);
+        diffuse *= (1.0 - eclipseOcc * eclipseShadowIntensity);
 
         // Day/Night Mix Factor
         // We use the SHADOWED diffuse for mixing, so night lights turn on in shadow
@@ -305,6 +412,10 @@ export const EarthMaterial = {
             vec3 cloudColor = vec3(1.0) * cloudLight;
             finalColor = mix(finalColor, cloudColor, cloudSample.r * cloudOpacity);
         }
+        
+        // DEBUG: Red Shadow
+        finalColor = mix(finalColor, vec3(1.0, 0.0, 0.0), eclipseOcc * (1.0 - clamp(eclipseShadowIntensity * 2.0, 0.0, 1.0)));
+
 
         gl_FragColor = vec4(finalColor, 1.0);
     }
@@ -312,8 +423,8 @@ export const EarthMaterial = {
 };
 
 export const MoonMaterial = {
-  vertexShader: EarthMaterial.vertexShader, // Reuse Earth Vertex Shader (Displacement + LogDepth + Shadows)
-  fragmentShader: `
+    vertexShader: EarthMaterial.vertexShader, // Reuse Earth Vertex Shader (Displacement + LogDepth + Shadows)
+    fragmentShader: `
     #include <common>
     #include <logdepthbuf_pars_fragment>
     #include <packing>
@@ -332,6 +443,80 @@ export const MoonMaterial = {
     varying vec2 vUv;
     varying vec3 vLocalPosition;
     varying vec3 vNormal;
+
+
+
+    // Eclipse Uniforms
+    uniform vec3 eclipseSunPos;
+    uniform float eclipseSunRadius;
+    uniform vec3 eclipseMoons[4];
+    uniform float eclipseMoonRadii[4];
+    uniform int numEclipseMoons;
+    uniform float eclipseShadowIntensity;
+
+    float calcEclipseShadow(vec3 surfPos, vec3 sunPos, float sunRad) {
+        // if (eclipseShadowIntensity <= 0.0) return 0.0; // REMOVED
+
+        
+        float occlusion = 0.0;
+        
+        for(int i = 0; i < 4; i++) {
+             if(i >= numEclipseMoons) break;
+             
+             vec3 moonPos = eclipseMoons[i];
+             float moonRad = eclipseMoonRadii[i];
+             
+             vec3 toSun = sunPos - surfPos;
+             float distSun = length(toSun);
+             
+             vec3 toMoon = moonPos - surfPos;
+             float distMoon = length(toMoon);
+             
+             // Check if Moon is in front
+             if (dot(toSun, toMoon) <= 0.0) continue; 
+             
+             float angSun = atan(sunRad / distSun);
+             float angMoon = atan(moonRad / distMoon);
+             
+             float cosTheta = dot(normalize(toSun), normalize(toMoon));
+             float angDist = acos(clamp(cosTheta, -1.0, 1.0));
+             
+             // Simple bounds checks
+             if (angDist >= angSun + angMoon) continue; // No intersection
+             
+             float coverage = 0.0;
+             
+             if (angDist <= abs(angMoon - angSun)) {
+                 if (angMoon >= angSun) {
+                     coverage = 1.0; // Total eclipse
+                 } else {
+                     coverage = (angMoon * angMoon) / (angSun * angSun); // Transit
+                 }
+             } else {
+                 // Partial
+                 float r1 = angSun;
+                 float r2 = angMoon;
+                 float d = angDist;
+                 
+                 float part1Term = (d*d + r1*r1 - r2*r2)/(2.0*d*r1);
+                 float part2Term = (d*d + r2*r2 - r1*r1)/(2.0*d*r2);
+                 part1Term = clamp(part1Term, -1.0, 1.0);
+                 part2Term = clamp(part2Term, -1.0, 1.0);
+
+                 float part1 = r1*r1 * acos(part1Term);
+                 float part2 = r2*r2 * acos(part2Term);
+                 float part3 = 0.5 * sqrt(max(0.0, (-d+r1+r2)*(d+r1-r2)*(d-r1+r2)*(d+r1+r2)));
+                 
+                 float area = part1 + part2 - part3;
+                 float sunArea = 3.14159265 * r1 * r1;
+                 coverage = area / sunArea;
+             }
+             
+             occlusion += coverage;
+        }
+        
+        return clamp(occlusion, 0.0, 1.0);
+    }
 
     // Easy normal mapping for sphere
     vec3 getNormal() {
@@ -367,6 +552,10 @@ export const MoonMaterial = {
         // Apply shadow to diffuse lighting
         diffuse *= shadowMask;
 
+        // Apply Eclipse Shadow
+        float eclipseOcc = calcEclipseShadow(vLocalPosition, eclipseSunPos, eclipseSunRadius);
+        diffuse *= (1.0 - eclipseOcc * eclipseShadowIntensity);
+
         // Sample Texture
         vec4 texColor = texture2D(map, vUv);
 
@@ -376,6 +565,10 @@ export const MoonMaterial = {
 
         // Ambient fill (simulated bounce light)
         finalColor += texColor.rgb * 0.02;
+
+        // DEBUG: Red Shadow
+        finalColor = mix(finalColor, vec3(1.0, 0.0, 0.0), eclipseOcc * (1.0 - clamp(eclipseShadowIntensity * 2.0, 0.0, 1.0)));
+
 
         gl_FragColor = vec4(finalColor, 1.0);
     }
