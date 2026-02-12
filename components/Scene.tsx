@@ -535,7 +535,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
         // Light position: Toward the Sun (0,0,0)
         const toSun = _deltaPos.current.copy(targetPos).negate().normalize();
-        const distance = 5 * PLANET_SCALE * scaleFactor;
+        const distance = 10 * PLANET_SCALE * scaleFactor;
         focusedLightRef.current.position
           .copy(targetPos)
           .add(toSun.multiplyScalar(distance));

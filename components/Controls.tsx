@@ -121,8 +121,8 @@ const Controls: React.FC<ControlsProps> = ({
           <button
             onClick={() => setIsFollowing(!isFollowing)}
             className={`flex-1 px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${isFollowing
-                ? "bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
-                : "bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50"
+              ? "bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+              : "bg-transparent border-white/20 text-gray-400 hover:text-white hover:border-white/50"
               }`}
           >
             {isFollowing ? "Locked On" : "Free Cam"}
@@ -181,8 +181,8 @@ const Controls: React.FC<ControlsProps> = ({
                   key={lod}
                   onClick={() => set("earthTextureLOD", lod as any)}
                   className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold border ${s.earthTextureLOD === lod
-                      ? "bg-blue-600 border-blue-500 text-white"
-                      : "bg-transparent border-gray-600 text-gray-400 hover:border-gray-400"
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-transparent border-gray-600 text-gray-400 hover:border-gray-400"
                     }`}
                 >
                   {lod}
@@ -1033,8 +1033,8 @@ const Controls: React.FC<ControlsProps> = ({
           <button
             onClick={() => set("issModel", "small")}
             className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${s.issModel === "small"
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
+              ? "bg-blue-600 border-blue-500 text-white"
+              : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
               }`}
           >
             Small
@@ -1042,8 +1042,8 @@ const Controls: React.FC<ControlsProps> = ({
           <button
             onClick={() => set("issModel", "big")}
             className={`flex-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all border ${s.issModel === "big"
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
+              ? "bg-blue-600 border-blue-500 text-white"
+              : "bg-transparent border-gray-600 text-gray-400 hover:border-white hover:text-white"
               }`}
           >
             Detailed

@@ -179,6 +179,14 @@ const Planet: React.FC<PlanetProps> = ({
     };
   }, [isFocused]);
 
+  // Enforce occlusion for lens flares
+  React.useEffect(() => {
+    if (earthMeshRef.current) earthMeshRef.current.userData.isOccluder = true;
+    if (meshRef.current) meshRef.current.userData.isOccluder = true;
+    if (moonMaterialRef.current && meshRef.current) meshRef.current.userData.isOccluder = true;
+  }, []); // Run once on mount
+
+
   // Orbit Path
   const orbitPath = useMemo(() => {
     const points: THREE.Vector3[] = [];
@@ -457,6 +465,7 @@ const Planet: React.FC<PlanetProps> = ({
                 side={THREE.DoubleSide}
                 transparent
                 depthWrite={false}
+                userData={{ isOccluder: true }}
               />
             </mesh>
           )}
