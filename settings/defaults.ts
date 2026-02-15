@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sunRimColor: "#ffaa00",
   sunCoronas: true,
   sunCoronaOpacity: 0.6,
+  eclipseShadowIntensity: 0.0,
   sunFilamentScale: 1.0,
   sunFilamentIntensity: 1.0,
   sunSurfaceRelief: 0.1,
