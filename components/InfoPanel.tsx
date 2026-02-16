@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { PlanetData } from "../types";
 import { planetLodStore, PlanetLodInfo } from "./planet";
+import ISSGroundTrack from "./ISSGroundTrack";
 
 interface InfoPanelProps {
   planet: PlanetData | null;
   onClose: () => void;
   onFollow: () => void;
   isFollowingThisPlanet: boolean;
+  date?: number;
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({
@@ -14,6 +16,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   onClose,
   onFollow,
   isFollowingThisPlanet,
+  date = 0,
 }) => {
   const [lodInfo, setLodInfo] = useState<PlanetLodInfo | null>(null);
 
@@ -39,7 +42,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   const { elements } = planet;
 
   return (
-    <div className="w-full flex flex-col text-white overflow-hidden relative">
+    <div className="w-full h-full flex flex-col text-white overflow-hidden relative">
       <button
         onClick={onClose}
         className="absolute top-1 right-1 text-white/40 hover:text-white transition-colors z-10"
@@ -90,6 +93,11 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
         <p className="text-[11px] text-gray-300 leading-relaxed border-l-2 border-white/20 pl-2">
           {planet.description}
         </p>
+        {planet.id === "iss" && (
+          <div className="mt-3 mb-1">
+            <ISSGroundTrack planet={planet} date={date} />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -217,11 +225,10 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
         <button
           onClick={onFollow}
           className={`w-full py-2 rounded text-[10px] font-bold uppercase tracking-widest transition-all
-                        ${
-                          isFollowingThisPlanet
-                            ? "bg-green-900/50 text-green-400 border border-green-500/50 cursor-default"
-                            : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/50"
-                        }`}
+                        ${isFollowingThisPlanet
+              ? "bg-green-900/50 text-green-400 border border-green-500/50 cursor-default"
+              : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/50"
+            }`}
           disabled={isFollowingThisPlanet}
         >
           {isFollowingThisPlanet ? "Tracking Active" : "Track Orbit"}

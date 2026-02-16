@@ -358,7 +358,10 @@ const App: React.FC = () => {
             )}
 
             {panels.info && selectedPlanet && (
-              <PanelShell title="Object Info" className="flex-shrink-0">
+              <PanelShell
+                title="Object Info"
+                className="flex-shrink min-h-0"
+              >
                 <InfoPanel
                   planet={selectedPlanet}
                   onClose={() => setSelectedPlanet(null)}
@@ -366,6 +369,7 @@ const App: React.FC = () => {
                   isFollowingThisPlanet={
                     isFollowing && followingBody?.id === selectedPlanet?.id
                   }
+                  date={simTime}
                 />
               </PanelShell>
             )}
