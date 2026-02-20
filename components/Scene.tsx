@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, Suspense } from "react";
+import React, { useRef, useMemo, useEffect, useCallback, Suspense } from "react";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -19,6 +19,7 @@ import * as THREE from "three";
 
 import {
   PLANETS,
+  SUN_DATA,
   MOON_ORBIT_SCALE,
   PLANET_SCALE,
   AU_SCALE,
@@ -184,6 +185,9 @@ interface SceneContentProps {
     trigger: number;
   } | null;
   surfaceCameraAltitude: number;
+  telescopeTargetId?: string | null;
+  telescopeZoom?: number;
+  telescopeMount?: "azimuthal" | "equatorial";
 }
 
 // Helper to calculate exact rotation of a planet
@@ -350,6 +354,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   lensflareOpacity,
   surfaceTarget,
   surfaceCameraAltitude,
+  telescopeTargetId,
+  telescopeZoom,
+  telescopeMount,
 }) => {
   // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
   const timeRef = useRef(0);
@@ -383,30 +390,61 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   const _targetPos = useRef(new THREE.Vector3());
   const _parentPos = useRef(new THREE.Vector3());
   const _childPos = useRef(new THREE.Vector3());
+  const _telescopePos = useRef(new THREE.Vector3());
   const _deltaPos = useRef(new THREE.Vector3());
 
-  // Smooth camera transition state
-  const transitionProgress = useRef(1); // 1 = arrived, <1 = transitioning
-  const transitionStartCamPos = useRef(new THREE.Vector3());
-  const transitionStartTarget = useRef(new THREE.Vector3());
-  const prevFollowId = useRef<string | null>(null);
-  const prevFollowRadius = useRef(1); // radius of the previously followed body
+  // Helper to find any body
+  const findBody = useCallback((id: string): PlanetData | null => {
+    if (id === "sun") return SUN_DATA;
+    for (const p of PLANETS) {
+      if (p.id === id) return p;
+      if (p.moons) {
+        for (const m of p.moons) {
+          if (m.id === id) return m;
+        }
+      }
+    }
+    return null;
+  }, []);
 
-  const surfaceLock = useRef<{
-    active: boolean;
-    planetId: string;
-    triggerId: number;
-    prevQuat: THREE.Quaternion;
-    prevCorePos: THREE.Vector3;
-    surfaceRelCamera: THREE.Vector3; // Position of camera relative to core
-  }>({
-    active: false,
-    planetId: "",
-    triggerId: 0,
-    prevQuat: new THREE.Quaternion(),
-    prevCorePos: new THREE.Vector3(),
-    surfaceRelCamera: new THREE.Vector3(),
-  });
+  // Helper to get world position of any body
+  const getBodyWorldPosition = useCallback((id: string, time: number, outVec: THREE.Vector3) => {
+    const body = findBody(id);
+    if (!body) return outVec.set(0, 0, 0);
+
+    if (body.type === "star") {
+      return outVec.set(0, 0, 0);
+    } else if (body.type === "moon" || body.type === "satellite") {
+      // Find parent planet
+      const parent = PLANETS.find((p) => p.moons?.some((m) => m.id === body.id));
+      if (parent) {
+        const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, time, parent.period);
+        const childPosArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period);
+
+        const orbitScale = body.type === "moon" ? MOON_ORBIT_SCALE : 1;
+        const parentPos = new THREE.Vector3(parentPosArray[0], parentPosArray[1], parentPosArray[2]);
+        const childPos = new THREE.Vector3(
+          childPosArray[0] * orbitScale,
+          childPosArray[1] * orbitScale,
+          childPosArray[2] * orbitScale
+        );
+
+        if (body.type === "satellite") {
+          const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
+          const satelliteMinOrbitRadius = parentPlanetVisualRadius * SATELLITE_ORBIT_FACTOR;
+          const distance = childPos.length();
+          if (distance > 0) {
+            childPos.normalize().multiplyScalar(Math.max(distance, satelliteMinOrbitRadius));
+          }
+        }
+        return outVec.copy(parentPos).add(childPos);
+      }
+    } else {
+      const posArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period);
+      return outVec.set(posArray[0], posArray[1], posArray[2]);
+    }
+    return outVec.set(0, 0, 0);
+  }, [findBody, scaleFactor]);
 
   const prevResetCam = useRef(resetCameraTrigger);
 
@@ -469,6 +507,28 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   }, -1);
 
   // Priority 1: Update Camera Follow (After planets have updated)
+  const transitionProgress = useRef(1); // 1 = arrived, <1 = transitioning
+  const transitionStartCamPos = useRef(new THREE.Vector3());
+  const transitionStartTarget = useRef(new THREE.Vector3());
+  const prevFollowId = useRef<string | null>(null);
+  const prevFollowRadius = useRef(1); // radius of the previously followed body
+
+  const surfaceLock = useRef<{
+    active: boolean;
+    planetId: string;
+    triggerId: number;
+    prevQuat: THREE.Quaternion;
+    prevCorePos: THREE.Vector3;
+    surfaceRelCamera: THREE.Vector3; // Position of camera relative to core
+  }>({
+    active: false,
+    planetId: "",
+    triggerId: 0,
+    prevQuat: new THREE.Quaternion(),
+    prevCorePos: new THREE.Vector3(),
+    surfaceRelCamera: new THREE.Vector3(),
+  });
+
   useFrame((_, delta) => {
     // Follow Logic - Uses followingBody instead of selectedPlanet
     if (isFollowing && followingBody && controlsRef.current) {
@@ -689,12 +749,41 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           // 3. Force Camera to the Exact Surface Position
           camera.position.copy(targetPos).add(surfaceLock.current.surfaceRelCamera);
 
-          // 4. Force Target to be exactly opposite to how OrbitControls moved the camera
-          // The new look direction is the negative of the targetToCam vector.
-          controlsRef.current.target.copy(camera.position).sub(targetToCam);
+          // Telescope Mode handling
+          if (telescopeTargetId) {
+            // Get accurate position of target body in world space
+            getBodyWorldPosition(telescopeTargetId, currentTime, _telescopePos.current);
+            controlsRef.current.target.copy(_telescopePos.current);
 
-          // 5. Rotate Up Vector
-          camera.up.applyQuaternion(deltaQuat);
+            // Adjust Up vector based on mount
+            if (telescopeMount === "equatorial") {
+              camera.up.set(0, 1, 0);
+            } else {
+              // Azimuthal: Up is the surface normal (which is just the normalized surfaceRelCamera)
+              camera.up.copy(surfaceLock.current.surfaceRelCamera).normalize();
+            }
+
+            // Adjust FOV (Zoom)
+            const pCam = camera as THREE.PerspectiveCamera;
+            if (pCam.fov !== telescopeZoom) {
+              pCam.fov = telescopeZoom || 45;
+              pCam.updateProjectionMatrix();
+            }
+          } else {
+            // Standard first-person look-around behavior
+            // 4. Force Target to be exactly opposite to how OrbitControls moved the camera
+            controlsRef.current.target.copy(camera.position).sub(targetToCam);
+
+            // 5. Rotate Up Vector
+            camera.up.applyQuaternion(deltaQuat);
+
+            // Standard FOV
+            const pCam = camera as THREE.PerspectiveCamera;
+            if (pCam.fov !== 45) {
+              pCam.fov = 45;
+              pCam.updateProjectionMatrix();
+            }
+          }
 
           surfaceLock.current.prevQuat = planetQuat;
           surfaceLock.current.prevCorePos.copy(targetPos);
@@ -712,6 +801,11 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             else {
               const obliquity = 23.43928 * (Math.PI / 180);
               camera.up.set(0, Math.cos(obliquity), Math.sin(obliquity));
+            }
+            const pCam = camera as THREE.PerspectiveCamera;
+            if (pCam.fov !== 45) {
+              pCam.fov = 45;
+              pCam.updateProjectionMatrix();
             }
           }
           // Normal follow: maintain relative offset securely
@@ -749,6 +843,11 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         else {
           const obliquity = 23.43928 * (Math.PI / 180);
           camera.up.set(0, Math.cos(obliquity), Math.sin(obliquity));
+        }
+        const pCam = camera as THREE.PerspectiveCamera;
+        if (pCam.fov !== 45) {
+          pCam.fov = 45;
+          pCam.updateProjectionMatrix();
         }
       }
       if (controlsRef.current) {

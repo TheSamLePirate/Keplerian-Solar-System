@@ -12,8 +12,19 @@ import DebugPanel from "./components/DebugPanel";
 import { usePanelLayout } from "./hooks/usePanelLayout";
 import { useSettings } from "./hooks/useSettings";
 import { PlanetData } from "./types";
-import { SIMULATION_EPOCH } from "./constants";
+import { PLANETS, SUN_DATA, SIMULATION_EPOCH } from "./constants";
 import ISSLiveFeed from "./components/ISSLiveFeed";
+
+// Helper to flatten planet list for dropdowns
+const getAllBodies = () => {
+  const list: PlanetData[] = [SUN_DATA];
+  const add = (p: PlanetData) => {
+    list.push(p);
+    if (p.moons) p.moons.forEach(add);
+  };
+  PLANETS.forEach(add);
+  return list;
+};
 
 const App: React.FC = () => {
   // Persisted settings (localStorage)
@@ -41,6 +52,11 @@ const App: React.FC = () => {
     { value: number; id: number } | undefined
   >(undefined);
   const [resetCameraTrigger, setResetCameraTrigger] = useState(0);
+
+  // Telescope State
+  const [telescopeTargetId, setTelescopeTargetId] = useState<string | null>(null);
+  const [telescopeZoom, setTelescopeZoom] = useState(45); // default FOV
+  const [telescopeMount, setTelescopeMount] = useState<"azimuthal" | "equatorial">("azimuthal");
 
   // Panel Layout State
   const { panels, accordionState, togglePanel, toggleAccordion } =
@@ -97,15 +113,19 @@ const App: React.FC = () => {
           trigger: Date.now(),
         });
         // Also set as followed body
-        const p =
-          import("./constants").then((m) =>
-            m.PLANETS.find((p) => p.id === gotoModal.planetId) ||
-              m.SUN_DATA.id === gotoModal.planetId ? m.SUN_DATA : null
-          );
-        // Temporary hack to find the planet data without importing PLANETS directly if not needed everywhere,
-        // but App.tsx has access to planet data via standard imports if needed. Actually let's just use the selectedPlanet or find it.
-        // Better: we can just find it in the handle List Select or similar.
-        // For now, PlanetList will pass the planet to follow when we need it, but we only have planetId.
+        const findBody = (id: string, list: PlanetData[]): PlanetData | null => {
+          for (const p of list) {
+            if (p.id === id) return p;
+            if (p.moons) {
+              const m = findBody(id, p.moons);
+              if (m) return m;
+            }
+          }
+          return null;
+        };
+        const p = findBody(gotoModal.planetId, PLANETS) ||
+          (SUN_DATA.id === gotoModal.planetId ? SUN_DATA : null);
+
         setGotoModal(null);
       }
     },
@@ -170,6 +190,8 @@ const App: React.FC = () => {
           setSelectedPlanet(null);
           setIsFollowing(false);
           setFollowingBody(null);
+          setSurfaceTarget(null);
+          setTelescopeTargetId(null);
           break;
       }
     };
@@ -229,6 +251,9 @@ const App: React.FC = () => {
         isFollowing={isFollowing}
         surfaceTarget={surfaceTarget}
         surfaceCameraAltitude={settings.surfaceCameraAltitude}
+        telescopeTargetId={telescopeTargetId}
+        telescopeZoom={telescopeZoom}
+        telescopeMount={telescopeMount}
         onPlanetClick={handle3DPlanetClick}
         onBackgroundClick={handleBackgroundClick}
         onTimeUpdate={setSimTime}
@@ -406,6 +431,78 @@ const App: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Telescope Panel (when on planet) */}
+        {surfaceTarget && followingBody && (
+          <div className="absolute top-16 right-4 z-40 bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-lg shadow-2xl w-64 pointer-events-auto">
+            <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/10">
+              <h3 className="text-white text-sm font-bold tracking-wider uppercase">Telescope</h3>
+              <button
+                onClick={() => setSurfaceTarget(null)}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                title="Exit Surface View"
+              >
+                Exit
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-gray-400 uppercase tracking-wider">Target Body</label>
+                <select
+                  className="bg-black/50 border border-white/10 text-white text-xs p-1.5 rounded focus:outline-none focus:border-blue-500"
+                  value={telescopeTargetId || ""}
+                  onChange={(e) => setTelescopeTargetId(e.target.value || null)}
+                >
+                  <option value="">(None)</option>
+                  {getAllBodies()
+                    .filter(b => b.id !== followingBody.id)
+                    .map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                </select>
+              </div>
+
+              {telescopeTargetId && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider">
+                      <label>Zoom (FOV)</label>
+                      <span>{telescopeZoom.toFixed(1)}°</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="45"
+                      step="0.1"
+                      value={telescopeZoom}
+                      onChange={(e) => setTelescopeZoom(parseFloat(e.target.value))}
+                      className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-gray-400 uppercase tracking-wider">Mount Type</label>
+                    <div className="flex rounded overflow-hidden border border-white/10">
+                      <button
+                        onClick={() => setTelescopeMount("azimuthal")}
+                        className={`flex-1 py-1 text-[10px] font-bold uppercase transition-colors ${telescopeMount === "azimuthal" ? "bg-blue-600 text-white" : "bg-black/40 text-gray-400 hover:bg-white/10"}`}
+                      >
+                        Azimuthal
+                      </button>
+                      <button
+                        onClick={() => setTelescopeMount("equatorial")}
+                        className={`flex-1 py-1 text-[10px] font-bold uppercase transition-colors ${telescopeMount === "equatorial" ? "bg-blue-600 text-white" : "bg-black/40 text-gray-400 hover:bg-white/10"}`}
+                      >
+                        Equatorial
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
