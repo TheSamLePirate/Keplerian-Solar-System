@@ -11,6 +11,11 @@ const FEED_URLS = [
         url: "https://www.youtube.com/embed/aB1yRz0HhdY?autoplay=1&mute=1",
     },
     {
+        id: "feed3",
+        name: "Sen ISS Live Stream",
+        url: "https://www.youtube.com/embed/fO9e9jnhYK8?autoplay=1&mute=1",
+    },
+    {
         id: "feed2",
         name: "NASA ISS Live Stream 2",
         url: "https://www.youtube.com/embed/FV4Q9DryTG8?autoplay=1&mute=1",

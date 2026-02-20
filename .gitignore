@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 *.bsp
 public/tex/*
+*.bin
+*.avi
+nasaSolar/satImages/frames
+nasaSolar/satImages/out
+nasaSolar/out*
+*.tls
+*.tpc
+
+
