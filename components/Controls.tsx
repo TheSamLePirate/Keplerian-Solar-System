@@ -464,11 +464,11 @@ const Controls: React.FC<ControlsProps> = ({
         <Slider
           label="Planet Scale"
           value={s.scaleFactor}
-          min={0.1}
-          max={5}
-          step={0.1}
+          min={0.001}
+          max={1}
+          step={0.001}
           onChange={(v) => set("scaleFactor", v)}
-          format={(v) => `${v.toFixed(1)}x`}
+          format={(v) => `${v.toFixed(5)}x`}
         />
       </AccordionSection>
 

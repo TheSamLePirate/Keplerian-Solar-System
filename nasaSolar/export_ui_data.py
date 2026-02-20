@@ -16,9 +16,9 @@ OUTPUT_FILE = "../constants.ts"
 
 
 # Simulation Scales
-AU_SCALE = 100.0          # 1 AU = 50 3D units
+AU_SCALE = 149.6          # 1 AU = 50 3D units
 PLANET_SCALE = 1.0       # Base visual scale for planets
-MOON_ORBIT_SCALE = 60.0  # Visual exaggeration for moon orbits
+MOON_ORBIT_SCALE = 59.33  # Visual exaggeration for moon orbits
 
 
 # Visual Data (Preserved from original constants.ts)
