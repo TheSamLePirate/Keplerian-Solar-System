@@ -103,3 +103,32 @@ export function calculateOrbitalPositionWithPeriod(
 
   return [x_ecl, y_eq, z_eq];
 }
+
+export function getDynamicMoonOrbitScale(
+  moonElements: OrbitalElements,
+  moonPeriod: number,
+  moonRadius: number,
+  parentSemiMajorAxis: number,
+  parentRadius: number,
+  auScale: number,
+  scaleFactor: number,
+  baseAuScale: number = 149.6,
+  planetScale: number = 1.0,
+  sunVisualRadius: number = 10.0
+): number {
+  const D_S = parentSemiMajorAxis * auScale;
+  const R_P = (parentRadius || 1) * planetScale * scaleFactor;
+  const R_M = moonRadius * planetScale * scaleFactor;
+  const R_S = sunVisualRadius * planetScale * scaleFactor;
+
+  // D_M desired distance from center of planet
+  const targetD_M = R_P + (R_M / R_S) * Math.max(0, D_S - R_P);
+
+  const basePos = calculateOrbitalPositionWithPeriod(moonElements, 0, moonPeriod, baseAuScale);
+  const baseDist = Math.sqrt(basePos[0] * basePos[0] + basePos[1] * basePos[1] + basePos[2] * basePos[2]);
+
+  if (baseDist > 0) {
+    return targetD_M / baseDist;
+  }
+  return 1;
+}

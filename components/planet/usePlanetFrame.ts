@@ -2,7 +2,7 @@ import { useRef, useMemo, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { PlanetData } from "../../types";
-import { calculateOrbitalPositionWithPeriod } from "../../utils/physics";
+import { calculateOrbitalPositionWithPeriod, getDynamicMoonOrbitScale } from "../../utils/physics";
 import {
   planetLodStore,
   planetCullingStore,
@@ -346,7 +346,7 @@ export function usePlanetFrame({
         // 2. Sun Radius (Visual)
         // Hardcoded '10' matches Sun.tsx
         const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
-        u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+        u.eclipseSunRadius.value = 10.0 * PLANET_SCALE * derivedScaleFactor;
 
 
         // 3. Identify Moons
@@ -375,8 +375,19 @@ export function usePlanetFrame({
             BASE_AU_SCALE
           );
 
-          // Apply Visual Scales (MOON_ORBIT_SCALE)
-          const moonVisualScale = MOON_ORBIT_SCALE * scaleFactor;
+          // Apply Visual Scales (dynamic to cover sun perfectly)
+          const moonVisualScale = getDynamicMoonOrbitScale(
+            moon.elements,
+            moon.period,
+            moon.radius,
+            data.elements.semiMajorAxis,
+            data.radius || 1.0,
+            auScale,
+            scaleFactor,
+            BASE_AU_SCALE,
+            PLANET_SCALE,
+            10.0
+          );
 
           tempVec.set(moonOrbitPos[0], moonOrbitPos[1], moonOrbitPos[2]).multiplyScalar(moonVisualScale);
 
@@ -422,7 +433,7 @@ export function usePlanetFrame({
       // 2. Sun Radius (Visual)
       const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
       // Using same factor as Earth for consistency, though Jupiter is further
-      u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+      u.eclipseSunRadius.value = 10.0 * PLANET_SCALE * derivedScaleFactor;
 
       // 3. Identify Moons
       let relevantMoons: PlanetData[] = [];
@@ -446,7 +457,18 @@ export function usePlanetFrame({
           BASE_AU_SCALE
         );
 
-        const moonVisualScale = MOON_ORBIT_SCALE * scaleFactor;
+        const moonVisualScale = getDynamicMoonOrbitScale(
+          moon.elements,
+          moon.period,
+          moon.radius,
+          data.elements.semiMajorAxis,
+          data.radius || 1.0,
+          auScale,
+          scaleFactor,
+          BASE_AU_SCALE,
+          PLANET_SCALE,
+          10.0
+        );
         tempVec.set(moonOrbitPos[0], moonOrbitPos[1], moonOrbitPos[2]).multiplyScalar(moonVisualScale);
 
         if (groupRef.current) {
@@ -527,7 +549,7 @@ export function usePlanetFrame({
         // Sun Radius
         // Using same derived factor for consistency
         const derivedScaleFactor = size / ((data.radius || 1) * PLANET_SCALE);
-        u.eclipseSunRadius.value = 2.5 * PLANET_SCALE * derivedScaleFactor;
+        u.eclipseSunRadius.value = 10.0 * PLANET_SCALE * derivedScaleFactor;
 
       } else {
         // Fallback or No Parent (should not happen for moons if setup correctly)

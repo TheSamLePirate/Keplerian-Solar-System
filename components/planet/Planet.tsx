@@ -2,8 +2,8 @@ import React, { useRef, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
-import { calculateOrbitalPositionWithPeriod } from "../../utils/physics";
-import { PLANET_SCALE, MOON_ORBIT_SCALE, SATELLITE_ORBIT_FACTOR, BASE_AU_SCALE } from "../../constants";
+import { calculateOrbitalPositionWithPeriod, getDynamicMoonOrbitScale } from "../../utils/physics";
+import { PLANETS, PLANET_SCALE, MOON_ORBIT_SCALE, SATELLITE_ORBIT_FACTOR, BASE_AU_SCALE } from "../../constants";
 import ISSModel from "../ISS";
 import { PlanetProps } from "./PlanetProps";
 import { AtmosphereMaterial, EarthMaterial, MoonMaterial, JupiterMaterial } from "./shaders";
@@ -155,7 +155,27 @@ const Planet: React.FC<PlanetProps> = ({
   const useMoonShader = data.id === "moon" || (parentId === 'jupiter' && isMoon);
   const isJupiter = data.id === "jupiter";
   const isSatellite = data.type === "satellite";
-  const visualOrbitScale = isMoon ? MOON_ORBIT_SCALE * scaleFactor : 1;
+
+  const visualOrbitScale = useMemo(() => {
+    if (isMoon && parentId) {
+      const parent = PLANETS.find(p => p.id === parentId);
+      if (parent) {
+        return getDynamicMoonOrbitScale(
+          data.elements,
+          data.period,
+          data.radius,
+          parent.elements.semiMajorAxis,
+          parent.radius || 1.0,
+          auScale,
+          scaleFactor,
+          BASE_AU_SCALE,
+          PLANET_SCALE,
+          10.0
+        );
+      }
+    }
+    return isMoon ? MOON_ORBIT_SCALE * scaleFactor : 1;
+  }, [isMoon, parentId, data, auScale, scaleFactor]);
 
   const hasAtmosphere = !!data.atmosphereColor;
   const isEarth = data.id === "earth";
