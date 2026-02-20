@@ -22,8 +22,8 @@ import {
   SUN_DATA,
   MOON_ORBIT_SCALE,
   PLANET_SCALE,
-  AU_SCALE,
   SATELLITE_ORBIT_FACTOR,
+  BASE_AU_SCALE,
 } from "../constants";
 import { PlanetData } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
@@ -45,6 +45,7 @@ interface SceneContentProps {
   speed: number;
   paused: boolean;
   scaleFactor: number;
+  auScale: number;
   showOrbits: boolean;
   showLabels: boolean;
   selectedPlanet: PlanetData | null; // For visual highlighting
@@ -233,6 +234,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   speed,
   paused,
   scaleFactor,
+  auScale,
   showOrbits,
   showLabels,
   selectedPlanet,
@@ -418,8 +420,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       // Find parent planet
       const parent = PLANETS.find((p) => p.moons?.some((m) => m.id === body.id));
       if (parent) {
-        const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, time, parent.period);
-        const childPosArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period);
+        const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, time, parent.period, auScale);
+        const childPosArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period, auScale);
 
         const orbitScale = body.type === "moon" ? MOON_ORBIT_SCALE : 1;
         const parentPos = new THREE.Vector3(parentPosArray[0], parentPosArray[1], parentPosArray[2]);
@@ -440,7 +442,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         return outVec.copy(parentPos).add(childPos);
       }
     } else {
-      const posArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period);
+      const posArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period, auScale);
       return outVec.set(posArray[0], posArray[1], posArray[2]);
     }
     return outVec.set(0, 0, 0);
@@ -561,6 +563,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             parent.elements,
             currentTime,
             parent.period,
+            auScale
           );
           const parentPos = _parentPos.current.set(
             parentPosArray[0],
@@ -572,6 +575,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             followingBody.elements,
             currentTime,
             followingBody.period,
+            BASE_AU_SCALE
           );
           const orbitScale =
             followingBody.type === "moon" ? MOON_ORBIT_SCALE : 1;
@@ -601,6 +605,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           followingBody.elements,
           currentTime,
           followingBody.period,
+          auScale
         );
         targetPos.set(posArray[0], posArray[1], posArray[2]);
       }
@@ -873,15 +878,15 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     if (!distanceAU || distanceAU === 0) return 0.0;
 
     // Calculate distance in World Units
-    const r = distanceAU * AU_SCALE;
+    const r = distanceAU * auScale;
 
     // Calculate Mass of Sun in Simulation Units
     // We MUST match the logic in GravitationalPotential.tsx exactly.
     // There, M_sun_base = 0.0002959122082855911 (Gaussian Gravitational Constant squared, k^2)
-    // And MASS_SCALE = 2500.0 * AU_SCALE
+    // And MASS_SCALE = 2500.0 * auScale
     // So M_shader = M_sun_base * MASS_SCALE
     const k2 = 0.0002959122082855911;
-    const MASS_SCALE = 2500.0 * AU_SCALE;
+    const MASS_SCALE = 2500.0 * auScale;
     const M_shader = k2 * MASS_SCALE;
 
     // omega = sqrt(GM / r^3) -> Here G is folded into M_shader
@@ -1002,6 +1007,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         yOffset={gravityYOffset}
         timeRef={timeRef}
         scaleFactor={scaleFactor}
+        auScale={auScale}
         focusBodyId={selectedPlanet?.id || followingBody?.id || null}
         showContours={gravityShowContours}
         contourFreq={gravityContourFreq}
@@ -1017,6 +1023,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         timeRef={timeRef}
         speed={speed}
         paused={paused}
+        auScale={auScale}
       />
 
       <VolumetricLight
@@ -1030,6 +1037,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         maxDistance={volumetricMaxDistance}
         timeRef={timeRef}
         scaleFactor={scaleFactor}
+        auScale={auScale}
       />
 
       {PLANETS.map((planet) => (
@@ -1042,6 +1050,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           showOrbit={showOrbits}
           showLabel={showLabels}
           scaleFactor={scaleFactor}
+          auScale={auScale}
           atmOpacity={atmOpacity}
           atmPow={atmPow}
           atmSamples={atmSamples}

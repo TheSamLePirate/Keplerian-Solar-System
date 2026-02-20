@@ -43,7 +43,7 @@ export interface SimulationState {
   selectedPlanet: PlanetData | null;
   showOrbits: boolean;
   showLabels: boolean;
-  scaleFactor: number; // Size exaggeration
+  scaleFactor: number; auScale: number; // Size exaggeration
   paused: boolean;
   // Earth Graphics
   earthTextureLOD: 'low' | 'med' | 'high' | 'ultra';

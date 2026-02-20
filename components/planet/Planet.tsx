@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Line, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { calculateOrbitalPositionWithPeriod } from "../../utils/physics";
-import { PLANET_SCALE, MOON_ORBIT_SCALE, SATELLITE_ORBIT_FACTOR } from "../../constants";
+import { PLANET_SCALE, MOON_ORBIT_SCALE, SATELLITE_ORBIT_FACTOR, BASE_AU_SCALE } from "../../constants";
 import ISSModel from "../ISS";
 import { PlanetProps } from "./PlanetProps";
 import { AtmosphereMaterial, EarthMaterial, MoonMaterial, JupiterMaterial } from "./shaders";
@@ -111,6 +111,7 @@ const Planet: React.FC<PlanetProps> = ({
   showOrbit,
   showLabel,
   scaleFactor,
+  auScale,
   atmOpacity = 2.5,
   atmPow = 4.0,
   atmSamples = 32,
@@ -204,6 +205,7 @@ const Planet: React.FC<PlanetProps> = ({
         data.elements,
         t,
         data.period,
+        (isMoon || isSatellite) ? BASE_AU_SCALE : auScale
       );
 
       if (isSatellite) {
@@ -230,7 +232,7 @@ const Planet: React.FC<PlanetProps> = ({
       }
     }
     return points;
-  }, [data, visualOrbitScale, isSatellite, satelliteMinOrbitRadius]);
+  }, [data, visualOrbitScale, isSatellite, satelliteMinOrbitRadius, auScale]);
 
   // Initialize Atmosphere Uniforms ONCE
   const uniforms = useMemo(
@@ -439,6 +441,7 @@ const Planet: React.FC<PlanetProps> = ({
     jupiterUniforms,
     eclipseShadowIntensity,
     scaleFactor,
+    auScale,
     parentId,
     parentRadius,
   });
@@ -756,6 +759,7 @@ const Planet: React.FC<PlanetProps> = ({
               showOrbit={showOrbit}
               showLabel={showLabel}
               scaleFactor={scaleFactor}
+              auScale={auScale}
               onPlanetClick={onPlanetClick}
               parentId={data.id}
               parentRadius={data.radius}

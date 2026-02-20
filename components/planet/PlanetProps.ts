@@ -8,6 +8,7 @@ export interface PlanetProps {
   showOrbit: boolean;
   showLabel: boolean;
   scaleFactor: number;
+  auScale: number;
   atmOpacity?: number;
   atmPow?: number;
   atmSamples?: number;

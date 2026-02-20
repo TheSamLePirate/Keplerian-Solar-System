@@ -9,6 +9,7 @@ interface InfoPanelProps {
   onFollow: () => void;
   isFollowingThisPlanet: boolean;
   date?: number;
+  auScale: number;
 }
 
 const InfoPanel: React.FC<InfoPanelProps> = ({
@@ -17,6 +18,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   onFollow,
   isFollowingThisPlanet,
   date = 0,
+  auScale,
 }) => {
   const [lodInfo, setLodInfo] = useState<PlanetLodInfo | null>(null);
 
@@ -95,7 +97,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
         </p>
         {planet.id === "iss" && (
           <div className="mt-3 mb-1">
-            <ISSGroundTrack planet={planet} date={date} />
+            <ISSGroundTrack planet={planet} date={date} auScale={auScale} />
           </div>
         )}
       </div>

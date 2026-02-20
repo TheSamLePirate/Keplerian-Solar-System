@@ -462,6 +462,15 @@ const Controls: React.FC<ControlsProps> = ({
         </div>
 
         <Slider
+          label="AU Scale"
+          value={s.auScale}
+          min={1.496}
+          max={149600}
+          step={100}
+          onChange={(v) => set("auScale", v)}
+          format={(v) => v.toFixed(1)}
+        />
+        <Slider
           label="Planet Scale"
           value={s.scaleFactor}
           min={0.001}

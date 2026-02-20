@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { GPUComputationRenderer } from "three/examples/jsm/misc/GPUComputationRenderer.js";
-import { PLANETS, AU_SCALE } from "../constants";
+import { PLANETS } from "../constants";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 
 // --- Simulation Shaders (Position & Velocity) ---
@@ -378,20 +378,25 @@ interface GravityParticlesProps {
   visible: boolean;
   timeRef: React.MutableRefObject<number>;
   speed: number;
-  paused: boolean;
+  paused: boolean; auScale: number;
 }
 
 const GravityParticles: React.FC<GravityParticlesProps> = ({
   visible,
   timeRef,
   speed,
-  paused,
+  paused, auScale,
 }) => {
   const { gl } = useThree();
   const gpuCompute = useRef<any>(null);
   const velocityVariable = useRef<any>(null);
   const positionVariable = useRef<any>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+
+  const auScaleRef = useRef(auScale);
+  useEffect(() => {
+    auScaleRef.current = auScale;
+  }, [auScale]);
 
   const WIDTH = 450; // Sqrt(202,500) approx -> 200k+ particles
 
@@ -466,16 +471,17 @@ const GravityParticles: React.FC<GravityParticlesProps> = ({
 
     // Sun
     bodyPositions.push(new THREE.Vector3(0, 0, 0));
-    bodyMasses.push(0.0002959122082855911 * 2500.0 * AU_SCALE);
+    bodyMasses.push(0.0002959122082855911 * 2500.0 * auScaleRef.current);
 
     PLANETS.forEach((p) => {
       const [x, y, z] = calculateOrbitalPositionWithPeriod(
         p.elements,
         time,
         p.period,
+        auScaleRef.current
       );
       bodyPositions.push(new THREE.Vector3(x, y, z));
-      bodyMasses.push(p.mass * 2500.0 * AU_SCALE);
+      bodyMasses.push(p.mass * 2500.0 * auScaleRef.current);
     });
 
     for (let k = 0, kl = posArray.length; k < kl; k += 4) {
@@ -490,7 +496,7 @@ const GravityParticles: React.FC<GravityParticlesProps> = ({
 
       if (rand < 0.5) {
         // NEW: Inner System Swarm (50%) - Earth (1.0) to Jupiter (5.2)
-        r = (1.0 + Math.random() * 4.2) * AU_SCALE;
+        r = (1.0 + Math.random() * 4.2) * auScaleRef.current;
         theta = Math.random() * Math.PI * 2;
       } else if (rand < 0.75) {
         // Trojans (25%)
@@ -503,23 +509,23 @@ const GravityParticles: React.FC<GravityParticlesProps> = ({
           jupPos.y,
           jupPos.z,
         ).length();
-        r = jupDist + (Math.random() - 0.5) * 1.0 * AU_SCALE;
+        r = jupDist + (Math.random() - 0.5) * 1.0 * auScaleRef.current;
 
         const offset = Math.random() < 0.5 ? 1.047 : -1.047;
         const spread = (Math.random() - 0.5) * 0.5;
         theta = jupTheta + offset + spread;
       } else if (rand < 0.95) {
         // Main Belt (20%): 2.1 - 3.3 AU
-        r = (2.1 + Math.random() * 1.2) * AU_SCALE;
+        r = (2.1 + Math.random() * 1.2) * auScaleRef.current;
         theta = Math.random() * Math.PI * 2;
       } else {
         // Kuiper Belt (5%): 30.0 - 50.0 AU
-        r = (30.0 + Math.random() * 20.0) * AU_SCALE;
+        r = (30.0 + Math.random() * 20.0) * auScaleRef.current;
         theta = Math.random() * Math.PI * 2;
       }
 
       const phi = (Math.random() - 0.5) * 0.1; // Small inclination
-      //const r = (beltType < 0.5 && beltType >= 0) ? (1.0 + Math.random() * 4.2) * AU_SCALE // Inner System logic was upstream, let's just assume r/theta are set correctly by loops above.
+      //const r = (beltType < 0.5 && beltType >= 0) ? (1.0 + Math.random() * 4.2) * auScale // Inner System logic was upstream, let's just assume r/theta are set correctly by loops above.
       //    : r; // Wait, r is defined in the block above.
 
       // Re-calculate x, y, z based on r, theta, phi derived above
@@ -598,7 +604,7 @@ const GravityParticles: React.FC<GravityParticlesProps> = ({
 
     // Mass Scaling:
     // Scaling Factor: 50 * 2500 = 125,000 (Correct theoretical value)
-    const MASS_SCALE = 2500.0 * AU_SCALE;
+    const MASS_SCALE = 2500.0 * auScale;
 
     // Sun
     positions.push(0, 0, 0);
@@ -610,6 +616,7 @@ const GravityParticles: React.FC<GravityParticlesProps> = ({
         p.elements,
         time,
         p.period,
+        auScaleRef.current // Ref-ified
       );
       if (count < 50) {
         positions.push(x, y, z);

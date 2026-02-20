@@ -1,9 +1,9 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   PLANETS,
-  AU_SCALE,
+
   MOON_ORBIT_SCALE,
   PLANET_SCALE,
 } from "../constants";
@@ -187,7 +187,7 @@ interface VolumetricLightProps {
   shadowScale: number;
   maxDistance: number;
   timeRef: React.MutableRefObject<number>;
-  scaleFactor: number;
+  scaleFactor: number; auScale: number;
 }
 
 const VolumetricLight: React.FC<VolumetricLightProps> = ({
@@ -200,9 +200,16 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
   shadowScale,
   maxDistance,
   timeRef,
-  scaleFactor,
+  scaleFactor, auScale,
 }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
+
+  const auScaleRef = useRef(auScale);
+  const scaleFactorRef = useRef(scaleFactor);
+  useEffect(() => {
+    auScaleRef.current = auScale;
+    scaleFactorRef.current = scaleFactor;
+  }, [auScale, scaleFactor]);
 
   // Pre-allocate Vector3 array for body positions (avoid GC)
   const bodyVec3Array = useRef<THREE.Vector3[]>(
@@ -222,7 +229,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
       uIntensity: { value: intensity },
       uDecay: { value: decay },
       uScatterColor: { value: new THREE.Color(scatterColor) },
-      uMaxDistWorld: { value: maxDistance * AU_SCALE },
+      uMaxDistWorld: { value: maxDistance * auScaleRef.current },
       uCameraPos: { value: new THREE.Vector3(0, 50, 100) },
       uShadowScale: { value: shadowScale }, // Used as Strength Multiplier
     }),
@@ -236,11 +243,11 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
     u.uIntensity.value = intensity;
     u.uDecay.value = decay;
     u.uScatterColor.value.set(scatterColor);
-    u.uMaxDistWorld.value = maxDistance * AU_SCALE;
+    u.uMaxDistWorld.value = maxDistance * auScaleRef.current;
     // Artificially reduce Sun Radius for shadows to make Umbra longer and more prominent
     // "Cinematic" shadowing often prefers longer, near-parallel rays.
-    u.uSunRadius.value = 1.2 * PLANET_SCALE * scaleFactor;
-    u.uMinBodyRadius.value = 0.05 * PLANET_SCALE * scaleFactor;
+    u.uSunRadius.value = 1.2 * PLANET_SCALE * scaleFactorRef.current;
+    u.uMinBodyRadius.value = 0.05 * PLANET_SCALE * scaleFactorRef.current;
     u.uCameraPos.value.copy(state.camera.position);
     u.uShadowScale.value = shadowScale;
 
@@ -256,6 +263,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
         p.elements,
         t,
         p.period,
+        auScaleRef.current
       );
       tmpVecs[count].set(x, y, z);
       posArray[count].set(x, y, z);
@@ -277,6 +285,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
             m.elements,
             t,
             m.period,
+            auScale
           );
           const orbitScale = m.type === "moon" ? MOON_ORBIT_SCALE : 1;
           posArray[count].set(
@@ -295,7 +304,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
 
   if (!visible) return null;
 
-  const sphereRadius = maxDistance * AU_SCALE;
+  const sphereRadius = maxDistance * auScale;
 
   return (
     <mesh frustumCulled={false}>

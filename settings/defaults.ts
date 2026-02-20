@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Simulation
   speedLog: 0,
   scaleFactor: 0.5,
+  auScale: 149.6,
   showOrbits: true,
   showLabels: false,
 

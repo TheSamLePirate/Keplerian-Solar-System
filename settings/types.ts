@@ -2,6 +2,7 @@ export interface AppSettings {
   // Simulation
   speedLog: number;
   scaleFactor: number;
+  auScale: number;
   showOrbits: boolean;
   showLabels: boolean;
 

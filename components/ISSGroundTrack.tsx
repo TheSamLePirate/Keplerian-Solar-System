@@ -6,11 +6,12 @@ import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 interface ISSGroundTrackProps {
     planet: PlanetData;
     date: number; // Simulation time in days
+    auScale: number;
 }
 
 const EARTH_ROTATION_PERIOD_DAYS = 0.99726968; // Sidereal day
 
-const ISSGroundTrack: React.FC<ISSGroundTrackProps> = ({ planet, date }) => {
+const ISSGroundTrack: React.FC<ISSGroundTrackProps> = ({ planet, date, auScale }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -34,7 +35,7 @@ const ISSGroundTrack: React.FC<ISSGroundTrackProps> = ({ planet, date }) => {
         ctx.clearRect(0, 0, width, height);
 
         const getCoords = (tDays: number) => {
-            const pos = calculateOrbitalPositionWithPeriod(planet.elements, tDays, planet.period);
+            const pos = calculateOrbitalPositionWithPeriod(planet.elements, tDays, planet.period, auScale);
             const x = pos[0];
             const z = pos[2];
             const y = pos[1];

@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { PlanetData } from "../../types";
@@ -8,7 +8,7 @@ import {
   planetCullingStore,
   planetPositionStore,
 } from "./stores";
-import { PLANETS, SUN_DATA, PLANET_SCALE, MOON_ORBIT_SCALE } from "../../constants";
+import { PLANETS, SUN_DATA, PLANET_SCALE, MOON_ORBIT_SCALE, BASE_AU_SCALE } from "../../constants";
 
 interface UsePlanetFrameParams {
   data: PlanetData;
@@ -52,6 +52,7 @@ interface UsePlanetFrameParams {
   jupiterUniforms: Record<string, { value: unknown }>;
   eclipseShadowIntensity: number;
   scaleFactor: number;
+  auScale: number;
   parentId?: string;
   parentRadius?: number;
 }
@@ -96,12 +97,18 @@ export function usePlanetFrame({
   jupiterUniforms,
   eclipseShadowIntensity,
   scaleFactor,
+  auScale,
   parentId,
   parentRadius,
 }: UsePlanetFrameParams) {
   const { camera } = useThree();
   const isInsideAtmosphereRef = useRef(false);
   const isVisibleRef = useRef(true);
+  const auScaleRef = useRef(auScale);
+
+  useEffect(() => {
+    auScaleRef.current = auScale;
+  }, [auScale]);
 
   // Pre-allocate vectors
   const tempVec = useMemo(() => new THREE.Vector3(), []);
@@ -126,6 +133,7 @@ export function usePlanetFrame({
       data.elements,
       time,
       data.period,
+      (isSatellite || useMoonShader) ? BASE_AU_SCALE : auScaleRef.current
     );
     const currentPos = currentPosVec.set(
       pos[0] * visualOrbitScale,
@@ -212,6 +220,7 @@ export function usePlanetFrame({
         data.elements,
         time + dt,
         data.period,
+        (isSatellite || useMoonShader) ? BASE_AU_SCALE : auScaleRef.current
       );
       const futureVec = tempVec.set(
         futurePosArr[0] * visualOrbitScale,
@@ -362,7 +371,8 @@ export function usePlanetFrame({
           const moonOrbitPos = calculateOrbitalPositionWithPeriod(
             moon.elements,
             time,
-            moon.period
+            moon.period,
+            BASE_AU_SCALE
           );
 
           // Apply Visual Scales (MOON_ORBIT_SCALE)
@@ -432,7 +442,8 @@ export function usePlanetFrame({
         const moonOrbitPos = calculateOrbitalPositionWithPeriod(
           moon.elements,
           time,
-          moon.period
+          moon.period,
+          BASE_AU_SCALE
         );
 
         const moonVisualScale = MOON_ORBIT_SCALE * scaleFactor;

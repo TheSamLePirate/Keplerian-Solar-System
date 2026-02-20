@@ -1,8 +1,8 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PlanetData } from '../types';
-import { PLANETS, AU_SCALE, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
+import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
 import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
 
 // Vertex Shader
@@ -157,7 +157,7 @@ interface GravitationalPotentialProps {
     yOffset: number;
     timeRef: React.MutableRefObject<number>;
     scaleFactor: number;
-    focusBodyId: string | null;
+    focusBodyId: string | null; auScale: number;
 }
 
 const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
@@ -179,10 +179,15 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
     yOffset,
     timeRef,
     scaleFactor,
-    focusBodyId
+    focusBodyId, auScale
 }) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const materialRef = useRef<THREE.ShaderMaterial>(null);
+
+    const auScaleRef = useRef(auScale);
+    useEffect(() => {
+        auScaleRef.current = auScale;
+    }, [auScale]);
 
     const uniforms = useMemo(() => ({
         uBodiesPos: { value: new Float32Array(50 * 3) },
@@ -228,7 +233,7 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
 
         const planetPositions = new Map<string, THREE.Vector3>();
 
-        const MASS_SCALE = 2500.0 * AU_SCALE; // Match GravityParticles
+        const MASS_SCALE = 2500.0 * auScaleRef.current; // Match GravityParticles
 
         // Sun at index 0
         positions.push(0, 0, 0);
@@ -237,7 +242,7 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
         count++;
 
         PLANETS.forEach(p => {
-            const [x, y, z] = calculateOrbitalPositionWithPeriod(p.elements, t, p.period);
+            const [x, y, z] = calculateOrbitalPositionWithPeriod(p.elements, t, p.period, auScaleRef.current);
             planetPositions.set(p.id, new THREE.Vector3(x, y, z));
 
             if (count < 50) {
@@ -253,7 +258,7 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
                     if (count >= 50) return;
                     const parentPos = planetPositions.get(p.id);
                     if (parentPos) {
-                        const [mx, my, mz] = calculateOrbitalPositionWithPeriod(m.elements, t, m.period);
+                        const [mx, my, mz] = calculateOrbitalPositionWithPeriod(m.elements, t, m.period, auScale);
                         const offset = new THREE.Vector3(mx, my, mz).multiplyScalar(MOON_ORBIT_SCALE);
                         const moonPos = parentPos.clone().add(offset);
 
@@ -302,7 +307,7 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
 
     return (
         <mesh ref={meshRef} rotation={[rotationX, 0, 0]} position={[0, yOffset, 0]}>
-            <planeGeometry args={[planeSize * AU_SCALE, planeSize * AU_SCALE, 128, 128]} />
+            <planeGeometry args={[planeSize * auScale, planeSize * auScale, 128, 128]} />
             <shaderMaterial
                 ref={materialRef}
                 vertexShader={vertexShader}

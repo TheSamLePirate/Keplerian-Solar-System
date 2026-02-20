@@ -244,6 +244,7 @@ const App: React.FC = () => {
         speed={actualSpeed}
         paused={paused}
         scaleFactor={settings.scaleFactor}
+        auScale={settings.auScale}
         showOrbits={settings.showOrbits}
         showLabels={settings.showLabels}
         selectedPlanet={selectedPlanet}
@@ -601,6 +602,7 @@ const App: React.FC = () => {
                     isFollowing && followingBody?.id === selectedPlanet?.id
                   }
                   date={simTime}
+                  auScale={settings.auScale}
                 />
               </PanelShell>
             )}

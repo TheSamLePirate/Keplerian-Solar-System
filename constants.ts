@@ -1,7 +1,7 @@
 import { PlanetData } from "./types";
 
 // Scaling constants
-export const AU_SCALE = 149.6; // 1 AU = 100.0 3D units
+export const BASE_AU_SCALE = 149.6; // 1 AU = 100.0 3D units
 export const PLANET_SCALE = 1.0; // Base visual scale for planets
 export const MOON_ORBIT_SCALE = 59.33; // Visual exaggeration for moon orbits
 export const SATELLITE_ORBIT_FACTOR = 1.063;

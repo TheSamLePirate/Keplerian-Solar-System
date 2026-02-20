@@ -1,5 +1,4 @@
 import { OrbitalElements } from "../types";
-import { AU_SCALE } from "../constants";
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -19,7 +18,8 @@ function solveKepler(M: number, e: number, tolerance = 1e-6): number {
 export function calculateOrbitalPositionWithPeriod(
   elements: OrbitalElements,
   timeInDays: number,
-  periodInYears: number
+  periodInYears: number,
+  auScale: number = 149.6
 ): [number, number, number] {
 
   const { semiMajorAxis, eccentricity, inclination, ascendingNode, perihelion, meanLongitude } = elements;
@@ -79,9 +79,9 @@ export function calculateOrbitalPositionWithPeriod(
   const sinE = Math.sin(eps);
 
   // Coordinates in Ecliptic Frame (Three.js axes: Y=Up/Pole)
-  const x_ecl = x * AU_SCALE;
-  const y_ecl = z * AU_SCALE; // z from kepler is pole
-  const z_ecl = -y * AU_SCALE; // -y from kepler is plane
+  const x_ecl = x * auScale;
+  const y_ecl = z * auScale; // z from kepler is pole
+  const z_ecl = -y * auScale; // -y from kepler is plane
 
   // Rotate Ecliptic Frame to Equatorial Frame
   // We rotate the "Universe" so that the Equatorial Plane is XZ, and Pole is Y.
