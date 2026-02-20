@@ -111,6 +111,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
   // Camera
   cameraTransitionSpeed: 1.0,
+  surfaceCameraAltitude: 0.002, // 2 meters in km
 
   // Gravity Field
   gravityVisible: false,

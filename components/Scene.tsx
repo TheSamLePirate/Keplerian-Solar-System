@@ -176,6 +176,53 @@ interface SceneContentProps {
   // Lensflare
   lensflareEnabled: boolean;
   lensflareOpacity: number;
+  // Surface Target
+  surfaceTarget?: {
+    planetId: string;
+    lat: number;
+    lon: number;
+    trigger: number;
+  } | null;
+  surfaceCameraAltitude: number;
+}
+
+// Helper to calculate exact rotation of a planet
+function getPlanetRotation(
+  data: PlanetData,
+  time: number,
+  earthRotOffset: number
+): THREE.Quaternion {
+  const tiltQuat = new THREE.Quaternion();
+  if (data.poleDirection) {
+    const pd = data.poleDirection;
+    const obliquity = 23.43928 * (Math.PI / 180);
+    const cosE = Math.cos(obliquity);
+    const sinE = Math.sin(obliquity);
+    const y_ecl = pd.z;
+    const z_ecl = -pd.y;
+    const y_eq = y_ecl * cosE - z_ecl * sinE;
+    const z_eq = y_ecl * sinE + z_ecl * cosE;
+    const target = new THREE.Vector3(pd.x, y_eq, z_eq).normalize();
+    tiltQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), target);
+  } else if (data.id !== "earth") {
+    tiltQuat.setFromEuler(
+      new THREE.Euler(THREE.MathUtils.degToRad(-(data.axialTilt || 0)), 0, 0)
+    );
+  }
+
+  let spinAngle = 0;
+  if (data.rotationPeriod && data.rotationPeriod !== 0) {
+    const initialOffset = data.rotationOffset || 0;
+    spinAngle =
+      ((time * 24) / data.rotationPeriod) * Math.PI * 2 + initialOffset;
+    if (data.id === "earth") spinAngle += earthRotOffset;
+  }
+  const spinQuat = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(0, 1, 0),
+    spinAngle
+  );
+
+  return tiltQuat.multiply(spinQuat);
 }
 
 const SceneContentInternal: React.FC<SceneContentProps> = ({
@@ -301,6 +348,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   cloudRotationOffset,
   lensflareEnabled,
   lensflareOpacity,
+  surfaceTarget,
+  surfaceCameraAltitude,
 }) => {
   // Optimization: Use ref instead of state for time to avoid re-rendering Scene every frame
   const timeRef = useRef(0);
@@ -342,6 +391,22 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   const transitionStartTarget = useRef(new THREE.Vector3());
   const prevFollowId = useRef<string | null>(null);
   const prevFollowRadius = useRef(1); // radius of the previously followed body
+
+  const surfaceLock = useRef<{
+    active: boolean;
+    planetId: string;
+    triggerId: number;
+    prevQuat: THREE.Quaternion;
+    prevCorePos: THREE.Vector3;
+    surfaceRelCamera: THREE.Vector3; // Position of camera relative to core
+  }>({
+    active: false,
+    planetId: "",
+    triggerId: 0,
+    prevQuat: new THREE.Quaternion(),
+    prevCorePos: new THREE.Vector3(),
+    surfaceRelCamera: new THREE.Vector3(),
+  });
 
   const prevResetCam = useRef(resetCameraTrigger);
 
@@ -480,7 +545,71 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         targetPos.set(posArray[0], posArray[1], posArray[2]);
       }
 
-      if (transitionProgress.current < 1) {
+      if (
+        surfaceTarget &&
+        surfaceTarget.trigger !== surfaceLock.current.triggerId
+      ) {
+        // Init Surface Lock
+        transitionProgress.current = 1.0;
+
+        const rad = Math.max(
+          followingBody.radius * PLANET_SCALE * scaleFactor,
+          0.01
+        );
+        const phi = (surfaceTarget.lat * Math.PI) / 180;
+        const lambda = (-surfaceTarget.lon * Math.PI) / 180; // Negative to match typical left/right mapping
+
+        const localPos = new THREE.Vector3(
+          rad * Math.cos(phi) * Math.cos(lambda),
+          rad * Math.sin(phi),
+          rad * Math.cos(phi) * Math.sin(lambda)
+        );
+
+        const planetQuat = getPlanetRotation(
+          followingBody,
+          currentTime,
+          earthRotationOffset
+        );
+
+        const worldRelPos = localPos.clone().applyQuaternion(planetQuat);
+        const surfaceWorldPos = targetPos.clone().add(worldRelPos);
+        const surfaceWorldNormal = worldRelPos.clone().normalize();
+
+        const altOffset = surfaceCameraAltitude * PLANET_SCALE * scaleFactor;
+
+        // Push camera slightly above surface
+        camera.position
+          .copy(surfaceWorldPos)
+          .add(surfaceWorldNormal.clone().multiplyScalar(altOffset));
+
+        camera.up.copy(surfaceWorldNormal);
+
+        let tangent = new THREE.Vector3(0, 1, 0).cross(surfaceWorldNormal);
+        if (tangent.lengthSq() < 0.001)
+          tangent = new THREE.Vector3(1, 0, 0).cross(surfaceWorldNormal);
+        tangent.normalize();
+
+        // Target is just straight ahead laterally
+        controlsRef.current.target
+          .copy(camera.position)
+          .add(tangent.multiplyScalar(rad * 0.01));
+
+        surfaceLock.current = {
+          active: true,
+          planetId: surfaceTarget.planetId,
+          triggerId: surfaceTarget.trigger,
+          prevQuat: planetQuat,
+          prevCorePos: targetPos.clone(),
+          surfaceRelCamera: worldRelPos.clone().add(surfaceWorldNormal.clone().multiplyScalar(altOffset))
+        };
+
+        prevTargetPos.current.copy(controlsRef.current.target);
+        if (controlsRef.current) {
+          controlsRef.current.enablePan = false;
+          controlsRef.current.enableZoom = false;
+          controlsRef.current.update();
+        }
+      } else if (transitionProgress.current < 1) {
         // Smooth transition: lerp from start positions to destination
         transitionProgress.current = Math.min(
           1,
@@ -517,14 +646,82 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       } else {
         // Arrived — update stored radius for next transition
         prevFollowRadius.current = followingBody.radius;
-        // Normal follow: maintain relative offset
-        controlsRef.current.target.copy(targetPos);
 
-        const deltaPos = _deltaPos.current
-          .copy(targetPos)
-          .sub(prevTargetPos.current);
-        camera.position.add(deltaPos);
-        prevTargetPos.current.copy(targetPos);
+        if (
+          surfaceLock.current.active &&
+          surfaceLock.current.planetId === followingBody.id
+        ) {
+          // Locked to Surface: apply delta rotation and translation
+          const planetQuat = getPlanetRotation(
+            followingBody,
+            currentTime,
+            earthRotationOffset
+          );
+          const prevQuatInv = surfaceLock.current.prevQuat.clone().invert();
+          const deltaQuat = planetQuat.clone().multiply(prevQuatInv);
+
+          // 1. Process user movement from OrbitControls
+          // OrbitControls rotates the Camera around the Target.
+          // Wait, we want the CAMERA to stay attached to the surface, and the TARGET to rotate around it (First Person).
+          // To achieve this, we look at how the camera moved relative to the target, and reverse it!
+
+          // Where did OrbitControls put the camera?
+          const currentCamPos = camera.position.clone();
+          const currentTargetPos = controlsRef.current.target.clone();
+
+          // The vector from TARGET to CAMERA:
+          const targetToCam = currentCamPos.clone().sub(currentTargetPos);
+
+          // Apply planet's rotation to the look direction as well
+          targetToCam.applyQuaternion(deltaQuat);
+
+          // 2. Rotate our anchor point to the new frame
+          surfaceLock.current.surfaceRelCamera.applyQuaternion(deltaQuat);
+
+          // Update altitude live if slider changes
+          const altOffset = surfaceCameraAltitude * PLANET_SCALE * scaleFactor;
+          const rad = Math.max(
+            followingBody.radius * PLANET_SCALE * scaleFactor,
+            0.01
+          );
+          surfaceLock.current.surfaceRelCamera.normalize().multiplyScalar(rad + altOffset);
+
+          // 3. Force Camera to the Exact Surface Position
+          camera.position.copy(targetPos).add(surfaceLock.current.surfaceRelCamera);
+
+          // 4. Force Target to be exactly opposite to how OrbitControls moved the camera
+          // The new look direction is the negative of the targetToCam vector.
+          controlsRef.current.target.copy(camera.position).sub(targetToCam);
+
+          // 5. Rotate Up Vector
+          camera.up.applyQuaternion(deltaQuat);
+
+          surfaceLock.current.prevQuat = planetQuat;
+          surfaceLock.current.prevCorePos.copy(targetPos);
+
+          prevTargetPos.current.copy(controlsRef.current.target);
+        } else {
+          // Break surface lock if body changed
+          if (surfaceLock.current.active) {
+            surfaceLock.current.active = false;
+            if (controlsRef.current) {
+              controlsRef.current.enablePan = true;
+              controlsRef.current.enableZoom = true;
+            }
+            if (cameraMode === "equatorial") camera.up.set(0, 1, 0);
+            else {
+              const obliquity = 23.43928 * (Math.PI / 180);
+              camera.up.set(0, Math.cos(obliquity), Math.sin(obliquity));
+            }
+          }
+          // Normal follow: maintain relative offset securely
+          controlsRef.current.target.copy(targetPos);
+          const deltaPos = _deltaPos.current
+            .copy(targetPos)
+            .sub(prevTargetPos.current);
+          camera.position.add(deltaPos);
+          prevTargetPos.current.copy(targetPos);
+        }
       }
 
       // Update Focused Light
@@ -542,6 +739,18 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         focusedLightRef.current.updateMatrixWorld();
       }
     } else {
+      if (surfaceLock.current.active) {
+        surfaceLock.current.active = false;
+        if (controlsRef.current) {
+          controlsRef.current.enablePan = true;
+          controlsRef.current.enableZoom = true;
+        }
+        if (cameraMode === "equatorial") camera.up.set(0, 1, 0);
+        else {
+          const obliquity = 23.43928 * (Math.PI / 180);
+          camera.up.set(0, Math.cos(obliquity), Math.sin(obliquity));
+        }
+      }
       if (controlsRef.current) {
         prevTargetPos.current.copy(controlsRef.current.target);
       }

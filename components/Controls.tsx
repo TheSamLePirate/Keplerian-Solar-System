@@ -148,6 +148,22 @@ const Controls: React.FC<ControlsProps> = ({
         </div>
 
         <div className="mt-2 text-[10px] text-gray-400">
+          <Slider
+            label="Surface Altitude"
+            value={Math.log10(s.surfaceCameraAltitude)}
+            min={-3} // 1 m
+            max={3}  // 1000 km
+            step={0.05}
+            onChange={(v) => set("surfaceCameraAltitude", Math.pow(10, v))}
+            format={(v) => {
+              const val = Math.pow(10, v);
+              if (val < 1) return `${(val * 1000).toFixed(0)} m`;
+              return `${val.toFixed(2)} km`;
+            }}
+          />
+        </div>
+
+        <div className="mt-2 text-[10px] text-gray-400">
           <span className="mb-1 block">Alignment (Up)</span>
           <div className="flex gap-1">
             <button

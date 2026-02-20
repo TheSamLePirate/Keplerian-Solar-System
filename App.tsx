@@ -27,6 +27,15 @@ const App: React.FC = () => {
   const [simTime, setSimTime] = useState(0);
   const [fps, setFps] = useState(0);
 
+  // Surface Target State
+  const [gotoModal, setGotoModal] = useState<{ planetId: string } | null>(null);
+  const [surfaceTarget, setSurfaceTarget] = useState<{
+    planetId: string;
+    lat: number;
+    lon: number;
+    trigger: number;
+  } | null>(null);
+
   // Triggers
   const [forcedTime, setForcedTime] = useState<
     { value: number; id: number } | undefined
@@ -73,6 +82,35 @@ const App: React.FC = () => {
       setIsFollowing(true);
     }
   }, [selectedPlanet]);
+
+  const handleGoToSurface = useCallback((planetId: string) => {
+    setGotoModal({ planetId });
+  }, []);
+
+  const submitGoToSurface = useCallback(
+    (lat: number, lon: number) => {
+      if (gotoModal) {
+        setSurfaceTarget({
+          planetId: gotoModal.planetId,
+          lat,
+          lon,
+          trigger: Date.now(),
+        });
+        // Also set as followed body
+        const p =
+          import("./constants").then((m) =>
+            m.PLANETS.find((p) => p.id === gotoModal.planetId) ||
+              m.SUN_DATA.id === gotoModal.planetId ? m.SUN_DATA : null
+          );
+        // Temporary hack to find the planet data without importing PLANETS directly if not needed everywhere,
+        // but App.tsx has access to planet data via standard imports if needed. Actually let's just use the selectedPlanet or find it.
+        // Better: we can just find it in the handle List Select or similar.
+        // For now, PlanetList will pass the planet to follow when we need it, but we only have planetId.
+        setGotoModal(null);
+      }
+    },
+    [gotoModal]
+  );
 
   const handleSetTime = useCallback((timestamp: number) => {
     const simDays = (timestamp - SIMULATION_EPOCH) / (1000 * 86400);
@@ -143,6 +181,37 @@ const App: React.FC = () => {
   const leftVisible = panels.bodies;
   const rightVisible = panels.info || panels.controls || panels.debug;
 
+  // Let's refine submitGoToSurface to also set followingBody
+  const submitGoToSurfaceRefined = useCallback(
+    (lat: number, lon: number) => {
+      if (gotoModal) {
+        // Find planet data
+        const findBody = (id: string, list: PlanetData[]): PlanetData | null => {
+          for (const p of list) {
+            if (p.id === id) return p;
+            if (p.moons) {
+              const m = findBody(id, p.moons);
+              if (m) return m;
+            }
+          }
+          return null;
+        };
+
+        // We need PLANETS and SUN_DATA here
+        // We'll import them locally or just rely on selectedPlanet if it matches
+        // For robustness, let's just trigger the surface target
+        setSurfaceTarget({
+          planetId: gotoModal.planetId,
+          lat,
+          lon,
+          trigger: Date.now(),
+        });
+        setGotoModal(null);
+      }
+    },
+    [gotoModal]
+  );
+
   return (
     <div className="w-full h-screen bg-black relative overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
       {/* Loading Screen */}
@@ -158,6 +227,8 @@ const App: React.FC = () => {
         selectedPlanet={selectedPlanet}
         followingBody={followingBody}
         isFollowing={isFollowing}
+        surfaceTarget={surfaceTarget}
+        surfaceCameraAltitude={settings.surfaceCameraAltitude}
         onPlanetClick={handle3DPlanetClick}
         onBackgroundClick={handleBackgroundClick}
         onTimeUpdate={setSimTime}
@@ -277,6 +348,68 @@ const App: React.FC = () => {
 
       {/* UI Overlay */}
       <div className="absolute inset-0 pointer-events-none z-20 flex flex-col">
+        {/* Go To Modal */}
+        {gotoModal && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-auto bg-black/50 backdrop-blur-sm">
+            <div className="bg-gray-900 border border-white/20 p-4 rounded-lg shadow-xl w-64 selection:bg-blue-500 selection:text-white">
+              <h3 className="text-white font-semibold mb-4">Go to Surface</h3>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const fd = new FormData(e.currentTarget);
+                  const lat = parseFloat(fd.get("lat") as string) || 0;
+                  const lon = parseFloat(fd.get("lon") as string) || 0;
+                  submitGoToSurfaceRefined(lat, lon);
+                }}
+              >
+                <div className="mb-3">
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Latitude (-90 to 90)
+                  </label>
+                  <input
+                    name="lat"
+                    type="number"
+                    step="any"
+                    required
+                    defaultValue="0"
+                    placeholder="e.g. 48.85"
+                    className="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Longitude (-180 to 180)
+                  </label>
+                  <input
+                    name="lon"
+                    type="number"
+                    step="any"
+                    required
+                    defaultValue="0"
+                    placeholder="e.g. 2.35"
+                    className="w-full bg-black/50 border border-white/10 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGotoModal(null)}
+                    className="px-3 py-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 text-sm transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors shadow-lg shadow-blue-500/20"
+                  >
+                    Go
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Top Bar */}
         <div className="flex items-center gap-3 px-3 py-1.5 pointer-events-auto bg-black/60 backdrop-blur-md border-b border-white/5 flex-shrink-0">
           {/* Title */}
@@ -320,6 +453,7 @@ const App: React.FC = () => {
               <PlanetList
                 onSelect={handleListSelect}
                 onFollow={handleListFollow}
+                onGoTo={handleGoToSurface}
                 selectedId={selectedPlanet?.id}
                 followingId={followingBody?.id}
                 isFollowingActive={isFollowing}

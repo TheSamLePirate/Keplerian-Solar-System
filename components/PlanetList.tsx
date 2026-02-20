@@ -8,6 +8,7 @@ interface PlanetListProps {
   selectedId: string | undefined;
   followingId: string | undefined;
   isFollowingActive: boolean;
+  onGoTo?: (planetId: string) => void;
 }
 
 const PlanetList: React.FC<PlanetListProps> = ({
@@ -16,6 +17,7 @@ const PlanetList: React.FC<PlanetListProps> = ({
   selectedId,
   followingId,
   isFollowingActive,
+  onGoTo,
 }) => {
   const renderItem = (p: PlanetData, depth = 0) => {
     const isSelected = selectedId === p.id;
@@ -95,6 +97,31 @@ const PlanetList: React.FC<PlanetListProps> = ({
               </svg>
             )}
           </button>
+          {onGoTo && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onGoTo(p.id);
+              }}
+              title="Go To Surface"
+              className="p-1 rounded-md text-gray-600 hover:text-white hover:bg-white/10 transition-all flex-shrink-0 ml-1"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+            </button>
+          )}
         </div>
         {p.moons && p.moons.map((m) => renderItem(m, depth + 1))}
       </div>

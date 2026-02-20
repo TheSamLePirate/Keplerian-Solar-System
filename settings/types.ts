@@ -109,6 +109,7 @@ export interface AppSettings {
 
   // Camera
   cameraTransitionSpeed: number;
+  surfaceCameraAltitude: number;
 
   // Gravity Field
   gravityVisible: boolean;
