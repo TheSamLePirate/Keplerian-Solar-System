@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import Scene from "./components/Scene";
+import Scene, { telescopeAngleStore } from "./components/Scene";
 import Controls from "./components/Controls";
 import InfoPanel from "./components/InfoPanel";
 import PlanetList from "./components/PlanetList";
@@ -24,6 +24,22 @@ const getAllBodies = () => {
   };
   PLANETS.forEach(add);
   return list;
+};
+
+const TelescopeAngleDisplay: React.FC = () => {
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => forceUpdate(n => n + 1), 100);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex justify-between items-center text-[10px] text-blue-400 font-mono bg-black/40 px-2 py-1.5 rounded border border-blue-900/50">
+      <span>AZ: {telescopeAngleStore.azimuth.toFixed(1)}°</span>
+      <span>ALT: {telescopeAngleStore.altitude.toFixed(1)}°</span>
+    </div>
+  );
 };
 
 const App: React.FC = () => {
@@ -467,42 +483,42 @@ const App: React.FC = () => {
                 </select>
               </div>
 
-              {telescopeTargetId && (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider">
-                      <label>Zoom (FOV)</label>
-                      <span>{telescopeZoom.toFixed(1)}°</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="45"
-                      step="0.1"
-                      value={telescopeZoom}
-                      onChange={(e) => setTelescopeZoom(parseFloat(e.target.value))}
-                      className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                    />
-                  </div>
+              <TelescopeAngleDisplay />
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-gray-400 uppercase tracking-wider">Mount Type</label>
-                    <div className="flex rounded overflow-hidden border border-white/10">
-                      <button
-                        onClick={() => setTelescopeMount("azimuthal")}
-                        className={`flex-1 py-1 text-[10px] font-bold uppercase transition-colors ${telescopeMount === "azimuthal" ? "bg-blue-600 text-white" : "bg-black/40 text-gray-400 hover:bg-white/10"}`}
-                      >
-                        Azimuthal
-                      </button>
-                      <button
-                        onClick={() => setTelescopeMount("equatorial")}
-                        className={`flex-1 py-1 text-[10px] font-bold uppercase transition-colors ${telescopeMount === "equatorial" ? "bg-blue-600 text-white" : "bg-black/40 text-gray-400 hover:bg-white/10"}`}
-                      >
-                        Equatorial
-                      </button>
-                    </div>
+              <div className="flex flex-col gap-1 mt-1">
+                <div className="flex justify-between text-[10px] text-gray-400 uppercase tracking-wider">
+                  <label>Zoom (FOV)</label>
+                  <span>{telescopeZoom.toFixed(1)}°</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="90"
+                  step="0.1"
+                  value={telescopeZoom}
+                  onChange={(e) => setTelescopeZoom(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              {telescopeTargetId && (
+                <div className="flex flex-col gap-1 mt-1">
+                  <label className="text-[10px] text-gray-400 uppercase tracking-wider">Mount Type</label>
+                  <div className="flex rounded overflow-hidden border border-white/10">
+                    <button
+                      onClick={() => setTelescopeMount("azimuthal")}
+                      className={`flex-1 py-1 text-[10px] font-bold uppercase transition-colors ${telescopeMount === "azimuthal" ? "bg-blue-600 text-white" : "bg-black/40 text-gray-400 hover:bg-white/10"}`}
+                    >
+                      Azimuthal
+                    </button>
+                    <button
+                      onClick={() => setTelescopeMount("equatorial")}
+                      className={`flex-1 py-1 text-[10px] font-bold uppercase transition-colors ${telescopeMount === "equatorial" ? "bg-blue-600 text-white" : "bg-black/40 text-gray-400 hover:bg-white/10"}`}
+                    >
+                      Equatorial
+                    </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </div>

@@ -40,6 +40,8 @@ import KeyboardCameraController from "./KeyboardCameraController";
 
 // Module-level camera store: written by SceneContent useFrame, read by DebugPanel
 export const cameraPositionStore = { x: 0, y: 0, z: 0 };
+// Module-level telescope angle store: written by SceneContent useFrame surface calculations, read by App
+export const telescopeAngleStore = { azimuth: 0, altitude: 0 };
 
 interface SceneContentProps {
   speed: number;
@@ -767,13 +769,6 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
               // Azimuthal: Up is the surface normal (which is just the normalized surfaceRelCamera)
               camera.up.copy(surfaceLock.current.surfaceRelCamera).normalize();
             }
-
-            // Adjust FOV (Zoom)
-            const pCam = camera as THREE.PerspectiveCamera;
-            if (pCam.fov !== telescopeZoom) {
-              pCam.fov = telescopeZoom || 45;
-              pCam.updateProjectionMatrix();
-            }
           } else {
             // Standard first-person look-around behavior
             // 4. Force Target to be exactly opposite to how OrbitControls moved the camera
@@ -781,14 +776,32 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
 
             // 5. Rotate Up Vector
             camera.up.applyQuaternion(deltaQuat);
-
-            // Standard FOV
-            const pCam = camera as THREE.PerspectiveCamera;
-            if (pCam.fov !== 45) {
-              pCam.fov = 45;
-              pCam.updateProjectionMatrix();
-            }
           }
+
+          // Adjust FOV (Zoom) applied globally for surface mode
+          const pCam = camera as THREE.PerspectiveCamera;
+          if (pCam.fov !== telescopeZoom) {
+            pCam.fov = telescopeZoom || 45;
+            pCam.updateProjectionMatrix();
+          }
+
+          // Calculate Azimuth and Altitude for the UI
+          const worldNorth = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
+          const up = surfaceLock.current.surfaceRelCamera.clone().normalize();
+          const localNorth = worldNorth.clone().sub(up.clone().multiplyScalar(worldNorth.dot(up))).normalize();
+          const localEast = localNorth.clone().cross(up).normalize();
+
+          const lookDir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+
+          const altitudeRad = Math.asin(Math.max(-1, Math.min(1, lookDir.dot(up))));
+          telescopeAngleStore.altitude = altitudeRad * (180 / Math.PI);
+
+          const projLook = lookDir.clone().sub(up.clone().multiplyScalar(lookDir.dot(up))).normalize();
+          const cosAz = projLook.dot(localNorth);
+          const sinAz = projLook.dot(localEast);
+          let azDeg = Math.atan2(sinAz, cosAz) * (180 / Math.PI);
+          if (azDeg < 0) azDeg += 360;
+          telescopeAngleStore.azimuth = azDeg;
 
           surfaceLock.current.prevQuat = planetQuat;
           surfaceLock.current.prevCorePos.copy(targetPos);

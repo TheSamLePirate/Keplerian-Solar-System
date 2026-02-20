@@ -135,7 +135,7 @@ export const PLANETS: PlanetData[] = [
         name: "ISS",
         type: "satellite",
         color: "#FFFFFF",
-        radius: 0.008,
+        radius: 0.000086,
         modelUrl: "/models/ISS2.glb",
         rotationPeriod: 0.0,
         axialTilt: 0.0,
