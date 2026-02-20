@@ -11,6 +11,16 @@ export interface OrbitalElements {
 
 export type BodyType = 'star' | 'planet' | 'moon' | 'dwarf' | 'satellite';
 
+export interface CameraPoint {
+  id: string;
+  planetId: string;
+  name: string;
+  lat: number;
+  lon: number;
+  altitude: number;
+  fov: number;
+}
+
 export interface PlanetData {
   id: string;
   name: string;

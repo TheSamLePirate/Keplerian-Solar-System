@@ -14,6 +14,7 @@ import { useSettings } from "./hooks/useSettings";
 import { PlanetData } from "./types";
 import { PLANETS, SUN_DATA, SIMULATION_EPOCH } from "./constants";
 import ISSLiveFeed from "./components/ISSLiveFeed";
+import { CameraPoint } from "./types";
 
 // Helper to flatten planet list for dropdowns
 const getAllBodies = () => {
@@ -60,6 +61,10 @@ const App: React.FC = () => {
     planetId: string;
     lat: number;
     lon: number;
+    trigger: number;
+  } | null>(null);
+  const [cameraPointTarget, setCameraPointTarget] = useState<{
+    point: CameraPoint;
     trigger: number;
   } | null>(null);
 
@@ -128,6 +133,7 @@ const App: React.FC = () => {
           lon,
           trigger: Date.now(),
         });
+        setCameraPointTarget(null);
         // Also set as followed body
         const findBody = (id: string, list: PlanetData[]): PlanetData | null => {
           for (const p of list) {
@@ -148,6 +154,11 @@ const App: React.FC = () => {
     [gotoModal]
   );
 
+  const handleGoToCameraPoint = useCallback((point: CameraPoint) => {
+    setCameraPointTarget({ point, trigger: Date.now() });
+    setSurfaceTarget(null);
+  }, []);
+
   const handleSetTime = useCallback((timestamp: number) => {
     const simDays = (timestamp - SIMULATION_EPOCH) / (1000 * 86400);
     setSimTime(simDays);
@@ -161,6 +172,8 @@ const App: React.FC = () => {
   const handleResetCamera = useCallback(() => {
     setFollowingBody(null);
     setIsFollowing(false);
+    setSurfaceTarget(null);
+    setCameraPointTarget(null);
     setResetCameraTrigger((prev) => prev + 1);
   }, []);
 
@@ -207,6 +220,7 @@ const App: React.FC = () => {
           setIsFollowing(false);
           setFollowingBody(null);
           setSurfaceTarget(null);
+          setCameraPointTarget(null);
           setTelescopeTargetId(null);
           break;
       }
@@ -244,6 +258,7 @@ const App: React.FC = () => {
           lon,
           trigger: Date.now(),
         });
+        setCameraPointTarget(null);
         setGotoModal(null);
       }
     },
@@ -267,6 +282,7 @@ const App: React.FC = () => {
         followingBody={followingBody}
         isFollowing={isFollowing}
         surfaceTarget={surfaceTarget}
+        cameraPointTarget={cameraPointTarget}
         surfaceCameraAltitude={settings.surfaceCameraAltitude}
         telescopeTargetId={telescopeTargetId}
         telescopeZoom={telescopeZoom}
@@ -568,6 +584,7 @@ const App: React.FC = () => {
                 onSelect={handleListSelect}
                 onFollow={handleListFollow}
                 onGoTo={handleGoToSurface}
+                onGoToCameraPoint={handleGoToCameraPoint}
                 selectedId={selectedPlanet?.id}
                 followingId={followingBody?.id}
                 isFollowingActive={isFollowing}

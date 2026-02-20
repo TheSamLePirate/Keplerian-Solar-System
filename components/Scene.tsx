@@ -25,7 +25,7 @@ import {
   SATELLITE_ORBIT_FACTOR,
   BASE_AU_SCALE,
 } from "../constants";
-import { PlanetData } from "../types";
+import { PlanetData, CameraPoint } from "../types";
 import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 import Planet from "./planet";
 
@@ -185,6 +185,10 @@ interface SceneContentProps {
     planetId: string;
     lat: number;
     lon: number;
+    trigger: number;
+  } | null;
+  cameraPointTarget?: {
+    point: CameraPoint;
     trigger: number;
   } | null;
   surfaceCameraAltitude: number;
@@ -357,6 +361,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   lensflareEnabled,
   lensflareOpacity,
   surfaceTarget,
+  cameraPointTarget,
   surfaceCameraAltitude,
   telescopeTargetId,
   telescopeZoom,
@@ -533,6 +538,22 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     surfaceRelCamera: new THREE.Vector3(),
   });
 
+  const cameraPointLock = useRef<{
+    active: boolean;
+    planetId: string;
+    triggerId: number;
+    prevQuat: THREE.Quaternion;
+    surfaceRelCamera: THREE.Vector3;
+    fov: number;
+  }>({
+    active: false,
+    planetId: "",
+    triggerId: 0,
+    prevQuat: new THREE.Quaternion(),
+    surfaceRelCamera: new THREE.Vector3(),
+    fov: 45,
+  });
+
   useFrame((_, delta) => {
     // Follow Logic - Uses followingBody instead of selectedPlanet
     if (isFollowing && followingBody && controlsRef.current) {
@@ -676,6 +697,70 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           controlsRef.current.enableZoom = false;
           controlsRef.current.update();
         }
+      } else if (
+        cameraPointTarget &&
+        cameraPointTarget.trigger !== cameraPointLock.current.triggerId
+      ) {
+        // Init Camera Point Lock
+        transitionProgress.current = 1.0;
+
+        const pt = cameraPointTarget.point;
+        const rad = Math.max(
+          followingBody.radius * PLANET_SCALE * scaleFactor,
+          0.01
+        );
+        const altOffset = pt.altitude * PLANET_SCALE * scaleFactor;
+
+        const phi = (pt.lat * Math.PI) / 180;
+        const lambda = (-pt.lon * Math.PI) / 180;
+
+        const localPos = new THREE.Vector3(
+          rad * Math.cos(phi) * Math.cos(lambda),
+          rad * Math.sin(phi),
+          rad * Math.cos(phi) * Math.sin(lambda)
+        );
+
+        const planetQuat = getPlanetRotation(
+          followingBody,
+          currentTime,
+          earthRotationOffset
+        );
+
+        const worldRelPos = localPos.clone().applyQuaternion(planetQuat);
+        const surfaceWorldNormal = worldRelPos.clone().normalize();
+
+        const cameraPos = targetPos.clone()
+          .add(worldRelPos)
+          .add(surfaceWorldNormal.clone().multiplyScalar(altOffset));
+
+        camera.position.copy(cameraPos);
+        controlsRef.current.target.copy(targetPos);
+
+        const worldNorth = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
+        camera.up.copy(worldNorth).normalize();
+
+        cameraPointLock.current = {
+          active: true,
+          planetId: pt.planetId,
+          triggerId: cameraPointTarget.trigger,
+          prevQuat: planetQuat,
+          surfaceRelCamera: worldRelPos.clone().add(surfaceWorldNormal.clone().multiplyScalar(altOffset)),
+          fov: pt.fov,
+        };
+
+        const pCam = camera as THREE.PerspectiveCamera;
+        if (pCam.fov !== pt.fov) {
+          pCam.fov = pt.fov;
+          pCam.updateProjectionMatrix();
+        }
+
+        prevTargetPos.current.copy(controlsRef.current.target);
+        if (controlsRef.current) {
+          controlsRef.current.enablePan = false;
+          controlsRef.current.enableZoom = false;
+          controlsRef.current.enableRotate = false; // Look at the planet from this fixed point
+          controlsRef.current.update();
+        }
       } else if (transitionProgress.current < 1) {
         // Smooth transition: lerp from start positions to destination
         transitionProgress.current = Math.min(
@@ -807,6 +892,40 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           surfaceLock.current.prevCorePos.copy(targetPos);
 
           prevTargetPos.current.copy(controlsRef.current.target);
+        } else if (
+          cameraPointLock.current.active &&
+          cameraPointLock.current.planetId === followingBody.id
+        ) {
+          const planetQuat = getPlanetRotation(
+            followingBody,
+            currentTime,
+            earthRotationOffset
+          );
+          const prevQuatInv = cameraPointLock.current.prevQuat.clone().invert();
+          const deltaQuat = planetQuat.clone().multiply(prevQuatInv);
+
+          // Rotate anchor point to the new frame
+          cameraPointLock.current.surfaceRelCamera.applyQuaternion(deltaQuat);
+
+          // Force Camera to the Exact Position
+          camera.position.copy(targetPos).add(cameraPointLock.current.surfaceRelCamera);
+
+          // Force Target to look at planet center
+          controlsRef.current.target.copy(targetPos);
+
+          // Force Up Vector to North pole
+          const worldNorth = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
+          camera.up.copy(worldNorth).normalize();
+
+          // Apply FOV continuously
+          const pCam = camera as THREE.PerspectiveCamera;
+          if (pCam.fov !== cameraPointLock.current.fov) {
+            pCam.fov = cameraPointLock.current.fov;
+            pCam.updateProjectionMatrix();
+          }
+
+          cameraPointLock.current.prevQuat = planetQuat;
+          prevTargetPos.current.copy(controlsRef.current.target);
         } else {
           // Break surface lock if body changed
           if (surfaceLock.current.active) {
@@ -814,6 +933,24 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             if (controlsRef.current) {
               controlsRef.current.enablePan = true;
               controlsRef.current.enableZoom = true;
+            }
+            if (cameraMode === "equatorial") camera.up.set(0, 1, 0);
+            else {
+              const obliquity = 23.43928 * (Math.PI / 180);
+              camera.up.set(0, Math.cos(obliquity), Math.sin(obliquity));
+            }
+            const pCam = camera as THREE.PerspectiveCamera;
+            if (pCam.fov !== 45) {
+              pCam.fov = 45;
+              pCam.updateProjectionMatrix();
+            }
+          }
+          if (cameraPointLock.current.active) {
+            cameraPointLock.current.active = false;
+            if (controlsRef.current) {
+              controlsRef.current.enablePan = true;
+              controlsRef.current.enableZoom = true;
+              controlsRef.current.enableRotate = true;
             }
             if (cameraMode === "equatorial") camera.up.set(0, 1, 0);
             else {
