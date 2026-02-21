@@ -119,9 +119,8 @@ export function useTextureLoader({
 
     // Earth Specific Loader
     if (data.id === "earth") {
-      const manager = new THREE.LoadingManager();
-      const loader = new THREE.TextureLoader(manager);
-      const cubeLoader = new THREE.CubeTextureLoader(manager);
+      const loader = new THREE.TextureLoader();
+      const cubeLoader = new THREE.CubeTextureLoader();
       const lod = earthTextureLOD || "high";
 
       // Only reload if LOD changed
