@@ -404,12 +404,12 @@ export const EarthMaterial = {
             vec3 cloudDir = rotation * rotatedSampleDir;
             vec4 cloudSample = textureCube(cloudMap, cloudDir);
 
-            vec3 shadowDir = rotation * normalize(rotatedSampleDir + lightDir * 0.02);
+            vec3 shadowDir = rotation * rot * normalize(sampleDir + lightDir * 0.02);
             float cloudShadow = textureCube(cloudMap, shadowDir).r;
 
             finalColor *= (1.0 - cloudShadow * cloudOpacity * 0.5 * diffuse);
 
-            float cloudDiffuse = max(0.0, dot(normalize(cloudDir), lightDir));
+            float cloudDiffuse = max(0.0, dot(sampleDir, lightDir));
             float cloudLight = cloudDiffuse * shadowMask * eclipseFactor;
 
             // Fade out clouds on the night side to prevent them from showing as black patches
