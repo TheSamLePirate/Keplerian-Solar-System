@@ -567,7 +567,7 @@ const Planet: React.FC<PlanetProps> = ({
               renderOrder={1}
               userData={{ isOccluder: true }}
             >
-              <sphereGeometry args={[size, 128, 128]} />
+              <sphereGeometry args={[size, 128 * 4, 128 * 4]} />
               {/* DEBUG: Eclipse Alignment Line */}
               {earthUniforms.numEclipseMoons.value > 0 && false && (
                 <EclipseDebugLine

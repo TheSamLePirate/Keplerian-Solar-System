@@ -371,11 +371,13 @@ export const EarthMaterial = {
         if (NdotL > 0.0) {
             vec3 halfVector = normalize(lightDir + viewDir);
             float NdotH = max(0.0, dot(normal, halfVector));
-            specular = pow(NdotH, 60.0) * specularMask * specularStrength * shadowMask * eclipseFactor;
+            specular = pow(NdotH, 30.0) * specularMask * specularStrength * 2.0 * shadowMask * eclipseFactor;
         }
 
         // Base Color Mixing
-        vec3 finalColor = dayColor.rgb * diffuse * dayIntensity + specular;
+        // Use the specular map to make the ocean brighter and give it more blue
+        vec3 enhancedDayColor = dayColor.rgb + (specularMask * vec3(0.0, 0.15, 0.4));
+        vec3 finalColor = enhancedDayColor * diffuse * dayIntensity + vec3(specular);
 
         if (showNightLights) {
              // Night lights should appear where it is "dark" (low mixFactor)
@@ -408,10 +410,12 @@ export const EarthMaterial = {
             finalColor *= (1.0 - cloudShadow * cloudOpacity * 0.5 * diffuse);
 
             float cloudDiffuse = max(0.0, dot(normalize(cloudDir), lightDir));
-            float cloudLight = max(cloudDiffuse, 0.1) * shadowMask * eclipseFactor; // Cloud also receives shadow
+            float cloudLight = cloudDiffuse * shadowMask * eclipseFactor;
 
+            // Fade out clouds on the night side to prevent them from showing as black patches
+            float daySideMask = smoothstep(0.0, 0.1, NdotL);
             vec3 cloudColor = vec3(1.0) * cloudLight;
-            finalColor = mix(finalColor, cloudColor, cloudSample.r * cloudOpacity);
+            finalColor = mix(finalColor, cloudColor, cloudSample.r * cloudOpacity * daySideMask);
         }
         
         // DEBUG: Red Shadow
