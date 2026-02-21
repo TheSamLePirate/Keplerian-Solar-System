@@ -529,7 +529,7 @@ const Planet: React.FC<PlanetProps> = ({
           {useMoonShader ? (
             <mesh
               ref={meshRef}
-              onClick={(e) => {
+              onDoubleClick={(e) => {
                 e.stopPropagation();
                 onSelect(data);
               }}
@@ -552,11 +552,29 @@ const Planet: React.FC<PlanetProps> = ({
                 depthWrite={true}
                 depthTest={true}
               />
+              {(showLabel || hovered) && (
+                <Html position={[0, size * 1.5, 0]}>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(data);
+                    }}
+                    onPointerEnter={() => setHover(true)}
+                    onPointerLeave={() => setHover(false)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-auto cursor-pointer transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                                ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
+                                `}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    {data.name}
+                  </div>
+                </Html>
+              )}
             </mesh>
           ) : isEarth ? (
             <mesh
               ref={earthMeshRef}
-              onClick={(e) => {
+              onDoubleClick={(e) => {
                 e.stopPropagation();
                 onSelect(data);
               }}
@@ -606,7 +624,13 @@ const Planet: React.FC<PlanetProps> = ({
               {(showLabel || hovered) && (
                 <Html position={[0, size * 1.5, 0]}>
                   <div
-                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(data);
+                    }}
+                    onPointerEnter={() => setHover(true)}
+                    onPointerLeave={() => setHover(false)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-auto cursor-pointer transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
                                 ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
                                 `}
                   >
@@ -619,7 +643,7 @@ const Planet: React.FC<PlanetProps> = ({
           ) : isSatellite ? (
             <group
               ref={issGroupRef}
-              onClick={(e) => {
+              onDoubleClick={(e) => {
                 e.stopPropagation();
                 onSelect(data);
               }}
@@ -634,7 +658,13 @@ const Planet: React.FC<PlanetProps> = ({
               {(showLabel || hovered) && (
                 <Html position={[0, size * 3, 0]}>
                   <div
-                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(data);
+                    }}
+                    onPointerEnter={() => setHover(true)}
+                    onPointerLeave={() => setHover(false)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-auto cursor-pointer transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
                                 ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
                                 `}
                   >
@@ -646,7 +676,7 @@ const Planet: React.FC<PlanetProps> = ({
           ) : isJupiter ? (
             <mesh
               ref={meshRef}
-              onClick={(e) => {
+              onDoubleClick={(e) => {
                 e.stopPropagation();
                 onSelect(data);
               }}
@@ -671,7 +701,13 @@ const Planet: React.FC<PlanetProps> = ({
               {(showLabel || hovered) && (
                 <Html position={[0, size * 1.5, 0]}>
                   <div
-                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(data);
+                    }}
+                    onPointerEnter={() => setHover(true)}
+                    onPointerLeave={() => setHover(false)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-auto cursor-pointer transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
                                 ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
                                 `}
                   >
@@ -683,7 +719,7 @@ const Planet: React.FC<PlanetProps> = ({
           ) : (
             <mesh
               ref={meshRef}
-              onClick={(e) => {
+              onDoubleClick={(e) => {
                 e.stopPropagation();
                 onSelect(data);
               }}
@@ -755,7 +791,13 @@ const Planet: React.FC<PlanetProps> = ({
               {(showLabel || hovered) && (
                 <Html position={[0, size * 1.5, 0]}>
                   <div
-                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-none transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(data);
+                    }}
+                    onPointerEnter={() => setHover(true)}
+                    onPointerLeave={() => setHover(false)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold pointer-events-auto cursor-pointer transition-opacity duration-200 select-none whitespace-nowrap flex items-center gap-1.5
                                 ${isSelected ? "bg-blue-600 text-white shadow-lg shadow-blue-500/50" : "bg-black/50 text-white border border-white/20"}
                                 `}
                   >

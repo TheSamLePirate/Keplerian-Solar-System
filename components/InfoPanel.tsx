@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { PlanetData } from "../types";
 import { planetLodStore, PlanetLodInfo } from "./planet";
 import ISSGroundTrack from "./ISSGroundTrack";
+import { PLANETS } from "../constants";
+import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
 
 interface InfoPanelProps {
   planet: PlanetData | null;
@@ -42,6 +44,34 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
   if (!planet) return null;
 
   const { elements } = planet;
+
+  let issLat = 0;
+  let issLon = 0;
+  if (planet.id === "iss") {
+    const timeInDays = date;
+    const earth = PLANETS.find(p => p.id === 'earth');
+    const rotationOffset = earth?.rotationOffset ?? 0.8226146575870014;
+    const EARTH_ROTATION_PERIOD_DAYS = 0.99726968;
+
+    const pos = calculateOrbitalPositionWithPeriod(planet.elements, timeInDays, planet.period, auScale);
+    const x = pos[0];
+    const z = pos[2];
+    const y = pos[1];
+
+    const r = Math.sqrt(x * x + y * y + z * z);
+    const latRad = Math.asin(y / r);
+
+    let ra = Math.atan2(-z, x);
+    const earthRotation = (2 * Math.PI * timeInDays) / EARTH_ROTATION_PERIOD_DAYS;
+    let lonRad = ra - earthRotation - rotationOffset;
+
+    lonRad = (lonRad % (2 * Math.PI));
+    if (lonRad < -Math.PI) lonRad += 2 * Math.PI;
+    if (lonRad > Math.PI) lonRad -= 2 * Math.PI;
+
+    issLat = latRad * (180 / Math.PI);
+    issLon = lonRad * (180 / Math.PI);
+  }
 
   return (
     <div className="w-full h-full flex flex-col text-white overflow-hidden relative">
@@ -97,6 +127,10 @@ const InfoPanel: React.FC<InfoPanelProps> = ({
         </p>
         {planet.id === "iss" && (
           <div className="mt-3 mb-1">
+            <div className="flex justify-between text-[11px] text-gray-300 font-mono mb-2 px-1 bg-white/5 rounded py-1">
+              <span>Lat: {Math.abs(issLat).toFixed(2)}&deg; {issLat >= 0 ? 'N' : 'S'}</span>
+              <span>Lon: {Math.abs(issLon).toFixed(2)}&deg; {issLon >= 0 ? 'E' : 'W'}</span>
+            </div>
             <ISSGroundTrack planet={planet} date={date} auScale={auScale} />
           </div>
         )}
