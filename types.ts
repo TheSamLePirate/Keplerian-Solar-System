@@ -18,6 +18,8 @@ export interface CameraPoint {
   lat: number;
   lon: number;
   altitude: number;
+  pos?: [number, number, number];
+  rot?: [number, number, number];
   fov: number;
 }
 

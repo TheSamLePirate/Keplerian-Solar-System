@@ -200,8 +200,52 @@ interface SceneContentProps {
 function getPlanetRotation(
   data: PlanetData,
   time: number,
-  earthRotOffset: number
+  earthRotOffset: number,
+  scaleFactor: number
 ): THREE.Quaternion {
+  if (data.type === 'satellite') {
+    const parentPlanetVisualRadius = 1.0 * PLANET_SCALE * scaleFactor;
+    const satelliteMinOrbitRadius = parentPlanetVisualRadius * SATELLITE_ORBIT_FACTOR;
+
+    // Calculate current pos
+    const posArr = calculateOrbitalPositionWithPeriod(
+      data.elements,
+      time,
+      data.period,
+      BASE_AU_SCALE
+    );
+    const currentPos = new THREE.Vector3(posArr[0], posArr[1], posArr[2]);
+    const dist = currentPos.length();
+    if (dist > 0) {
+      currentPos.normalize().multiplyScalar(Math.max(dist, satelliteMinOrbitRadius));
+    }
+
+    // Calculate future pos
+    const dt = 0.0001;
+    const futurePosArr = calculateOrbitalPositionWithPeriod(
+      data.elements,
+      time + dt,
+      data.period,
+      BASE_AU_SCALE
+    );
+    const futureVec = new THREE.Vector3(futurePosArr[0], futurePosArr[1], futurePosArr[2]);
+    const futureDist = futureVec.length();
+    if (futureDist > 0) {
+      futureVec.normalize().multiplyScalar(Math.max(futureDist, satelliteMinOrbitRadius));
+    }
+
+    const velocity = futureVec.sub(currentPos).normalize();
+    const nadir = currentPos.clone().normalize().negate();
+
+    const xAxis = new THREE.Vector3().copy(velocity);
+    const zAxis = new THREE.Vector3().copy(nadir).negate();
+    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+    xAxis.crossVectors(yAxis, zAxis).normalize();
+
+    const mat = new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis);
+    return new THREE.Quaternion().setFromRotationMatrix(mat);
+  }
+
   const tiltQuat = new THREE.Quaternion();
   if (data.poleDirection) {
     const pd = data.poleDirection;
@@ -685,7 +729,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         const planetQuat = getPlanetRotation(
           followingBody,
           currentTime,
-          earthRotationOffset
+          earthRotationOffset,
+          scaleFactor
         );
 
         const worldRelPos = localPos.clone().applyQuaternion(planetQuat);
@@ -734,46 +779,73 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         transitionProgress.current = 1.0;
 
         const pt = cameraPointTarget.point;
-        const rad = Math.max(
-          followingBody.radius * PLANET_SCALE * scaleFactor,
-          0.01
-        );
-        const altOffset = pt.altitude * PLANET_SCALE * scaleFactor;
-
-        const phi = (pt.lat * Math.PI) / 180;
-        const lambda = (-pt.lon * Math.PI) / 180;
-
-        const localPos = new THREE.Vector3(
-          rad * Math.cos(phi) * Math.cos(lambda),
-          rad * Math.sin(phi),
-          rad * Math.cos(phi) * Math.sin(lambda)
-        );
-
         const planetQuat = getPlanetRotation(
           followingBody,
           currentTime,
-          earthRotationOffset
+          earthRotationOffset,
+          scaleFactor
         );
 
-        const worldRelPos = localPos.clone().applyQuaternion(planetQuat);
-        const surfaceWorldNormal = worldRelPos.clone().normalize();
+        let worldRelPos: THREE.Vector3;
+        let altOffset = 0;
+        let initialUp = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
+        let lookTargetOffset = new THREE.Vector3();
+        let useFixedTarget = false;
 
-        const cameraPos = targetPos.clone()
-          .add(worldRelPos)
-          .add(surfaceWorldNormal.clone().multiplyScalar(altOffset));
+        if (followingBody.type === 'satellite' && pt.pos && pt.rot) {
+          const localPos = new THREE.Vector3(pt.pos[0], pt.pos[1], pt.pos[2]);
+          worldRelPos = localPos.clone().applyQuaternion(planetQuat);
+
+          const localEuler = new THREE.Euler(
+            pt.rot[0] * Math.PI / 180,
+            pt.rot[1] * Math.PI / 180,
+            pt.rot[2] * Math.PI / 180,
+            'XYZ'
+          );
+          const localQuat = new THREE.Quaternion().setFromEuler(localEuler);
+          const combinedQuat = localQuat.clone().premultiply(planetQuat);
+
+          initialUp = new THREE.Vector3(0, 1, 0).applyQuaternion(combinedQuat);
+          lookTargetOffset = new THREE.Vector3(0, 0, -1).applyQuaternion(combinedQuat);
+          useFixedTarget = true;
+        } else {
+          const rad = Math.max(
+            followingBody.radius * PLANET_SCALE * scaleFactor,
+            0.01
+          );
+          altOffset = pt.altitude * PLANET_SCALE * scaleFactor;
+
+          const phi = (pt.lat * Math.PI) / 180;
+          const lambda = (-pt.lon * Math.PI) / 180;
+
+          const localPos = new THREE.Vector3(
+            rad * Math.cos(phi) * Math.cos(lambda),
+            rad * Math.sin(phi),
+            rad * Math.cos(phi) * Math.sin(lambda)
+          );
+
+          worldRelPos = localPos.clone().applyQuaternion(planetQuat);
+          const surfaceWorldNormal = worldRelPos.clone().normalize();
+          worldRelPos.add(surfaceWorldNormal.clone().multiplyScalar(altOffset));
+        }
+
+        const cameraPos = targetPos.clone().add(worldRelPos);
 
         camera.position.copy(cameraPos);
-        controlsRef.current.target.copy(targetPos);
+        if (useFixedTarget) {
+          controlsRef.current.target.copy(cameraPos).add(lookTargetOffset);
+        } else {
+          controlsRef.current.target.copy(targetPos);
+        }
 
-        const worldNorth = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
-        camera.up.copy(worldNorth).normalize();
+        camera.up.copy(initialUp).normalize();
 
         cameraPointLock.current = {
           active: true,
           planetId: pt.planetId,
           triggerId: cameraPointTarget.trigger,
           prevQuat: planetQuat,
-          surfaceRelCamera: worldRelPos.clone().add(surfaceWorldNormal.clone().multiplyScalar(altOffset)),
+          surfaceRelCamera: worldRelPos.clone(),
           fov: pt.fov,
         };
 
@@ -836,7 +908,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           const planetQuat = getPlanetRotation(
             followingBody,
             currentTime,
-            earthRotationOffset
+            earthRotationOffset,
+            scaleFactor
           );
           const prevQuatInv = surfaceLock.current.prevQuat.clone().invert();
           const deltaQuat = planetQuat.clone().multiply(prevQuatInv);
@@ -928,7 +1001,8 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           const planetQuat = getPlanetRotation(
             followingBody,
             currentTime,
-            earthRotationOffset
+            earthRotationOffset,
+            scaleFactor
           );
           const prevQuatInv = cameraPointLock.current.prevQuat.clone().invert();
           const deltaQuat = planetQuat.clone().multiply(prevQuatInv);
@@ -939,12 +1013,30 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           // Force Camera to the Exact Position
           camera.position.copy(targetPos).add(cameraPointLock.current.surfaceRelCamera);
 
-          // Force Target to look at planet center
-          controlsRef.current.target.copy(targetPos);
+          const pt = cameraPointTarget?.point;
+          if (followingBody.type === 'satellite' && pt && pt.pos && pt.rot) {
+            const localEuler = new THREE.Euler(
+              pt.rot[0] * Math.PI / 180,
+              pt.rot[1] * Math.PI / 180,
+              pt.rot[2] * Math.PI / 180,
+              'XYZ'
+            );
+            const localQuat = new THREE.Quaternion().setFromEuler(localEuler);
+            const combinedQuat = localQuat.clone().premultiply(planetQuat);
 
-          // Force Up Vector to North pole
-          const worldNorth = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
-          camera.up.copy(worldNorth).normalize();
+            const up = new THREE.Vector3(0, 1, 0).applyQuaternion(combinedQuat);
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(combinedQuat);
+
+            controlsRef.current.target.copy(camera.position).add(forward);
+            camera.up.copy(up).normalize();
+          } else {
+            // Force Target to look at planet center
+            controlsRef.current.target.copy(targetPos);
+
+            // Force Up Vector to North pole
+            const worldNorth = new THREE.Vector3(0, 1, 0).applyQuaternion(planetQuat);
+            camera.up.copy(worldNorth).normalize();
+          }
 
           // Apply FOV continuously
           const pCam = camera as THREE.PerspectiveCamera;

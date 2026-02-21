@@ -36,6 +36,12 @@ export function useCameraPoints() {
         setPoints(prev => prev.filter(p => p.id !== id));
     }, []);
 
+    const editPoint = useCallback((id: string, updates: Partial<Omit<CameraPoint, 'id' | 'planetId'>>) => {
+        setPoints(prev => prev.map(p =>
+            p.id === id ? { ...p, ...updates } : p
+        ));
+    }, []);
+
     const getPointsForPlanet = useCallback((planetId: string) => {
         return points.filter(p => p.planetId === planetId);
     }, [points]);
@@ -44,6 +50,7 @@ export function useCameraPoints() {
         points,
         addPoint,
         removePoint,
+        editPoint,
         getPointsForPlanet,
     };
 }
