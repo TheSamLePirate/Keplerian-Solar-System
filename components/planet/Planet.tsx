@@ -569,7 +569,7 @@ const Planet: React.FC<PlanetProps> = ({
             >
               <sphereGeometry args={[size, 128 * 4, 128 * 4]} />
               {/* DEBUG: Eclipse Alignment Line */}
-              {earthUniforms.numEclipseMoons.value > 0 && false && (
+              {earthUniforms.numEclipseMoons.value > 0 && true && (
                 <EclipseDebugLine
                   sunPos={earthUniforms.eclipseSunPos.value}
                   moonPos={earthUniforms.eclipseMoons.value[0]}

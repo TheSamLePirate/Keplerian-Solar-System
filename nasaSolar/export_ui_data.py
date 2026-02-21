@@ -16,10 +16,10 @@ OUTPUT_FILE = "../constants.ts"
 
 
 # Simulation Scales
-AU_SCALE = 149.6          # 1 AU = 50 3D units
-PLANET_SCALE = 1.0       # Base visual scale for planets
-MOON_ORBIT_SCALE = 59.33  # Visual exaggeration for moon orbits
-
+BASE_AU_SCALE = 149.6
+PLANET_SCALE = 1.0
+MOON_ORBIT_SCALE = 59.33
+SATELLITE_ORBIT_FACTOR = 1.063
 
 # Visual Data (Preserved from original constants.ts)
 VISUAL_DATA = {
@@ -98,7 +98,7 @@ VISUAL_DATA = {
         "name": "Io",
         "type": "moon",
         "color": "#F4D03F",
-        "radius": 0.286,
+        "radius": 0.273,
         "description": "The most geologically active body in the Solar System.",
         "rotationPeriod": 42.46,
         "axialTilt": 0.0,
@@ -178,7 +178,7 @@ VISUAL_DATA = {
         "name": "ISS",
         "type": "satellite",
         "color": "#FFFFFF",
-        "radius": 0.008,  # Tiny compared to planets, but visible
+        "radius": 0.000086,  # Tiny compared to planets, but visible
         "description": "The International Space Station, a modular space station in low Earth orbit.",
         "rotationPeriod": 0.0,  # No rotation (or attitude controlled)
         "axialTilt": 0.0,
@@ -681,10 +681,12 @@ def main():
     ts_content = f"""import {{ PlanetData }} from "./types";
 
 // Scaling constants
-export const AU_SCALE = {AU_SCALE}; // 1 AU = {AU_SCALE} 3D units
+export const BASE_AU_SCALE = {BASE_AU_SCALE}; // 1 AU = {BASE_AU_SCALE} 3D units
 export const PLANET_SCALE = {PLANET_SCALE}; // Base visual scale for planets
 export const MOON_ORBIT_SCALE = {MOON_ORBIT_SCALE}; // Visual exaggeration for moon orbits
-export const SATELLITE_ORBIT_FACTOR = 1.063;
+export const SATELLITE_ORBIT_FACTOR = {SATELLITE_ORBIT_FACTOR};
+
+
 
 // Simulation Epoch (Start derived from Python export time)
 """

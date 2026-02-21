@@ -2,8 +2,8 @@ import React, { useMemo, useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PlanetData } from '../types';
-import { PLANETS, MOON_ORBIT_SCALE, PLANET_SCALE } from '../constants';
-import { calculateOrbitalPositionWithPeriod } from '../utils/physics';
+import { PLANETS, PLANET_SCALE, BASE_AU_SCALE } from '../constants';
+import { calculateOrbitalPositionWithPeriod, getDynamicMoonOrbitScale } from '../utils/physics';
 
 // Vertex Shader
 const vertexShader = `
@@ -258,8 +258,23 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
                     if (count >= 50) return;
                     const parentPos = planetPositions.get(p.id);
                     if (parentPos) {
-                        const [mx, my, mz] = calculateOrbitalPositionWithPeriod(m.elements, t, m.period, auScale);
-                        const offset = new THREE.Vector3(mx, my, mz).multiplyScalar(MOON_ORBIT_SCALE);
+                        const [mx, my, mz] = calculateOrbitalPositionWithPeriod(m.elements, t, m.period, BASE_AU_SCALE);
+                        let orbitScale = 1;
+                        if (m.type === 'moon') {
+                            orbitScale = getDynamicMoonOrbitScale(
+                                m.elements,
+                                m.period,
+                                m.radius,
+                                p.elements.semiMajorAxis,
+                                p.radius || 1.0,
+                                auScaleRef.current,
+                                scaleFactor,
+                                BASE_AU_SCALE,
+                                PLANET_SCALE,
+                                10.0
+                            );
+                        }
+                        const offset = new THREE.Vector3(mx, my, mz).multiplyScalar(orbitScale);
                         const moonPos = parentPos.clone().add(offset);
 
                         planetPositions.set(m.id, moonPos); // Store for focus check

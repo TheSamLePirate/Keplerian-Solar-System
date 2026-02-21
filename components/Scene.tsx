@@ -20,13 +20,12 @@ import * as THREE from "three";
 import {
   PLANETS,
   SUN_DATA,
-  MOON_ORBIT_SCALE,
   PLANET_SCALE,
   SATELLITE_ORBIT_FACTOR,
   BASE_AU_SCALE,
 } from "../constants";
 import { PlanetData, CameraPoint } from "../types";
-import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
+import { calculateOrbitalPositionWithPeriod, getDynamicMoonOrbitScale } from "../utils/physics";
 import Planet from "./planet";
 
 import Sun from "./Sun";
@@ -428,9 +427,24 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       const parent = PLANETS.find((p) => p.moons?.some((m) => m.id === body.id));
       if (parent) {
         const parentPosArray = calculateOrbitalPositionWithPeriod(parent.elements, time, parent.period, auScale);
-        const childPosArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period, auScale);
+        const childPosArray = calculateOrbitalPositionWithPeriod(body.elements, time, body.period, (body.type === "moon" || body.type === "satellite") ? BASE_AU_SCALE : auScale);
 
-        const orbitScale = body.type === "moon" ? MOON_ORBIT_SCALE : 1;
+        let orbitScale = 1;
+        if (body.type === "moon") {
+          orbitScale = getDynamicMoonOrbitScale(
+            body.elements,
+            body.period,
+            body.radius,
+            parent.elements.semiMajorAxis,
+            parent.radius || 1.0,
+            auScale,
+            scaleFactor,
+            BASE_AU_SCALE,
+            PLANET_SCALE,
+            10.0
+          );
+        }
+
         const parentPos = new THREE.Vector3(parentPosArray[0], parentPosArray[1], parentPosArray[2]);
         const childPos = new THREE.Vector3(
           childPosArray[0] * orbitScale,
@@ -600,8 +614,23 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             followingBody.period,
             BASE_AU_SCALE
           );
-          const orbitScale =
-            followingBody.type === "moon" ? MOON_ORBIT_SCALE : 1;
+
+          let orbitScale = 1;
+          if (followingBody.type === "moon") {
+            orbitScale = getDynamicMoonOrbitScale(
+              followingBody.elements,
+              followingBody.period,
+              followingBody.radius,
+              parent.elements.semiMajorAxis,
+              parent.radius || 1.0,
+              auScale,
+              scaleFactor,
+              BASE_AU_SCALE,
+              PLANET_SCALE,
+              10.0
+            );
+          }
+
           const childPos = _childPos.current.set(
             childPosArray[0] * orbitScale,
             childPosArray[1] * orbitScale,

@@ -3,11 +3,10 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   PLANETS,
-
-  MOON_ORBIT_SCALE,
   PLANET_SCALE,
+  BASE_AU_SCALE,
 } from "../constants";
-import { calculateOrbitalPositionWithPeriod } from "../utils/physics";
+import { calculateOrbitalPositionWithPeriod, getDynamicMoonOrbitScale } from "../utils/physics";
 
 const MAX_BODIES = 20;
 
@@ -285,9 +284,23 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
             m.elements,
             t,
             m.period,
-            auScale
+            BASE_AU_SCALE
           );
-          const orbitScale = m.type === "moon" ? MOON_ORBIT_SCALE : 1;
+          let orbitScale = 1;
+          if (m.type === "moon") {
+            orbitScale = getDynamicMoonOrbitScale(
+              m.elements,
+              m.period,
+              m.radius,
+              p.elements.semiMajorAxis,
+              p.radius || 1.0,
+              auScaleRef.current,
+              scaleFactorRef.current,
+              BASE_AU_SCALE,
+              PLANET_SCALE,
+              10.0
+            );
+          }
           posArray[count].set(
             parentPos.x + mx * orbitScale,
             parentPos.y + my * orbitScale,
