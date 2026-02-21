@@ -42,12 +42,12 @@ export const AtmosphereMaterial = {
 
     // Optical depth integration along a ray
     float opticalDepth(vec3 origin, vec3 dir, float rayLength, float pRadius, float aRadius) {
-        float stepSize = rayLength / float(numSamples);
+        const int OPTICAL_SAMPLES = 8;
+        float stepSize = rayLength / float(OPTICAL_SAMPLES);
         float depth = 0.0;
         vec3 currentPos = origin;
 
-        for(int i = 0; i < MAX_SAMPLES; i++) {
-            if(i >= numSamples) break;
+        for(int i = 0; i < 8; i++) {
             vec3 samplePoint = currentPos + dir * (stepSize * 0.5);
             depth += densityAtPoint(samplePoint, pRadius, aRadius) * stepSize;
             currentPos += dir * stepSize;

@@ -269,20 +269,26 @@ export function usePlanetFrame({
 
       atmMeshRef.current.getWorldPosition(tempVec);
       const distance = state.camera.position.distanceTo(tempVec);
+      const isInside = distance < atmRadius;
+
       const fov = (state.camera as THREE.PerspectiveCamera).fov;
       const screenHeight = 2 * Math.tan((fov * Math.PI) / 360) * distance;
       const apparentSize = (atmRadius * 2) / screenHeight;
       const MIN_SAMPLES = 4;
       const maxSamples = atmSamples;
-      const t = Math.min(Math.max(apparentSize * 4, 0), 1);
-      const lodSamples = Math.round(
-        MIN_SAMPLES + t * (maxSamples - MIN_SAMPLES),
-      );
+
+      let lodSamples = MIN_SAMPLES;
+      if (isInside) {
+        lodSamples = Math.min(12, maxSamples);
+      } else {
+        const t = Math.min(Math.max(apparentSize * 4, 0), 1);
+        lodSamples = Math.round(
+          MIN_SAMPLES + t * (maxSamples - MIN_SAMPLES),
+        );
+      }
       u.numSamples.value = lodSamples;
 
       planetLodStore.set(data.id, { samples: lodSamples, apparentSize });
-
-      const isInside = distance < atmRadius;
 
       if (isInside !== isInsideAtmosphereRef.current) {
         isInsideAtmosphereRef.current = isInside;
