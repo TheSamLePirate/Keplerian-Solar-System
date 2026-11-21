@@ -126,7 +126,7 @@ export function useTextureLoader({
       // Only reload if LOD changed
       if (earthTextures.loadedLOD === lod) return;
 
-      const path = "/tex";
+      const path = `${import.meta.env.BASE_URL}tex`;
       const fallbackLod = lod === "ultra" ? "high" : lod;
 
       const dayPath = `${path}/cubemap/earth-day-${lod}/`;

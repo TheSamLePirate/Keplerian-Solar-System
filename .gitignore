@@ -23,12 +23,20 @@ dist-ssr
 *.sln
 *.sw?
 *.bsp
+*.bsp.bak
+*.dat
 public/tex/*
+public/models/ISS2.glb
 *.bin
 *.avi
-nasaSolar/satImages/frames
-nasaSolar/satImages/out
+nasaSolar/satImages/*
+nasaSolar/earth.json
+nasaSolar/moon.json
+nasaSolar/sun.json
+nasaSolar/earth.txt
 nasaSolar/out*
+kernels/*
+out_test_prog/*
 *.tls
 *.tpc
 

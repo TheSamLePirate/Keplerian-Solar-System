@@ -35,6 +35,7 @@ uniform float uDecay;
 uniform vec3 uScatterColor;
 uniform float uMaxDistWorld;
 uniform vec3 uCameraPos;
+uniform vec3 uSunPos;
 uniform float uShadowScale; // Strength Multiplier
 uniform float uMinBodyRadius; // Minimum radius for anti-flicker
 
@@ -139,7 +140,7 @@ void main() {
     float rayLength = max(0.0, tEnd);
     
     float totalShadow = 0.0;
-    vec3 sunPos = vec3(0.0);
+    vec3 sunPos = uSunPos;
     
     for (int i = 0; i < MAX_BODIES; i++) {
         if (i >= uBodyCount) break;
@@ -186,6 +187,7 @@ interface VolumetricLightProps {
   shadowScale: number;
   maxDistance: number;
   timeRef: React.MutableRefObject<number>;
+  originOffsetRef: React.MutableRefObject<THREE.Vector3>;
   scaleFactor: number; auScale: number;
 }
 
@@ -199,6 +201,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
   shadowScale,
   maxDistance,
   timeRef,
+  originOffsetRef,
   scaleFactor, auScale,
 }) => {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -230,6 +233,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
       uScatterColor: { value: new THREE.Color(scatterColor) },
       uMaxDistWorld: { value: maxDistance * auScaleRef.current },
       uCameraPos: { value: new THREE.Vector3(0, 50, 100) },
+      uSunPos: { value: new THREE.Vector3() },
       uShadowScale: { value: shadowScale }, // Used as Strength Multiplier
     }),
     [],
@@ -248,6 +252,7 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
     u.uSunRadius.value = 1.2 * PLANET_SCALE * scaleFactorRef.current;
     u.uMinBodyRadius.value = 0.05 * PLANET_SCALE * scaleFactorRef.current;
     u.uCameraPos.value.copy(state.camera.position);
+    u.uSunPos.value.copy(originOffsetRef.current).multiplyScalar(-1);
     u.uShadowScale.value = shadowScale;
 
     const posArray = u.uBodyPos.value as THREE.Vector3[];
@@ -265,7 +270,11 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
         auScaleRef.current
       );
       tmpVecs[count].set(x, y, z);
-      posArray[count].set(x, y, z);
+      posArray[count].set(
+        x - originOffsetRef.current.x,
+        y - originOffsetRef.current.y,
+        z - originOffsetRef.current.z,
+      );
       radArray[count] = p.radius * PLANET_SCALE * scaleFactor;
       count++;
     });
@@ -302,9 +311,9 @@ const VolumetricLight: React.FC<VolumetricLightProps> = ({
             );
           }
           posArray[count].set(
-            parentPos.x + mx * orbitScale,
-            parentPos.y + my * orbitScale,
-            parentPos.z + mz * orbitScale,
+            parentPos.x + mx * orbitScale - originOffsetRef.current.x,
+            parentPos.y + my * orbitScale - originOffsetRef.current.y,
+            parentPos.z + mz * orbitScale - originOffsetRef.current.z,
           );
           radArray[count] = m.radius * PLANET_SCALE * scaleFactor;
           count++;

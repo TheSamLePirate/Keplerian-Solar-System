@@ -110,6 +110,7 @@ const Planet: React.FC<PlanetProps> = ({
   onSelect,
   showOrbit,
   showLabel,
+  originOffsetRef,
   scaleFactor,
   auScale,
   atmOpacity = 2.5,
@@ -424,6 +425,7 @@ const Planet: React.FC<PlanetProps> = ({
   usePlanetFrame({
     data,
     timeRef,
+    originOffsetRef,
     groupRef,
     tiltGroupRef,
     meshRef,
@@ -820,6 +822,7 @@ const Planet: React.FC<PlanetProps> = ({
               onSelect={onSelect}
               showOrbit={showOrbit}
               showLabel={showLabel}
+              originOffsetRef={originOffsetRef}
               scaleFactor={scaleFactor}
               auScale={auScale}
               onPlanetClick={onPlanetClick}

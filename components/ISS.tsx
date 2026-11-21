@@ -8,12 +8,14 @@ interface ISSModelProps {
     layer?: number;
 }
 
+const BASE_URL = import.meta.env.BASE_URL;
+
 /**
  * ISS (International Space Station) 3D model
  * Loads either ISS.glb (small) or ISS2.glb (big) from the public/models folder
  */
 const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small', layer = 0 }) => {
-    const modelPath = modelType === 'big' ? "/models/ISS2.glb" : "/models/ISS.glb";
+    const modelPath = `${BASE_URL}models/ISS.glb`;
     const { scene } = useGLTF(modelPath);
 
     useEffect(() => {
@@ -61,8 +63,7 @@ const ISSModel: React.FC<ISSModelProps> = ({ scale = 1, modelType = 'small', lay
     );
 };
 
-// Preload both models
-useGLTF.preload("/models/ISS.glb");
-useGLTF.preload("/models/ISS2.glb");
+// Preload model
+useGLTF.preload(`${BASE_URL}models/ISS.glb`);
 
 export default ISSModel;

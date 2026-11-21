@@ -1,4 +1,5 @@
 import { PlanetData } from "../../types";
+import * as THREE from "three";
 
 export interface PlanetProps {
   data: PlanetData;
@@ -7,6 +8,7 @@ export interface PlanetProps {
   onSelect: (planet: PlanetData) => void;
   showOrbit: boolean;
   showLabel: boolean;
+  originOffsetRef: React.MutableRefObject<THREE.Vector3>;
   scaleFactor: number;
   auScale: number;
   atmOpacity?: number;

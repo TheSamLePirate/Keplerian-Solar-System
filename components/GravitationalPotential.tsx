@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PlanetData } from '../types';
 import { PLANETS, PLANET_SCALE, BASE_AU_SCALE } from '../constants';
@@ -156,6 +156,7 @@ interface GravitationalPotentialProps {
     planeSize: number;
     yOffset: number;
     timeRef: React.MutableRefObject<number>;
+    originOffsetRef: React.MutableRefObject<THREE.Vector3>;
     scaleFactor: number;
     focusBodyId: string | null; auScale: number;
 }
@@ -178,6 +179,7 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
     planeSize,
     yOffset,
     timeRef,
+    originOffsetRef,
     scaleFactor,
     focusBodyId, auScale
 }) => {
@@ -230,13 +232,14 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
         const masses: number[] = [];
         let count = 0;
         const t = timeRef.current;
+        const origin = originOffsetRef.current;
 
         const planetPositions = new Map<string, THREE.Vector3>();
 
         const MASS_SCALE = 2500.0 * auScaleRef.current; // Match GravityParticles
 
         // Sun at index 0
-        positions.push(0, 0, 0);
+        positions.push(-origin.x, -origin.y, -origin.z);
         masses.push(0.0002959122082855911 * MASS_SCALE);
         planetPositions.set('sun', new THREE.Vector3(0, 0, 0));
         count++;
@@ -246,7 +249,11 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
             planetPositions.set(p.id, new THREE.Vector3(x, y, z));
 
             if (count < 50) {
-                positions.push(x, y, z);
+                positions.push(
+                    x - origin.x,
+                    y - origin.y,
+                    z - origin.z
+                );
                 masses.push(p.mass * MASS_SCALE);
                 count++;
             }
@@ -279,7 +286,11 @@ const GravitationalPotential: React.FC<GravitationalPotentialProps> = ({
 
                         planetPositions.set(m.id, moonPos); // Store for focus check
 
-                        positions.push(moonPos.x, moonPos.y, moonPos.z);
+                        positions.push(
+                            moonPos.x - origin.x,
+                            moonPos.y - origin.y,
+                            moonPos.z - origin.z
+                        );
                         masses.push(m.mass * MASS_SCALE);
                         count++;
                     }

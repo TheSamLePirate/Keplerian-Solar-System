@@ -13,6 +13,7 @@ import { PLANETS, SUN_DATA, PLANET_SCALE, MOON_ORBIT_SCALE, BASE_AU_SCALE } from
 interface UsePlanetFrameParams {
   data: PlanetData;
   timeRef: React.MutableRefObject<number>;
+  originOffsetRef: React.MutableRefObject<THREE.Vector3>;
   groupRef: React.RefObject<THREE.Group | null>;
   tiltGroupRef: React.RefObject<THREE.Group | null>;
   meshRef: React.RefObject<THREE.Mesh | null>;
@@ -60,6 +61,7 @@ interface UsePlanetFrameParams {
 export function usePlanetFrame({
   data,
   timeRef,
+  originOffsetRef,
   groupRef,
   tiltGroupRef,
   meshRef,
@@ -257,7 +259,7 @@ export function usePlanetFrame({
       atmMeshRef.current.worldToLocal(tempVec);
       u.localCameraPos.value.copy(tempVec);
 
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       atmMeshRef.current.worldToLocal(tempSun);
       u.localSunPos.value.copy(tempSun);
 
@@ -301,7 +303,7 @@ export function usePlanetFrame({
     if (isEarth && earthMaterialRef.current && earthMeshRef.current) {
       const u = earthMaterialRef.current.uniforms;
 
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       earthMeshRef.current.worldToLocal(tempSun);
       u.sunDirection.value.copy(tempSun).normalize();
 
@@ -339,7 +341,7 @@ export function usePlanetFrame({
         }
 
         // 1. Sun Position in Local Space
-        tempSun.set(0, 0, 0);
+        tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
         earthMeshRef.current.worldToLocal(tempSun);
         u.eclipseSunPos.value.copy(tempSun);
 
@@ -418,7 +420,7 @@ export function usePlanetFrame({
     if (data.id === 'jupiter' && jupiterMaterialRef.current && meshRef.current) {
       const u = jupiterMaterialRef.current.uniforms;
 
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       meshRef.current.worldToLocal(tempSun);
       u.sunDirection.value.copy(tempSun).normalize();
 
@@ -432,7 +434,7 @@ export function usePlanetFrame({
       u.eclipseShadowIntensity.value = eclipseShadowIntensity;
 
       // 1. Sun Position in Local Space
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       meshRef.current.worldToLocal(tempSun);
       u.eclipseSunPos.value.copy(tempSun);
 
@@ -493,7 +495,7 @@ export function usePlanetFrame({
     if (useMoonShader && meshRef.current && moonMaterialRef.current) {
       const u = moonMaterialRef.current.uniforms;
 
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       meshRef.current.worldToLocal(tempSun);
       u.sunDirection.value.copy(tempSun).normalize();
 
@@ -515,14 +517,14 @@ export function usePlanetFrame({
       u.eclipseShadowIntensity.value = eclipseShadowIntensity;
 
       // 1. Sun Position in Local Space
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       meshRef.current.worldToLocal(tempSun);
       u.eclipseSunPos.value.copy(tempSun);
 
       u.eclipseShadowIntensity.value = eclipseShadowIntensity;
 
       // 1. Sun Position in Local Space
-      tempSun.set(0, 0, 0);
+      tempSun.copy(originOffsetRef.current).multiplyScalar(-1);
       meshRef.current.worldToLocal(tempSun);
       u.eclipseSunPos.value.copy(tempSun);
 

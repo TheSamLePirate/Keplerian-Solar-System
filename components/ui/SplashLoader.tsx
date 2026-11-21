@@ -44,7 +44,7 @@ export default function SplashLoader() {
                 {/* Splash Image */}
                 <div className="w-[80vw] h-[80vh] relative mb-8 animate-pulse" style={{ animationDuration: '3s' }}>
                     <img
-                        src="/textures/Splash.png"
+                        src={`${import.meta.env.BASE_URL}textures/Splash.png`}
                         alt="Loading..."
                         className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"
                     />

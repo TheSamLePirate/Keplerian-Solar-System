@@ -417,7 +417,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
   const sunRef = useRef<THREE.Mesh>(null);
   const focusedLightRef = useRef<THREE.DirectionalLight>(null);
   const focusedLightTargetRef = useRef<THREE.Object3D>(new THREE.Object3D());
-  const { camera, scene } = useThree();
+  const solarSystemRef = useRef<THREE.Group>(null);
+  const originOffsetRef = useRef(new THREE.Vector3());
+  const { camera } = useThree();
 
   // ... (imports)
 
@@ -429,21 +431,17 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     camera.layers.enable(1);
   }, [camera]);
 
-  // Add focused light target to scene
-  useEffect(() => {
-    scene.add(focusedLightTargetRef.current);
-    return () => {
-      scene.remove(focusedLightTargetRef.current);
-    };
-  }, [scene]);
-
   const prevTargetPos = useRef(new THREE.Vector3(0, 0, 0));
   // Pre-allocated vectors for camera follow loop (avoid GC pressure from per-frame allocations)
+  const _targetPosAbs = useRef(new THREE.Vector3());
   const _targetPos = useRef(new THREE.Vector3());
   const _parentPos = useRef(new THREE.Vector3());
   const _childPos = useRef(new THREE.Vector3());
   const _telescopePos = useRef(new THREE.Vector3());
   const _deltaPos = useRef(new THREE.Vector3());
+  const _originDelta = useRef(new THREE.Vector3());
+  const _rebaseTarget = useRef(new THREE.Vector3());
+  const _cameraPosAbs = useRef(new THREE.Vector3());
 
   // Helper to find any body
   const findBody = useCallback((id: string): PlanetData | null => {
@@ -511,7 +509,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       return outVec.set(posArray[0], posArray[1], posArray[2]);
     }
     return outVec.set(0, 0, 0);
-  }, [findBody, scaleFactor]);
+  }, [findBody, scaleFactor, auScale]);
 
   const prevResetCam = useRef(resetCameraTrigger);
 
@@ -536,6 +534,10 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       camera.position.set(0, 50, 100);
       controlsRef.current.target.set(0, 0, 0);
       prevTargetPos.current.set(0, 0, 0);
+      originOffsetRef.current.set(0, 0, 0);
+      if (solarSystemRef.current) {
+        solarSystemRef.current.position.set(0, 0, 0);
+      }
     }
     prevResetCam.current = resetCameraTrigger;
   }
@@ -567,7 +569,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     }
 
     // Update camera position store for debug panel
-    const cp = state.camera.position;
+    const cp = _cameraPosAbs.current
+      .copy(state.camera.position)
+      .add(originOffsetRef.current);
     cameraPositionStore.x = cp.x;
     cameraPositionStore.y = cp.y;
     cameraPositionStore.z = cp.z;
@@ -612,6 +616,28 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
     fov: 45,
   });
 
+  const applyFloatingOrigin = useCallback((nextOrigin: THREE.Vector3) => {
+    const delta = _originDelta.current
+      .copy(nextOrigin)
+      .sub(originOffsetRef.current);
+    if (delta.lengthSq() === 0) return;
+
+    originOffsetRef.current.copy(nextOrigin);
+
+    camera.position.sub(delta);
+    if (controlsRef.current) {
+      controlsRef.current.target.sub(delta);
+    }
+    prevTargetPos.current.sub(delta);
+    transitionStartCamPos.current.sub(delta);
+    transitionStartTarget.current.sub(delta);
+    surfaceLock.current.prevCorePos.sub(delta);
+
+    if (solarSystemRef.current) {
+      solarSystemRef.current.position.copy(originOffsetRef.current).multiplyScalar(-1);
+    }
+  }, [camera]);
+
   useFrame((_, delta) => {
     // Follow Logic - Uses followingBody instead of selectedPlanet
     if (isFollowing && followingBody && controlsRef.current) {
@@ -626,11 +652,11 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         prevFollowRadius.current = Math.max(prevFollowRadius.current, 0.01);
       }
 
-      const targetPos = _targetPos.current.set(0, 0, 0);
+      const targetPosAbs = _targetPosAbs.current.set(0, 0, 0);
       const currentTime = timeRef.current; // Read the updated time
 
       if (followingBody.type === "star") {
-        // Sun is at origin, targetPos already (0,0,0)
+        // Sun is at origin, targetPosAbs already (0,0,0)
       } else if (
         followingBody.type === "moon" ||
         followingBody.type === "satellite"
@@ -694,7 +720,7 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
             }
           }
 
-          targetPos.copy(parentPos).add(childPos);
+          targetPosAbs.copy(parentPos).add(childPos);
         }
       } else {
         const posArray = calculateOrbitalPositionWithPeriod(
@@ -703,8 +729,13 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           followingBody.period,
           auScale
         );
-        targetPos.set(posArray[0], posArray[1], posArray[2]);
+        targetPosAbs.set(posArray[0], posArray[1], posArray[2]);
       }
+
+      applyFloatingOrigin(_rebaseTarget.current.copy(targetPosAbs));
+      const targetPos = _targetPos.current
+        .copy(targetPosAbs)
+        .sub(originOffsetRef.current);
 
       if (
         surfaceTarget &&
@@ -947,7 +978,9 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
           if (telescopeTargetId) {
             // Get accurate position of target body in world space
             getBodyWorldPosition(telescopeTargetId, currentTime, _telescopePos.current);
-            controlsRef.current.target.copy(_telescopePos.current);
+            controlsRef.current.target
+              .copy(_telescopePos.current)
+              .sub(originOffsetRef.current);
 
             // Adjust Up vector based on mount
             if (telescopeMount === "equatorial") {
@@ -1097,18 +1130,24 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
       // Update Focused Light
       if (focusedLightRef.current) {
         // Target is the object being followed
-        focusedLightTargetRef.current.position.copy(targetPos);
+        focusedLightTargetRef.current.position.copy(targetPosAbs);
         focusedLightRef.current.target = focusedLightTargetRef.current;
 
         // Light position: Toward the Sun (0,0,0)
-        const toSun = _deltaPos.current.copy(targetPos).negate().normalize();
+        const toSun = _deltaPos.current.copy(targetPosAbs);
+        if (toSun.lengthSq() < 1e-10) {
+          toSun.set(0, 1, 0);
+        } else {
+          toSun.negate().normalize();
+        }
         const distance = 10 * PLANET_SCALE * scaleFactor;
         focusedLightRef.current.position
-          .copy(targetPos)
+          .copy(targetPosAbs)
           .add(toSun.multiplyScalar(distance));
         focusedLightRef.current.updateMatrixWorld();
       }
     } else {
+      applyFloatingOrigin(_rebaseTarget.current.set(0, 0, 0));
       if (surfaceLock.current.active) {
         surfaceLock.current.active = false;
         if (controlsRef.current) {
@@ -1218,133 +1257,138 @@ const SceneContentInternal: React.FC<SceneContentProps> = ({
         opacity={0.15}
         radius={50000} // Match star scale
       />
-
-      <Sun
-        ref={sunRef}
-        scaleFactor={scaleFactor}
-        luminosity={sunLuminosity}
-        sunShaderEnabled={sunShaderEnabled}
-        sunColorA={sunColorA}
-        sunColorB={sunColorB}
-        sunSpeed={sunSpeed}
-        sunNoiseScale={sunNoiseScale}
-        sunTurbulence={sunTurbulence}
-        sunRayCount={sunRayCount}
-        sunSpotIntensity={sunSpotIntensity}
-        sunSpotCount={sunSpotCount}
-        sunRimPower={sunRimPower}
-        sunRimColor={sunRimColor}
-        sunCoronas={sunCoronas}
-        sunCoronaOpacity={sunCoronaOpacity}
-        sunFilamentScale={sunFilamentScale}
-        sunFilamentIntensity={sunFilamentIntensity}
-        sunSurfaceRelief={sunSurfaceRelief}
-        sunProminenceSize={sunProminenceSize}
-        shadowEnabled={shadowEnabled}
-        shadowMapSize={shadowMapSize}
-        shadowRadius={shadowRadius}
-        lensflareEnabled={lensflareEnabled}
-        lensflareOpacity={lensflareOpacity}
-      />
-
-      {/* Focused Light for crisp shadows on followed object */}
-      {isFollowing && followingBody && (
-        <directionalLight
-          ref={focusedLightRef}
-          intensity={sunLuminosity * 2} // Boost intensity slightly as it replaces the point light
-          castShadow
-          layers={[1]} // Only affect Layer 1
-          shadow-bias={-0.00001} // Tuned bias for directional light (smaller for smaller scale)
-          shadow-mapSize={[4096, 4096]} // Increase resolution
-        >
-          <orthographicCamera
-            attach="shadow-camera"
-            args={[-0.05, 0.05, 0.05, -0.05, 0.01, 10]}
-          />
-        </directionalLight>
-      )}
-
       <ambientLight intensity={ambientLightIntensity} />
 
-      <GravitationalPotential
-        visible={gravityVisible}
-        opacity={gravityOpacity}
-        minStrength={gravityMin}
-        maxStrength={gravityMax}
-        intensityPow={gravityIntensityPow}
-        directionSat={gravityDirectionSat}
-        showDirection={gravityShowDirection}
-        planeSize={gravityPlaneSize}
-        yOffset={gravityYOffset}
-        timeRef={timeRef}
-        scaleFactor={scaleFactor}
-        auScale={auScale}
-        focusBodyId={selectedPlanet?.id || followingBody?.id || null}
-        showContours={gravityShowContours}
-        contourFreq={gravityContourFreq}
-        excludeSun={gravityExcludeSun}
-        showEquilibrium={gravityShowEquilibrium}
-        equilibriumThreshold={gravityEquilibriumThreshold}
-        showEffective={gravityShowEffective}
-        omega={omega}
-      />
+      <group ref={solarSystemRef}>
+        <Sun
+          ref={sunRef}
+          scaleFactor={scaleFactor}
+          luminosity={sunLuminosity}
+          sunShaderEnabled={sunShaderEnabled}
+          sunColorA={sunColorA}
+          sunColorB={sunColorB}
+          sunSpeed={sunSpeed}
+          sunNoiseScale={sunNoiseScale}
+          sunTurbulence={sunTurbulence}
+          sunRayCount={sunRayCount}
+          sunSpotIntensity={sunSpotIntensity}
+          sunSpotCount={sunSpotCount}
+          sunRimPower={sunRimPower}
+          sunRimColor={sunRimColor}
+          sunCoronas={sunCoronas}
+          sunCoronaOpacity={sunCoronaOpacity}
+          sunFilamentScale={sunFilamentScale}
+          sunFilamentIntensity={sunFilamentIntensity}
+          sunSurfaceRelief={sunSurfaceRelief}
+          sunProminenceSize={sunProminenceSize}
+          shadowEnabled={shadowEnabled}
+          shadowMapSize={shadowMapSize}
+          shadowRadius={shadowRadius}
+          lensflareEnabled={lensflareEnabled}
+          lensflareOpacity={lensflareOpacity}
+        />
 
-      <GravityParticles
-        visible={gravityParticlesVisible}
-        timeRef={timeRef}
-        speed={speed}
-        paused={paused}
-        auScale={auScale}
-      />
+        {/* Focused Light for crisp shadows on followed object */}
+        {isFollowing && followingBody && (
+          <directionalLight
+            ref={focusedLightRef}
+            intensity={sunLuminosity * 2} // Boost intensity slightly as it replaces the point light
+            castShadow
+            layers={[1]} // Only affect Layer 1
+            shadow-bias={-0.00001} // Tuned bias for directional light (smaller for smaller scale)
+            shadow-mapSize={[4096, 4096]} // Increase resolution
+          >
+            <orthographicCamera
+              attach="shadow-camera"
+              args={[-0.05, 0.05, 0.05, -0.05, 0.01, 10]}
+            />
+          </directionalLight>
+        )}
+        <primitive object={focusedLightTargetRef.current} />
 
-      <VolumetricLight
-        visible={volumetricEnabled}
-        intensity={volumetricIntensity}
-        samples={volumetricSamples}
-        decay={volumetricDecay}
-        scatterColor={volumetricScatterColor}
-        shadowSharpness={volumetricShadowSharpness}
-        shadowScale={volumetricShadowScale}
-        maxDistance={volumetricMaxDistance}
-        timeRef={timeRef}
-        scaleFactor={scaleFactor}
-        auScale={auScale}
-      />
-
-      {PLANETS.map((planet) => (
-        <Planet
-          key={planet.id}
-          data={planet}
+        <GravitationalPotential
+          visible={gravityVisible}
+          opacity={gravityOpacity}
+          minStrength={gravityMin}
+          maxStrength={gravityMax}
+          intensityPow={gravityIntensityPow}
+          directionSat={gravityDirectionSat}
+          showDirection={gravityShowDirection}
+          planeSize={gravityPlaneSize}
+          yOffset={gravityYOffset}
           timeRef={timeRef}
-          isSelected={selectedPlanet?.id === planet.id}
-          onSelect={onPlanetClick}
-          showOrbit={showOrbits}
-          showLabel={showLabels}
+          originOffsetRef={originOffsetRef}
           scaleFactor={scaleFactor}
           auScale={auScale}
-          atmOpacity={atmOpacity}
-          atmPow={atmPow}
-          atmSamples={atmSamples}
-          issModel={issModel}
-          focusedBodyId={isFollowing && followingBody ? followingBody.id : null}
-          showEarthGrid={showEarthGrid}
-          // Earth Graphics
-          earthTextureLOD={earthTextureLOD}
-          showClouds={showClouds}
-          cloudSpeed={cloudSpeed}
-          cloudOpacity={cloudOpacity}
-          showNightLights={showNightLights}
-          bumpScale={bumpScale}
-          specularStrength={specularStrength}
-          nightLightIntensity={nightLightIntensity}
-          dayIntensity={dayIntensity}
-          earthRotationOffset={earthRotationOffset}
-          earthTextureOffset={earthTextureOffset}
-          displacementScale={displacementScale}
-          cloudRotationOffset={cloudRotationOffset}
-          eclipseShadowIntensity={eclipseShadowIntensity}
+          focusBodyId={selectedPlanet?.id || followingBody?.id || null}
+          showContours={gravityShowContours}
+          contourFreq={gravityContourFreq}
+          excludeSun={gravityExcludeSun}
+          showEquilibrium={gravityShowEquilibrium}
+          equilibriumThreshold={gravityEquilibriumThreshold}
+          showEffective={gravityShowEffective}
+          omega={omega}
         />
-      ))}
+
+        <GravityParticles
+          visible={gravityParticlesVisible}
+          timeRef={timeRef}
+          speed={speed}
+          paused={paused}
+          auScale={auScale}
+        />
+
+        <VolumetricLight
+          visible={volumetricEnabled}
+          intensity={volumetricIntensity}
+          samples={volumetricSamples}
+          decay={volumetricDecay}
+          scatterColor={volumetricScatterColor}
+          shadowSharpness={volumetricShadowSharpness}
+          shadowScale={volumetricShadowScale}
+          maxDistance={volumetricMaxDistance}
+          timeRef={timeRef}
+          originOffsetRef={originOffsetRef}
+          scaleFactor={scaleFactor}
+          auScale={auScale}
+        />
+
+        {PLANETS.map((planet) => (
+          <Planet
+            key={planet.id}
+            data={planet}
+            timeRef={timeRef}
+            isSelected={selectedPlanet?.id === planet.id}
+            onSelect={onPlanetClick}
+            showOrbit={showOrbits}
+            showLabel={showLabels}
+            originOffsetRef={originOffsetRef}
+            scaleFactor={scaleFactor}
+            auScale={auScale}
+            atmOpacity={atmOpacity}
+            atmPow={atmPow}
+            atmSamples={atmSamples}
+            issModel={issModel}
+            focusedBodyId={isFollowing && followingBody ? followingBody.id : null}
+            showEarthGrid={showEarthGrid}
+            // Earth Graphics
+            earthTextureLOD={earthTextureLOD}
+            showClouds={showClouds}
+            cloudSpeed={cloudSpeed}
+            cloudOpacity={cloudOpacity}
+            showNightLights={showNightLights}
+            bumpScale={bumpScale}
+            specularStrength={specularStrength}
+            nightLightIntensity={nightLightIntensity}
+            dayIntensity={dayIntensity}
+            earthRotationOffset={earthRotationOffset}
+            earthTextureOffset={earthTextureOffset}
+            displacementScale={displacementScale}
+            cloudRotationOffset={cloudRotationOffset}
+            eclipseShadowIntensity={eclipseShadowIntensity}
+          />
+        ))}
+      </group>
 
       <EffectComposer depthBuffer={true} multisampling={0}>
         {enableAO && (

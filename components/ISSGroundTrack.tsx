@@ -127,7 +127,7 @@ const ISSGroundTrack: React.FC<ISSGroundTrackProps> = ({ planet, date, auScale }
 
     return (
         <div className="w-full relative border border-white/20 rounded overflow-hidden select-none bg-black">
-            <img src="/textures/earth_daymap.jpg" alt="Earth Map" className="w-full h-auto block opacity-50" />
+            <img src={`${import.meta.env.BASE_URL}textures/earth_daymap.jpg`} alt="Earth Map" className="w-full h-auto block opacity-50" />
             <canvas
                 ref={canvasRef}
                 className="absolute inset-0 w-full h-full"
